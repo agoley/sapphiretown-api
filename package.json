@@ -1,0 +1,23 @@
+{
+  "name": "sapphiretown-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agoley/sapphiretown-api.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/agoley/sapphiretown-api/issues"
+  },
+  "homepage": "https://github.com/agoley/sapphiretown-api#readme",
+  "dependencies": {
+    "restify": "^8.3.3",
+    "restify-cors-middleware": "^1.1.1"
+  }
+}
