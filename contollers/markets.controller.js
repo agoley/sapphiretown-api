@@ -1,10 +1,9 @@
+const ms = require('../services/markets.service');
+
 const MarketsController = {
     markets: (server) => {
-    server.get('/markets', (req, res, next) => {
-      res.send('Hello from route 1');
-      return next();
-    });
-  }
+      server.get("/markets/nasdaq", (req, res, next) => { ms.nasdaq(req, res, next) });
+    }
 }
 
 module.exports = MarketsController;
