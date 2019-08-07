@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/agoley/sapphiretown-api#readme",
   "dependencies": {
-    "request": "^2.88.0",
+    "request-promise": "^4.2.4",
     "restify": "^8.3.3",
     "restify-cors-middleware": "^1.1.1"
   }
