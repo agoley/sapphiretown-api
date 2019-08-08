@@ -3,7 +3,7 @@ var restify = require('restify');
 var controllers = require('./contollers/index.controller');
 
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN;
-const PORT = process.env.PORT | 8080;
+const PORT = process.env.PORT || 8080;
 
 // CORS CONFIG
 const cors = resitifyCorsMiddleware({  
