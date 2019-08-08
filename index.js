@@ -2,9 +2,11 @@ var resitifyCorsMiddleware = require('restify-cors-middleware');
 var restify = require('restify');
 var controllers = require('./contollers/index.controller');
 
+const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN;
+
 // CORS CONFIG
 const cors = resitifyCorsMiddleware({  
-    origins: ["*"],
+    origins: [RESTIFY_ORIGIN], 
     allowHeaders: ["Authorization"],
     exposeHeaders: ["Authorization"]
 });
