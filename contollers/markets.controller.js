@@ -1,8 +1,8 @@
-const ms = require('../services/markets.service');
+const _markets = require('../services/markets.service');
 
 const MarketsController = {
     markets: (server) => {
-      server.get("/markets/nasdaq", (req, res, next) => { ms.nasdaq(req, res, next) });
+      server.get("/markets/nasdaq", (req, res, next) => { _markets.nasdaq(req, res, next) });
     }
 }
 
