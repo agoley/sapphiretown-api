@@ -1,9 +1,9 @@
-const MarketsController = require('./markets.controller');
-const IntradayController = require('./intraday.controller');
+const MarketsController = require("./markets.controller");
+const QueryController = require("./query.controller");
 
 function IndexController(server) {
   MarketsController.markets(server);
-  IntradayController.query(server);
-};
+  QueryController.query(server);
+}
 
 module.exports = IndexController;

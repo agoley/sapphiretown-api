@@ -1,5 +1,6 @@
 const ALPHA_ADVANTAGE_API_KEY = process.env.ALPHA_ADVANTAGE_API_KEY;
 const rp = require("request-promise");
+const funcs = require('../common/functions');
 
 const MarketsService = {
   nasdaq: (req, res, next) => {
@@ -9,7 +10,7 @@ const MarketsService = {
       { json: true }
     )
       .then(data => {
-        res.send(data);
+        res.send(funcs.extractLastPriceFromSeries(data));
         return next();
       })
       .catch(error => {
