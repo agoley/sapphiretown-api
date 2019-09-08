@@ -3,17 +3,20 @@ var unirest = require("unirest");
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
-const QueryService = {
-  query: (req, res, next) => {
+const ChartService = {
+  day: (req, res, next) => {
+
     var uni = unirest(
       "GET",
-      "https://" + X_RAPID_API_HOST + "/stock/get-detail"
+      "https://" + X_RAPID_API_HOST + "/market/get-charts"
     );
 
     uni.query({
       region: "US",
       lang: "en",
-      symbol: req.body.symbol
+      symbol: req.body.symbol,
+      interval: "5m",
+      range: "1d"
     });
 
     uni.headers({
@@ -30,4 +33,4 @@ const QueryService = {
   }
 };
 
-module.exports = QueryService;
+module.exports = ChartService;
