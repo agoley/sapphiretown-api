@@ -4,7 +4,7 @@ const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
 const QueryService = {
-  query: (req, res, next) => {
+  query: (req, res, next, count) => {
     var uni = unirest(
       "GET",
       "https://" + X_RAPID_API_HOST + "/stock/get-detail"
@@ -23,9 +23,17 @@ const QueryService = {
 
     uni.end(function(yahoo) {
       if (res.error) throw new Error(res.error);
+      // console.log(yahoo.status)
 
-      res.send(yahoo.body);
-      return next();
+      count = count ? count + 1 : 1;
+      if (yahoo.status !== 200 && count < 5) {
+        setTimeout(() => {
+          QueryService.query(req, res, next, count);
+        }, 5000);
+      } else {
+        res.send(yahoo.body);
+        return next();
+      }
     });
   }
 };
