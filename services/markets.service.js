@@ -1,23 +1,65 @@
-const ALPHA_ADVANTAGE_API_KEY = process.env.ALPHA_ADVANTAGE_API_KEY;
-const rp = require("request-promise");
-const funcs = require('../common/functions');
+var unirest = require("unirest");
+
+const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
+const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
 const MarketsService = {
-  nasdaq: (req, res, next) => {
-    rp(
-      "https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=NASDAQ:.IXIC&apikey=" +
-        ALPHA_ADVANTAGE_API_KEY,
-      { json: true }
-    )
-      .then(data => {
-        res.send(funcs.extractLastPriceFromSeries(data));
+  markets: (req, res, next, count) => {
+    var uni = unirest(
+      "GET",
+      "https://" + X_RAPID_API_HOST + "/market/get-summary"
+    );
+
+    uni.query({
+      region: "US",
+      lang: "en"
+    });
+
+    uni.headers({
+      "x-rapidapi-host": X_RAPID_API_HOST,
+      "x-rapidapi-key": X_RAPID_API_KEY
+    });
+
+    uni.end(function(yahoo) {
+      if (res.error) throw new Error(res.error);
+      if (yahoo.status !== 200 && count < 5) {
+        setTimeout(() => {
+          MarketsService.markets(req, res, next, count);
+        }, 5000);
+      } else {
+        res.send(yahoo.body);
         return next();
-      })
-      .catch(error => {
-        console.log(error);
-        res.send(error);
+      }
+    });
+  },
+  autocomplete: (req, res, next, count) => {
+    var uni = unirest(
+      "GET",
+      "https://" + X_RAPID_API_HOST + "/market/auto-complete"
+    );
+
+    uni.query({
+      region: "US",
+      lang: "en",
+      query: req.body.query
+    });
+
+    uni.headers({
+      "x-rapidapi-host": X_RAPID_API_HOST,
+      "x-rapidapi-key": X_RAPID_API_KEY
+    });
+
+    uni.end(function(yahoo) {
+      if (res.error) throw new Error(res.error);
+      if (yahoo.status !== 200 && count < 5) {
+        setTimeout(() => {
+          MarketsService.autocomplete(req, res, next, count);
+        }, 5000);
+      } else {
+        res.send(yahoo.body);
         return next();
-      });
+      }
+    });
   }
 };
 

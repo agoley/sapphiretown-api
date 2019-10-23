@@ -35,10 +35,6 @@ const ChartService = {
         res.send(yahoo.body);
         return next();
       }
-
-
-      res.send(yahoo.body);
-      return next();
     });
   }
 };
