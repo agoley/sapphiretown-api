@@ -1,10 +1,18 @@
 var unirest = require("unirest");
+const Cache = require("../common/cache");
 
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
+var chartCache = new Cache();
+
 const ChartService = {
   day: (req, res, next, count) => {
+
+    if (chartCache.get(req.body.symbol)) {
+      res.send(chartCache.get(req.body.symbol));
+      return next();
+    }
 
     var uni = unirest(
       "GET",
@@ -32,6 +40,7 @@ const ChartService = {
           ChartService.day(req, res, next, count);
         }, 5000);
       } else {
+        chartCache.save(req.body.symbol, yahoo.body);
         res.send(yahoo.body);
         return next();
       }
