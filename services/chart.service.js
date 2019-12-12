@@ -9,8 +9,10 @@ var chartCache = new Cache();
 const ChartService = {
   day: (req, res, next, count) => {
 
-    if (chartCache.get(req.body.symbol)) {
-      res.send(chartCache.get(req.body.symbol));
+    const cacheKey = JSON.stringify(req.body).replace(/\s+/g, '');
+
+    if (chartCache.get(cacheKey)) {
+      res.send(chartCache.get(cacheKey));
       return next();
     }
 
@@ -23,8 +25,8 @@ const ChartService = {
       region: "US",
       lang: "en",
       symbol: req.body.symbol,
-      interval: "5m",
-      range: "1d"
+      interval: req.body.interval,
+      range: req.body.range
     });
 
     uni.headers({
@@ -40,7 +42,7 @@ const ChartService = {
           ChartService.day(req, res, next, count);
         }, 5000);
       } else {
-        chartCache.save(req.body.symbol, yahoo.body);
+        chartCache.save(cacheKey, yahoo.body);
         res.send(yahoo.body);
         return next();
       }
