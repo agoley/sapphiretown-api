@@ -8,8 +8,9 @@ var marketCache = new Cache();
 
 const MarketsService = {
   markets: (req, res, next, count) => {
-    if (marketCache.get("get-summary")) {
-      res.send(marketCache.get("get-summary"));
+    if (marketCache.get("summary")) {
+      console.log("found");
+      res.send(marketCache.get("summary"));
       return next();
     }
 
@@ -33,9 +34,12 @@ const MarketsService = {
       if (yahoo.status !== 200 && count < 5) {
         setTimeout(() => {
           MarketsService.markets(req, res, next, count);
-        }, 5000);
+        }, 5000 * count);
       } else {
-        marketCache.save("get-summary", yahoo.body);
+        if (yahoo.status !== 200) {
+          // Only cache is succesfull.
+          marketCache.save("summary", yahoo.body);
+        }
         res.send(yahoo.body);
         return next();
       }
@@ -70,7 +74,7 @@ const MarketsService = {
           MarketsService.autocomplete(req, res, next, count);
         }, 5000);
       } else {
-        marketCache.save(req.body.query, yahoo.body);
+        marketCache.save(eq.body.query, yahoo.body);
         res.send(yahoo.body);
         return next();
       }
