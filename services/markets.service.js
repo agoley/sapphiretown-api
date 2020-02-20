@@ -74,7 +74,7 @@ const MarketsService = {
           MarketsService.autocomplete(req, res, next, count);
         }, 5000);
       } else {
-        marketCache.save(eq.body.query, yahoo.body);
+        marketCache.save(req.body.query, yahoo.body);
         res.send(yahoo.body);
         return next();
       }
