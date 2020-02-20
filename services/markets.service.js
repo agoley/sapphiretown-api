@@ -9,7 +9,6 @@ var marketCache = new Cache();
 const MarketsService = {
   markets: (req, res, next, count) => {
     if (marketCache.get("summary")) {
-      console.log("found");
       res.send(marketCache.get("summary"));
       return next();
     }
@@ -36,8 +35,8 @@ const MarketsService = {
           MarketsService.markets(req, res, next, count);
         }, 5000 * count);
       } else {
-        if (yahoo.status !== 200) {
-          // Only cache is succesfull.
+        if (yahoo.status === 200) {
+          // Only cache if successfull.
           marketCache.save("summary", yahoo.body);
         }
         res.send(yahoo.body);
