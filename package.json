@@ -18,11 +18,16 @@
   },
   "homepage": "https://github.com/agoley/sapphiretown-api#readme",
   "dependencies": {
+    "aws-sdk": "^2.695.0",
+    "bcrypt": "^5.0.0",
+    "jsonwebtoken": "^8.5.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
     "restify": "^8.4.0",
     "restify-cors-middleware": "^1.1.1",
+    "restify-jwt-community": "^1.1.4",
     "rxjs": "^6.5.2",
-    "unirest": "^0.6.0"
+    "unirest": "^0.6.0",
+    "uuid": "^8.1.0"
   }
 }
