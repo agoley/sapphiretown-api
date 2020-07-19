@@ -10,7 +10,7 @@ var server = restify.createServer();
 // CORS CONFIG
 const corsMiddleware = require("restify-cors-middleware");
 const cors = corsMiddleware({
-  origins: [RESTIFY_ORIGIN]
+  origins: [RESTIFY_ORIGIN, "https://www.ezfol.io"]
 });
 
 // APPLY CORS
@@ -24,10 +24,10 @@ server.use(
   })
 );
 
-server.pre((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  next();
-});
+// server.pre((req, res, next) => {
+//   res.header("Access-Control-Allow-Origin", "*");
+//   next();
+// });
 
 // APPLY CONTROLLERS
 controllers(server);
