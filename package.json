@@ -21,6 +21,7 @@
     "aws-sdk": "^2.695.0",
     "bcrypt": "^5.0.0",
     "jsonwebtoken": "^8.5.1",
+    "nodemailer": "^6.4.10",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
     "restify": "^8.4.0",
