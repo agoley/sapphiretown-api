@@ -53,33 +53,72 @@ const UserService = {
     docClient.scan(params, onScan);
   },
   create: (req, res, next) => {
-    const usr = {
-      id: uuidv1(),
-      username: req.body.username,
-      email: req.body.email,
-      password: bcrypt.hashSync(req.body.password, 10)
-    };
-
+    // Check for username or email conflicts.
     var params = {
       TableName: "User",
-      Item: {
-        id: { S: usr.id },
-        username: { S: usr.username },
-        email: { S: usr.email },
-        password: { S: usr.password },
+      FilterExpression: "(username = :username or email = :email)",
+      ExpressionAttributeValues: {
+        ":username": req.body.username,
+        ":email": req.body.email,
       },
     };
 
-    // Call DynamoDB to add the item to the table
-    ddb.putItem(params, (err, data) => {
+    const onScan = (err, data) => {
       if (err) {
-        console.log("Error", err);
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
       } else {
-        delete usr.password;
-        res.send(usr);
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          if (req.body.username === user.username) {
+            // A user already exists with the username.
+            res.send({
+              message: "There is already an account with that username.",
+            });
+          } else {
+            // A user already exists with the email.
+            res.send({
+              message: "There is already an account with that email.",
+            });
+          }
+        } else {
+          // There is no conflict.
+          const usr = {
+            id: uuidv1(),
+            username: req.body.username,
+            email: req.body.email,
+            password: bcrypt.hashSync(req.body.password, 10),
+          };
+
+          var createParams = {
+            TableName: "User",
+            Item: {
+              id: { S: usr.id },
+              username: { S: usr.username },
+              email: { S: usr.email },
+              password: { S: usr.password },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+            } else {
+              delete usr.password;
+              res.send(usr);
+              return next();
+            }
+          });
+        }
         return next();
       }
-    });
+    };
+    docClient.scan(params, onScan);
   },
 };
 
