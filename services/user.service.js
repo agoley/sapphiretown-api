@@ -2,6 +2,19 @@ let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
 const bcrypt = require("bcrypt");
 
+// TODO abastract mailer/transporter
+var nodemailer = require("nodemailer");
+
+var transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: "ezfolio.contact@gmail.com",
+    pass: process.env.MAIL_PASS,
+  },
+});
+
 AWS.config.update({
   region: "us-east-1",
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -11,7 +24,192 @@ AWS.config.update({
 var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
 
+// TODO: abstract a lot of the db accesses to observables.
+
 const UserService = {
+  reset: (req, res, next) => {
+    var params = {
+      TableName: "Reset",
+      FilterExpression: "(#token = :token)",
+      ExpressionAttributeNames: { "#token": "token" },
+      ExpressionAttributeValues: {
+        ":token": req.body.token,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          var reset = data["Items"][0];
+
+          var userLookupParams = {
+            TableName: "User",
+            FilterExpression: "(id = :user_id)",
+            ExpressionAttributeValues: {
+              ":user_id": reset.user_id,
+            },
+          };
+
+          const onUserLookupScan = (err, data) => {
+            if (err) {
+              console.error(
+                "Unable to scan the table. Error JSON:",
+                JSON.stringify(err, null, 2)
+              );
+              res.send({
+                color: "red",
+                message: "There was en error resetting your password.",
+              });
+            } else {
+              if (data["Items"].length > 0) {
+                var user = data["Items"][0];
+
+                var params = {
+                  TableName: "User",
+                  Key: {
+                    id: user.user_id,
+                  },
+                  UpdateExpression: "set password = :password",
+                  ExpressionAttributeValues: {
+                    ":password": bcrypt.hashSync(req.body.password, 10),
+                  },
+                  ReturnValues: "UPDATED_NEW",
+                };
+
+                docClient.update(params, function (err, data) {
+                  if (err) {
+                    console.error(
+                      "Unable to update item. Error JSON:",
+                      JSON.stringify(err, null, 2)
+                    );
+                    res.send({
+                      color: "red",
+                      message: "There was an error updating your password.",
+                    });
+                  } else {
+                    console.log(
+                      "UpdateItem succeeded:",
+                      JSON.stringify(data, null, 2)
+                    );
+                    delete user.password;
+                    res.send(user);
+                    return next();
+                  }
+                });
+              } else {
+                res.send({
+                  color: "red",
+                  message: "Unable to find account.",
+                });
+              }
+              return next();
+            }
+          };
+          docClient.scan(params, onUserLookupScan);
+        } else {
+          res.send({
+            color: "red",
+            message:
+              "Invalid token: Token may have expired. Try requesting a reset again.",
+          });
+        }
+        return next();
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  forgot: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(username = :username or email = :username)",
+      ExpressionAttributeValues: {
+        ":username": req.body.identifier,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send({
+          color: "red",
+          message: "There was an error resetting the password.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          const reset = {
+            token: uuidv1(),
+            user_id: user.id,
+            expdate: Math.floor(new Date().getTime() / 1000) + 86400,
+          };
+
+          var createParams = {
+            TableName: "Reset",
+            Item: {
+              token: { S: reset.token },
+              user_id: { S: reset.user_id },
+              expdate: { N: reset.expdate.toString() },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+              res.send({});
+              return next();
+            } else {
+              var mailOptions = {
+                from: "ezfolio.contact@gmail.com",
+                to: user.email,
+                subject: "Reset your password",
+                html:
+                  "<p>We recieved a request to reset your password. Use the link below to complete the process." +
+                  " This link will expire in 24 hours.</p>" +
+                  "<a href='https://www.ezfol.io/reset?token=" +
+                  reset.token +
+                  "'>Reset Password for " +
+                  user.username +
+                  "</a>" +
+                  "<p>Thank you for being a valued user of EZFol.io.</p>" +
+                  "<p>Sincerely,</p>" +
+                  "<p> - EZFol.io Customer Service Team",
+              };
+
+              transporter.sendMail(mailOptions, function (error, info) {
+                if (error) {
+                  console.log(error);
+                  return next();
+                } else {
+                  res.send({});
+                  return next();
+                }
+              });
+
+              res.send({});
+              return next();
+            }
+          });
+        } else {
+          res.send({
+            color: "red",
+            message: "Unable to find account with username or email.",
+          });
+        }
+        return next();
+      }
+    };
+    docClient.scan(params, onScan);
+  },
   auth: (req, res, next) => {
     var params = {
       TableName: "User",
@@ -27,6 +225,10 @@ const UserService = {
           "Unable to scan the table. Error JSON:",
           JSON.stringify(err, null, 2)
         );
+        res.send({
+          color: "red",
+          message: "There was an error signing in.",
+        });
       } else {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
@@ -41,11 +243,17 @@ const UserService = {
               res.send(user);
             } else {
               //go away
-              res.send();
+              res.send({
+                color: "red",
+                message: "Incorrect Password.",
+              });
             }
           });
         } else {
-          res.send();
+          res.send({
+            color: "red",
+            message: "Unable to find account with username or email.",
+          });
         }
         return next();
       }

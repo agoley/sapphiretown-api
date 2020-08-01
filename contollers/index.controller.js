@@ -12,6 +12,8 @@ function IndexController(server) {
   ChartController.series(server);    
   UserController.create(server);   
   UserController.auth(server);   
+  UserController.forgot(server);  
+  UserController.reset(server);    
   PortfolioController.get(server);
   PortfolioController.upsert(server);
 }

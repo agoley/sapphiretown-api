@@ -11,6 +11,16 @@ const UserController = {
       _user.create(req, res, next);
     });
   },
+  forgot: (server) => {
+    server.post("/api/v1/forgot", (req, res, next) => {
+      _user.forgot(req, res, next);
+    });
+  },
+  reset: (server) => {
+    server.post("/api/v1/reset", (req, res, next) => {
+      _user.reset(req, res, next);
+    });
+  },
 };
 
 module.exports = UserController;
