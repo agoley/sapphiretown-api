@@ -20,15 +20,15 @@ const MarketsService = {
 
     uni.query({
       region: "US",
-      lang: "en"
+      lang: "en",
     });
 
     uni.headers({
       "x-rapidapi-host": X_RAPID_API_HOST,
-      "x-rapidapi-key": X_RAPID_API_KEY
+      "x-rapidapi-key": X_RAPID_API_KEY,
     });
 
-    uni.end(function(yahoo) {
+    uni.end(function (yahoo) {
       if (res.error) throw new Error(res.error);
       if (yahoo.status !== 200 && count < 5) {
         setTimeout(() => {
@@ -50,25 +50,21 @@ const MarketsService = {
       return next();
     }
 
-    var uni = unirest(
-      "GET",
-      "https://" + X_RAPID_API_HOST + "/market/auto-complete"
-    );
+    var uni = unirest("GET", "https://" + X_RAPID_API_HOST + "/auto-complete");
 
     uni.query({
       region: "US",
-      lang: "en",
-      query: req.body.query
+      q: req.body.query,
     });
 
     uni.headers({
       "x-rapidapi-host": X_RAPID_API_HOST,
-      "x-rapidapi-key": X_RAPID_API_KEY
+      "x-rapidapi-key": X_RAPID_API_KEY,
     });
 
-    uni.end(function(yahoo) {
+    uni.end(function (yahoo) {
       if (res.error) throw new Error(res.error);
-      if (yahoo.status !== 200 && count < 5) {
+      if ((yahoo.status !== 200 || yahoo.message) && count < 5) {
         setTimeout(() => {
           MarketsService.autocomplete(req, res, next, count);
         }, 5000);
@@ -78,7 +74,7 @@ const MarketsService = {
         return next();
       }
     });
-  }
+  },
 };
 
 module.exports = MarketsService;

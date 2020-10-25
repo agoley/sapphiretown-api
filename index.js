@@ -1,4 +1,3 @@
-var resitifyCorsMiddleware = require("restify-cors-middleware");
 var restify = require("restify");
 var controllers = require("./contollers/index.controller");
 
@@ -23,11 +22,6 @@ server.use(
     mapParams: true
   })
 );
-
-// server.pre((req, res, next) => {
-//   res.header("Access-Control-Allow-Origin", "*");
-//   next();
-// });
 
 // APPLY CONTROLLERS
 controllers(server);
