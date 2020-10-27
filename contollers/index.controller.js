@@ -9,6 +9,7 @@ function IndexController(server) {
   MailController.mail(server);
   MarketsController.markets(server);
   QueryController.query(server);
+  QueryController.insights(server);
   ChartController.series(server);    
   UserController.create(server);   
   UserController.auth(server);   
