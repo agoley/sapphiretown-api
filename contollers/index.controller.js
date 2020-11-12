@@ -10,6 +10,7 @@ function IndexController(server) {
   MarketsController.markets(server);
   QueryController.query(server);
   QueryController.insights(server);
+  QueryController.summary(server);
   ChartController.series(server);    
   UserController.create(server);   
   UserController.auth(server);   

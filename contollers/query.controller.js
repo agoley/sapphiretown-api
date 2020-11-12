@@ -11,6 +11,11 @@ const QueryController = {
       _query.insights(req, res, next);
     });
   },
+  summary: (server) => {
+    server.post("/api/v1/summary", (req, res, next) => {
+      _query.summary(req, res, next);
+    });
+  }
 };
 
 module.exports = QueryController;
