@@ -1,5 +1,7 @@
 const Portfolio = require("../common/portfolio");
+const HistoryService = require("../services/history.service");
 let AWS = require("aws-sdk");
+const { v1: uuidv1 } = require("uuid");
 
 AWS.config.update({
   region: "us-east-1",
@@ -11,7 +13,7 @@ var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
 
 /**
- * Chornical users portfolio history.
+ * Loops through all users adding the current value to their history.
  */
 const chronical = () => {
   let params;
@@ -21,13 +23,13 @@ const chronical = () => {
     TableName: "User",
   };
 
-  docClient.scan(params, function (err, data) {
+  docClient.scan(params, function (err, users) {
     if (err) {
       console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
     } else {
       console.log("Query succeeded.");
       // Iterate users.
-      data.Items.forEach(function (item) {
+      users.Items.forEach(function (user) {
         // Get or create empty history record for user.
 
         docClient.scan(
@@ -36,34 +38,49 @@ const chronical = () => {
             FilterExpression: "(#user_id = :user_id)",
             ExpressionAttributeNames: { "#user_id": "user_id" },
             ExpressionAttributeValues: {
-              ":user_id": item.id,
+              ":user_id": user.id,
             },
           },
-          (err, data) => {
+          (err, histories) => {
             if (err) {
               console.log(err);
             } else {
+              let history = histories.Items[0];
               docClient.scan(
                 {
                   TableName: "Portfolio",
                   FilterExpression: "(#user_id = :user_id)",
                   ExpressionAttributeNames: { "#user_id": "user_id" },
                   ExpressionAttributeValues: {
-                    ":user_id": item.id,
+                    ":user_id": user.id,
                   },
                 },
-                (err, data) => {
-                  if (err || data.Items.length === 0) {
+                (err, portfolios) => {
+                  if (err || portfolios.Items.length === 0) {
                     // TODO: handle this error.
                   } else {
                     const portfolio = new Portfolio(
-                      data.Items[0].id,
-                      JSON.parse(data.Items[0].transactions)
+                      portfolios.Items[0].id,
+                      JSON.parse(portfolios.Items[0].transactions)
                     );
+                    // Get current value and add.
                     portfolio.calcValue().then((value) => {
-                      console.log(
-                        `${item.username} has a portfolio with value ${value}`
-                      );
+                      if (!history) {
+                        history = {
+                          id: uuidv1(),
+                          user_id: user.id,
+                          values: [
+                            { timestamp: new Date(), value: value.toFixed(2) },
+                          ],
+                        };
+                      } else {
+                        history.values = JSON.parse(history.values).push(value);
+                      }
+
+                      // TOOD: abstract this translation.
+                      history.values = JSON.stringify(history.values);
+                      // Save history value.
+                      HistoryService.upsert(history).then((res) => {});
                     });
                   }
                 }
@@ -74,10 +91,6 @@ const chronical = () => {
       });
     }
   });
-
-  // Get current value and add.
-
-  // Save history value.
 };
 
 module.exports = chronical;

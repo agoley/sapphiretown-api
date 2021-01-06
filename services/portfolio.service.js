@@ -2,6 +2,7 @@ let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
 const bcrypt = require("bcrypt");
 const { DataPipeline } = require("aws-sdk");
+const HistoryService = require("./history.service");
 
 AWS.config.update({
   region: "us-east-1",
@@ -46,6 +47,7 @@ const PortfolioService = {
                 JSON.stringify(err, null, 2)
               );
             } else {
+              HistoryService.record(req.params.userId).then((res) => {});
               res.send(data);
             }
           });
@@ -70,12 +72,12 @@ const PortfolioService = {
             if (err) {
               console.log("Error", err);
             } else {
+              HistoryService.record(req.params.userId).then((res) => {});
               res.send(data);
               return next();
             }
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);

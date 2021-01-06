@@ -53,13 +53,13 @@ class Portfolio {
     return new Promise((resolve, reject) => {
       forkJoin(calls).subscribe((summaries) => {
         summaries.forEach((summary) => {
-          if (summary.data && summary.data.price) {
+          if (summary && summary.price) {
             const h = this.holdings.find(
               (h) =>
                 h.symbol.toUpperCase().trim() ===
-                summary.data.price.symbol.toUpperCase().trim()
+                summary.price.symbol.toUpperCase().trim()
             );
-            value += summary.data.price.regularMarketPrice.raw * h.shares;
+            value += summary.price.regularMarketPrice.raw * h.shares;
           }
         });
         resolve(value);

@@ -30,3 +30,8 @@ controllers(server);
 server.listen(PORT, function () {
   console.log("%s listening at %s", server.name, server.url);
 });
+
+// Every 24hrs records all users value and add to their history.
+setTimeout(() => {
+  chronical();
+}, 86400000);
