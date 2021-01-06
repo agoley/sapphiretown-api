@@ -300,6 +300,7 @@ const UserService = {
             username: req.body.username,
             email: req.body.email,
             password: bcrypt.hashSync(req.body.password, 10),
+            created: new Date().toString()
           };
 
           var createParams = {
@@ -309,6 +310,7 @@ const UserService = {
               username: { S: usr.username },
               email: { S: usr.email },
               password: { S: usr.password },
+              created: {S: usr.created}
             },
           };
 
