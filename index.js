@@ -1,6 +1,7 @@
 var restify = require("restify");
 var controllers = require("./contollers/index.controller");
 var chronical = require("./jobs/chronical.job");
+var CryptoService = require("./services/crypto.service");
 
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN || "*";
 const PORT = process.env.PORT || 8080;
@@ -32,6 +33,6 @@ server.listen(PORT, function () {
 });
 
 // Every 24hrs records all users value and add to their history.
-setTimeout(() => {
+setInterval(() => {
   chronical();
 }, 86400000);

@@ -142,7 +142,7 @@ const record = (userId) => {
       const portfolio = new Portfolio(data.id, JSON.parse(data.transactions));
       portfolio.value.then((value) => {
         getByUser(userId).then((history) => {
-          if (history) {
+          if (history && history.values) {
             // TODO: abstract this.
             values = JSON.parse(history.values);
             values.push({

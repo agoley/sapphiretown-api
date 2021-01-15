@@ -2,14 +2,15 @@ import { Subject } from "rxjs";
 const { v1: uuidv1 } = require("uuid");
 
 class Messenger {
-  constructor() {
+  constructor(timeout) {
     this.messages = [];
     this.responses = new Subject();
+    this.timeout = timeout;
   }
 
   load(message) {
     if (this.messages.length === 0) {
-      this.interval = setInterval(this.next.bind(this), 250);
+      this.interval = setInterval(this.next.bind(this), this.timeout || 250);
     }
     const id = uuidv1();
     this.messages.push({
@@ -33,5 +34,6 @@ class Messenger {
 }
 
 module.exports = {
-  yahoo: new Messenger(),
+  yahoo: new Messenger(300),
+  cmc: new Messenger(100),
 };

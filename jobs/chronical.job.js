@@ -74,7 +74,8 @@ const chronical = () => {
                           ],
                         };
                       } else {
-                        history.values = JSON.parse(history.values).push(value);
+                        history.values = JSON.parse(history.values);
+                        history.values.push(value);
                       }
 
                       // TOOD: abstract this translation.
