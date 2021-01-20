@@ -13,6 +13,7 @@ function IndexController(server) {
   QueryController.insights(server);
   QueryController.summary(server);
   ChartController.series(server);
+  ChartController.chart(server);
   UserController.create(server);
   UserController.auth(server);
   UserController.forgot(server);

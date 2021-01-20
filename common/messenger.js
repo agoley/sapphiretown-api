@@ -34,6 +34,6 @@ class Messenger {
 }
 
 module.exports = {
-  yahoo: new Messenger(300),
+  yahoo: new Messenger(350),
   cmc: new Messenger(100),
 };

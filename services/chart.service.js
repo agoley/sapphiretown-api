@@ -1,3 +1,4 @@
+const { interval } = require("rxjs");
 var unirest = require("unirest");
 const Cache = require("../common/cache");
 const messengers = require("../common/messenger");
@@ -5,7 +6,64 @@ const messengers = require("../common/messenger");
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
+const dayCache = new Cache();
 const chartCache = new Cache();
+
+/**
+ * Get chart data for a symbol.
+ * @param {*} symbol
+ * @param {*} interval
+ * @param {*} range
+ * @param {*} start
+ * @param {*} end
+ */
+const getChart = (symbol, interval, range, start, end) => {
+  // Create the request object.
+  var uni = unirest(
+    "GET",
+    "https://" + X_RAPID_API_HOST + "/stock/v2/get-chart"
+  );
+
+  // Init the request body.
+  const body = {
+    region: "US",
+    lang: "en",
+    symbol: symbol,
+    interval: interval,
+  };
+
+  // Conditionally fill in the range parameters.
+  if (start && end) {
+    body.period1 = start;
+    body.period2 = end;
+  } else {
+    body.range = range;
+  }
+
+  // Apply the request body.
+  uni.query(body);
+
+  // Set the request headers.
+  uni.headers({
+    "x-rapidapi-host": X_RAPID_API_HOST,
+    "x-rapidapi-key": X_RAPID_API_KEY,
+  });
+
+  // Return a promise for the request.
+  return new Promise((resolve, reject) => {
+    // Load the request into the messenger queue and note the tag.
+    let tag = messengers.yahoo.load(uni.send());
+    // Subscribe to the messenger responses.
+    messengers.yahoo.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          // Resolve with the response data.
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
 
 const getDay = (symbol, interval, range) => {
   var uni = unirest(
@@ -42,14 +100,14 @@ const ChartService = {
   day: (req, res, next, count) => {
     const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
 
-    if (chartCache.get(cacheKey)) {
-      res.send(chartCache.get(cacheKey));
+    if (dayCache.get(cacheKey)) {
+      res.send(dayCache.get(cacheKey));
       return next();
     }
 
     getDay(req.body.symbol, req.body.interval, req.body.range)
       .then((data) => {
-        chartCache.save(req.body.symbol, data);
+        dayCache.save(cacheKey, data);
         res.send(data);
         return next();
       })
@@ -59,6 +117,39 @@ const ChartService = {
           // Wait 1s and retry.
           setTimeout(() => {
             ChartService.day(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  chart: (req, res, next, count) => {
+    const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
+
+    if (chartCache.get(cacheKey)) {
+      res.send(chartCache.get(cacheKey));
+      return next();
+    }
+
+    getChart(
+      req.body.symbol,
+      req.body.interval,
+      req.body.range,
+      req.body.start,
+      req.body.end
+    )
+      .then((data) => {
+        chartCache.save(cacheKey, data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            ChartService.chart(req, res, next, count);
           }, 1000);
         } else {
           res.send(data);
