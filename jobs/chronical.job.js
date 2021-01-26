@@ -75,7 +75,10 @@ const chronical = () => {
                         };
                       } else {
                         history.values = JSON.parse(history.values);
-                        history.values.push(value);
+                        history.values.push({
+                          timestamp: new Date(),
+                          value: value.toFixed(2),
+                        });
                       }
 
                       // TOOD: abstract this translation.
