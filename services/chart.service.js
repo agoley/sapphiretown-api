@@ -6,8 +6,47 @@ const messengers = require("../common/messenger");
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
+const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
+  process.env.X_RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY;
+const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
+  process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
+
 const dayCache = new Cache();
 const chartCache = new Cache();
+const chartCacheLL = new Cache();
+
+const getChartLL = (symbol, interval, range) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v8/finance/chart/" +
+      symbol
+  );
+
+  uni.query({
+    interval: interval,
+    range: range,
+    events: "div,split",
+  });
+
+  uni.headers({
+    "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
+    "x-rapidapi-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
 
 /**
  * Get chart data for a symbol.
@@ -150,6 +189,33 @@ const ChartService = {
           // Wait 1s and retry.
           setTimeout(() => {
             ChartService.chart(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  chartLL: (req, res, next, count) => {
+    const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
+
+    if (chartCacheLL.get(cacheKey)) {
+      res.send(chartCacheLL.get(cacheKey));
+      return next();
+    }
+
+    getChartLL(req.body.symbol, req.body.interval, req.body.range)
+      .then((data) => {
+        chartCacheLL.save(cacheKey, data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            ChartService.chartLL(req, res, next, count);
           }, 1000);
         } else {
           res.send(data);

@@ -1,11 +1,48 @@
-var unirest = require("unirest");
+const unirest = require("unirest");
 const Cache = require("../common/cache");
 const messengers = require("../common/messenger");
 
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
-var marketCache = new Cache();
+const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
+  process.env.X_RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY;
+const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
+  process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
+
+const marketCache = new Cache();
+const marketCacheLL = new Cache(); // Low Latency Service.
+
+const getMarketsLL = (symbols) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v6/finance/quote/marketSummary"
+  );
+
+  uni.query({
+    lang: "en",
+    region: "US",
+  });
+
+  uni.headers({
+    "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
+    "x-rapidapi-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
 
 const getMarkets = () => {
   var uni = unirest(
@@ -70,6 +107,31 @@ const MarketsService = {
     getMarkets()
       .then((data) => {
         marketCache.save("summary", data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            MarketsService.markets(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  marketsLL: (req, res, next, count) => {
+    if (marketCacheLL.get("summary")) {
+      res.send(marketCacheLL.get("summary"));
+      return next();
+    }
+
+    getMarketsLL()
+      .then((data) => {
+        marketCacheLL.save("summary", data);
         res.send(data);
         return next();
       })
