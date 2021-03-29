@@ -23,6 +23,7 @@ function IndexController(server) {
   UserController.reset(server);
   PortfolioController.get(server);
   PortfolioController.upsert(server);
+  PortfolioController.breakdown(server);
   CryptoController.quote(server);
   CryptoController.autocomplete(server);
   StockController.quote(server);

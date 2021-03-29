@@ -11,6 +11,11 @@ const PortfolioController = {
       _portfolio.upsert(req, res, next);
     });
   },
+  breakdown: (server) => {
+    server.get("/api/v2/portfolio/breakdown/:userId", (req, res, next) => {
+      _portfolio.breakdown(req, res, next);
+    });
+  },
 };
 
 module.exports = PortfolioController;

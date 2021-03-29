@@ -1,6 +1,13 @@
 const { summary } = require("../services/query.service");
 const QueryService = require("../services/query.service");
+const StockService = require("../services/stock.service");
 import { forkJoin } from "rxjs";
+
+const ASSET_CLASSES = {
+  STOCK: "stock",
+  CRYPTO: "crypto",
+  CASH: "cash",
+};
 
 class Portfolio {
   constructor(id, transactions) {
@@ -29,6 +36,9 @@ class Portfolio {
           )
           .map((t) => (t.owned ? +t.owned : +t.quantity))
           .reduce((acc, curr) => acc + curr, 0),
+        class: this.transactions.filter((t) => t.symbol === ua)[0].class
+          ? this.transactions.filter((t) => t.symbol === ua)[0].class
+          : "stock",
       };
     });
 
@@ -47,7 +57,16 @@ class Portfolio {
     const calls = [];
 
     this.holdings.forEach((h, i) => {
-      calls.push(QueryService.getSummary(h.symbol));
+      switch (h.class) {
+        case ASSET_CLASSES.CRYPTO:
+          calls.push(QueryService.getSummary(`${h.symbol}-USD`));
+          break;
+        case ASSET_CLASSES.CASH:
+          break; // Do nothing.
+        case ASSET_CLASSES.STOCK:
+        default:
+          calls.push(QueryService.getSummary(h.symbol));
+      }
     });
 
     return new Promise((resolve, reject) => {
@@ -62,7 +81,57 @@ class Portfolio {
             value += summary.price.regularMarketPrice.raw * h.shares;
           }
         });
+
+        // TODO: Add cash value.
         resolve(value);
+      });
+    });
+  }
+
+  /**
+   * TODO: Comment here.
+   */
+  calcBreakdown() {
+    let breakdownArr = [];
+    const symbols = [];
+
+    // Gather requests for stock quotes.
+    this.holdings.forEach((h) => {
+      if (h.class === ASSET_CLASSES.CRYPTO) {
+        symbols.push(`${h.symbol}-USD`);
+      } else if (h.class === ASSET_CLASSES.STOCK) {
+        symbols.push(h.symbol);
+      } else if (h.class === ASSET_CLASSES.CASH) {
+        if (breakdownArr.find((b) => b.name === h.symbol)) {
+          breakdownArr.find((b) => b.name === h.symbol).value += +h.shares;
+        } else {
+          breakdownArr.push({ name: h.symbol, value: h.shares });
+        }
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      StockService.getQoute(symbols).then((data) => {
+        data.quoteResponse.result.forEach((res) => {
+          const holding = this.holdings.find((h) => {
+            if (res.quoteType === "CRYPTOCURRENCY") {
+              return (
+                h.symbol.toUpperCase().trim() ===
+                res.fromCurrency.toUpperCase().trim()
+              );
+            } else {
+              return (
+                h.symbol.toUpperCase().trim() ===
+                res.symbol.toUpperCase().trim()
+              );
+            }
+          });
+          breakdownArr.push({
+            name: holding.symbol,
+            value: +holding.shares * res.regularMarketPrice,
+          });
+        });
+        resolve(breakdownArr);
       });
     });
   }

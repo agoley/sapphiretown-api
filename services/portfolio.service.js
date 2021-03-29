@@ -1,8 +1,7 @@
 let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
-const bcrypt = require("bcrypt");
-const { DataPipeline } = require("aws-sdk");
 const HistoryService = require("./history.service");
+const Portfolio = require("../common/portfolio");
 
 AWS.config.update({
   region: "us-east-1",
@@ -12,6 +11,54 @@ AWS.config.update({
 
 var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
+
+const getPortfolioByUserId = (id) => {
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "Portfolio",
+      FilterExpression: "(user_id = :user_id)",
+      ExpressionAttributeValues: {
+        ":user_id": id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        resolve([]);
+      } else {
+        resolve(data);
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getBreakdown = (id) => {
+  return new Promise((resolve, reject) => {
+    getPortfolioByUserId(id)
+      .then((data) => {
+        const portfolio = new Portfolio(
+          data.Items[0].id,
+          JSON.parse(data.Items[0].transactions)
+        );
+        portfolio
+          .calcBreakdown()
+          .then((bd) => {
+            resolve(bd);
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
 
 const PortfolioService = {
   upsert: (req, res, next) => {
@@ -113,6 +160,17 @@ const PortfolioService = {
       }
     };
     docClient.scan(params, onScan);
+  },
+  breakdown: (req, res, next) => {
+    getBreakdown(req.params.userId)
+      .then((breakdown) => {
+        res.send(breakdown);
+        return next();
+      })
+      .catch((error) => {
+        res.send(error);
+        return next();
+      });
   },
 };
 
