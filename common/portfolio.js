@@ -73,11 +73,19 @@ class Portfolio {
       forkJoin(calls).subscribe((summaries) => {
         summaries.forEach((summary) => {
           if (summary && summary.price) {
-            const h = this.holdings.find(
-              (h) =>
-                h.symbol.toUpperCase().trim() ===
-                summary.price.symbol.toUpperCase().trim()
-            );
+            const h = this.holdings.find((h) => {
+              if (summary.quoteType.quoteType === "CRYPTOCURRENCY") {
+                return (
+                  h.symbol.toUpperCase().trim() ===
+                  summary.summaryDetail.fromCurrency.toUpperCase().trim()
+                );
+              } else {
+                return (
+                  h.symbol.toUpperCase().trim() ===
+                  summary.price.symbol.toUpperCase().trim()
+                );
+              }
+            });
             value += summary.price.regularMarketPrice.raw * h.shares;
           }
         });
