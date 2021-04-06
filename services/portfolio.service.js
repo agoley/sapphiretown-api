@@ -60,6 +60,29 @@ const getBreakdown = (id) => {
   });
 };
 
+const getMovers = (id, range, interval) => {
+  return new Promise((resolve, reject) => {
+    getPortfolioByUserId(id)
+      .then((data) => {
+        const portfolio = new Portfolio(
+          data.Items[0].id,
+          JSON.parse(data.Items[0].transactions)
+        );
+        portfolio
+          .calcMovers(range, interval)
+          .then((m) => {
+            resolve(m);
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+
 const PortfolioService = {
   upsert: (req, res, next) => {
     var params = {
@@ -168,6 +191,18 @@ const PortfolioService = {
         return next();
       })
       .catch((error) => {
+        res.send(error);
+        return next();
+      });
+  },
+  movers: (req, res, next) => {
+    getMovers(req.body.userId, req.body.range, req.body.interval)
+      .then((movers) => {
+        res.send(movers);
+        return next();
+      })
+      .catch((error) => {
+        console.log(error)
         res.send(error);
         return next();
       });

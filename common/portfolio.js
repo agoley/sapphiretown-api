@@ -1,6 +1,7 @@
 const { summary } = require("../services/query.service");
 const QueryService = require("../services/query.service");
 const StockService = require("../services/stock.service");
+const ChartService = require("../services/chart.service");
 import { forkJoin } from "rxjs";
 
 const ASSET_CLASSES = {
@@ -142,6 +143,70 @@ class Portfolio {
         resolve(breakdownArr);
       });
     });
+  }
+
+  calcMovers(range, interval) {
+    let moversArr = [];
+    let calls = [];
+    let symbols = [];
+
+    if (range === "1d") {
+      // Gather requests for stock quotes.
+      this.holdings.forEach((h) => {
+        if (h.class === ASSET_CLASSES.CRYPTO) {
+          symbols.push(`${h.symbol}-USD`);
+        } else if (h.class === ASSET_CLASSES.STOCK) {
+          symbols.push(h.symbol);
+        }
+      });
+
+      return new Promise((resolve, reject) => {
+        StockService.getQoute(symbols).then((data) => {
+          data.quoteResponse.result.forEach((res) => {
+            moversArr.push({
+              name: res.symbol,
+              value: res.regularMarketChangePercent.toFixed(2),
+            });
+          });
+          resolve(moversArr);
+        });
+      });
+    } else {
+      // Gather requests for stock quotes.
+      this.holdings.forEach((h) => {
+        if (h.class === ASSET_CLASSES.CRYPTO) {
+          calls.push(ChartService.getChartLL(`${h.symbol}-USD`, interval, range));
+        } else if (h.class === ASSET_CLASSES.STOCK) {
+          calls.push(ChartService.getChartLL(h.symbol, interval, range));
+        }
+      });
+
+      return new Promise((resolve, reject) => {
+        forkJoin(calls).subscribe((responses) => {
+          responses.forEach((res) => {
+            if (
+              res &&
+              res.chart &&
+              res.chart.result &&
+              res.chart.result.length > 0
+            ) {
+              const open = res.chart.result[0].indicators.quote[0].open[0];
+              const close =
+                res.chart.result[0].indicators.quote[0].close[
+                  res.chart.result[0].indicators.quote[0].close.length - 1
+                ];
+              const diff = close - open;
+              const val = ((diff / open) * 100).toFixed(2);
+              moversArr.push({
+                name: res.chart.result[0].meta.symbol,
+                value: val,
+              });
+            }
+          });
+          resolve(moversArr);
+        });
+      });
+    }
   }
 }
 

@@ -24,11 +24,15 @@ const getChartLL = (symbol, interval, range) => {
       symbol
   );
 
-  uni.query({
-    interval: interval,
+  let params = {
     range: range,
     events: "div,split",
-  });
+  };
+  if (interval) {
+    params.interval = interval;
+  }
+
+  uni.query(params);
 
   uni.headers({
     "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
@@ -223,6 +227,7 @@ const ChartService = {
         }
       });
   },
+  getChartLL: getChartLL,
 };
 
 module.exports = ChartService;
