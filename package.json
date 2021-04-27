@@ -30,6 +30,7 @@
     "restify-jwt-community": "^1.1.4",
     "rxjs": "^6.5.2",
     "unirest": "^0.6.0",
-    "uuid": "^8.1.0"
+    "uuid": "^8.1.0",
+    "ws": "^7.4.5"
   }
 }

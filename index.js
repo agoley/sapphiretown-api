@@ -1,7 +1,7 @@
 var restify = require("restify");
 var controllers = require("./contollers/index.controller");
 var chronical = require("./jobs/chronical.job");
-var CryptoService = require("./services/crypto.service");
+const WebSocket = require("ws");
 
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN || "*";
 const PORT = process.env.PORT || 8080;
@@ -24,6 +24,15 @@ server.use(
     mapParams: true,
   })
 );
+const wss = new WebSocket.Server({ port: 8081 });
+
+wss.on('connection', function connection(ws) {
+  ws.on('message', function incoming(message) {
+    console.log('received: %s', message);
+  });
+
+  ws.send('something');
+});
 
 // APPLY CONTROLLERS
 controllers(server);

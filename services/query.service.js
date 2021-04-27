@@ -91,7 +91,7 @@ const getSummary = (symbol) => {
 };
 
 const QueryService = {
-  query: (req, res, next, count, messengers) => {
+  query: (req, res, next, count) => {
     if (queryCache.get(req.body.symbol)) {
       res.send(queryCache.get(req.body.symbol));
       return next();
