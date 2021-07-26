@@ -92,7 +92,8 @@ const getChart = (symbol, interval, range, start, end) => {
 
   // Set the request headers.
   uni.headers({
-    "x-api-key": X_RAPID_API_KEY,
+    "x-rapidapi-host": X_RAPID_API_HOST,
+    "x-rapidapi-key": X_RAPID_API_KEY,
   });
 
   // Return a promise for the request.
@@ -126,7 +127,8 @@ const getDay = (symbol, interval, range) => {
   });
 
   uni.headers({
-    "x-api-key": X_RAPID_API_KEY,
+    "x-rapidapi-host": X_RAPID_API_HOST,
+    "x-rapidapi-key": X_RAPID_API_KEY,
   });
 
   return new Promise((resolve, reject) => {
