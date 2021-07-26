@@ -21,6 +21,16 @@ const UserController = {
       _user.reset(req, res, next);
     });
   },
+  update: (server) => {
+    server.post("/api/v2/users", (req, res, next) => {
+      _user.update(req, res, next);
+    });
+  },
+  update_password: (server) => {
+    server.post("/api/v2/users/:id/password", (req, res, next) => {
+      _user.update_password(req, res, next);
+    });
+  },
 };
 
 module.exports = UserController;

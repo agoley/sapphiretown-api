@@ -21,6 +21,8 @@ function IndexController(server) {
   UserController.auth(server);
   UserController.forgot(server);
   UserController.reset(server);
+  UserController.update(server);
+  UserController.update_password(server);
   PortfolioController.get(server);
   PortfolioController.upsert(server);
   PortfolioController.breakdown(server);

@@ -1,8 +1,10 @@
 const { summary } = require("../services/query.service");
 const QueryService = require("../services/query.service");
 const StockService = require("../services/stock.service");
+const MarketService = require("../services/markets.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
+import MarketsService from "../services/markets.service";
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -219,61 +221,114 @@ class Portfolio {
   }
 
   // Watch portfolio for changes and send updates through the web socket.
-  watch(wss, page) {
-    this.interval = setInterval(this.check.bind(this, wss, page), 5000);
+  watch(wss, page, context) {
+    this.interval = setInterval(
+      this.check.bind(this, wss, page, context),
+      5000
+    );
   }
 
   // Check for page relavent changes, and send updates through wss.
-  check() {
-    if (page === this.pages.INDEX) {
+  check(wss, page, context) {
+    let symbols = [];
+
+    if (page === this.pages.INDEX || page === this.pages.PERFORMANCE) {
       // Gather requests for stock quotes.
       this.holdings.forEach((h) => {
         if (h.class === ASSET_CLASSES.CRYPTO) {
           symbols.push(`${h.symbol}-USD`);
         } else if (h.class === ASSET_CLASSES.STOCK) {
           symbols.push(h.symbol);
-        } else if (h.class === ASSET_CLASSES.CASH) {
-          if (breakdownArr.find((b) => b.name === h.symbol)) {
-            breakdownArr.find((b) => b.name === h.symbol).value += +h.shares;
-          } else {
-            breakdownArr.push({ name: h.symbol, value: h.shares });
-          }
         }
       });
 
       StockService.getQoute(symbols).then((data) => {
         data.quoteResponse.result.forEach((res) => {
+          let symbol;
           if (res.quoteType === "CRYPTOCURRENCY") {
-            const symbol = res.fromCurrency.toUpperCase().trim();
-            if (this.cache[symbol]) {
-              // check for changes
-            } else {
-              // cache the response.
+            symbol = res.fromCurrency.toUpperCase().trim();
+          } else {
+            symbol = res.symbol.toUpperCase().trim();
+          }
+
+          if (this.cache[symbol]) {
+            // check for changes
+            if (
+              res.regularMarketPrice !== this.cache[symbol].regularMarketPrice
+            ) {
+              // Price update, send new data through wss.
+              if (page === this.pages.INDEX) {
+                wss.send(
+                  JSON.stringify({
+                    type: "price update",
+                    symbol: symbol,
+                    data: res,
+                  })
+                );
+              }
+
+              if (page === this.pages.PERFORMANCE) {
+                this.calcBreakdown()
+                  .then((breakdown) => {
+                    wss.send(
+                      JSON.stringify({
+                        type: "breakdown update",
+                        data: breakdown,
+                      })
+                    );
+                  })
+                  .catch((err) => console.log(err));
+
+                this.calcMovers(context.moversRange).then((movers) => {
+                  wss.send(
+                    JSON.stringify({
+                      type: "movers update",
+                      data: movers,
+                    })
+                  );
+                });
+              }
+
+              // Update the cache.
               this.cache[symbol] = res;
             }
           } else {
-            const symbol = res.symbol.toUpperCase().trim();
-            if (this.cache[symbol]) {
-              // check for changes
-              if (
-                res.price.regularMarketPrice !==
-                this.cache[symbol].price.regularMarketPrice
-              ) {
-                // Price update, send new data through wss.
-                ws.send({ type: "price update", symbol: symbol, data: res });
-                // Update the cache.
-                this.cache[symbol] = res;
-              }
-            } else {
-              // cache the response
-              this.cache[symbol] = res;
-            }
+            // cache the response
+            this.cache[symbol] = res;
           }
         });
       });
-    }
 
-    if (page === this.pages.PERFORMANCE) {
+      if (page === this.pages.INDEX) {
+        // Watch for changes in major indexes.
+        MarketsService.getMarketsLL().then((data) => {
+          const top3 = data.marketSummaryResponse.result.slice(0, 3);
+          top3.forEach((index) => {
+            if (this.cache[index.symbol]) {
+              // check for changes
+              if (
+                index.regularMarketPrice.raw !==
+                this.cache[index.symbol].regularMarketPrice.raw
+              ) {
+                // Price update, send new data through wss.
+                wss.send(
+                  JSON.stringify({
+                    type: "market update",
+                    symbol: index.symbol,
+                    data: index,
+                  })
+                );
+
+                // Update the cache.
+                this.cache[index.symbol] = index;
+              }
+            } else {
+              // cache the response
+              this.cache[index.symbol] = index;
+            }
+          });
+        });
+      }
     }
   }
 

@@ -6,7 +6,7 @@ const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
 const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
 
-const quoteCache = new Cache();
+const quoteCache = new Cache(5000);
 const messengers = require("../common/messenger");
 
 const getQoute = (symbols) => {
@@ -21,8 +21,7 @@ const getQoute = (symbols) => {
 
 
   uni.headers({
-    "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
-    "x-rapidapi-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
     "useQueryString": true
   });
 

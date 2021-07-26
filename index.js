@@ -2,6 +2,7 @@ var restify = require("restify");
 var controllers = require("./contollers/index.controller");
 var chronical = require("./jobs/chronical.job");
 const WebSocket = require("ws");
+const Reducer = require("./common/reducer");
 
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN || "*";
 const PORT = process.env.PORT || 8080;
@@ -25,13 +26,16 @@ server.use(
   })
 );
 const wss = new WebSocket.Server({ port: 8081 });
+const reducer = new Reducer();
 
-wss.on('connection', function connection(ws) {
-  ws.on('message', function incoming(message) {
-    console.log('received: %s', message);
+wss.on("connection", (ws) => {
+  ws.on("message", (message) => {
+    const data = JSON.parse(message);
+    if (data.user) {
+      // Check for subsciption.
+      reducer.handle(data, ws);
+    }
   });
-
-  ws.send('something');
 });
 
 // APPLY CONTROLLERS
@@ -42,6 +46,6 @@ server.listen(PORT, function () {
 });
 
 // Every 24hrs records all users value and add to their history.
-setInterval(() => {
-  chronical();
-}, 86400000);
+// setInterval(() => {
+//   chronical();
+// }, 86400000);

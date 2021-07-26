@@ -4,9 +4,9 @@ const Cache = require("../common/cache");
 const X_RAPID_API_HOST = process.env.X_RAPID_API_HOST;
 const X_RAPID_API_KEY = process.env.X_RAPID_API_KEY;
 
-const queryCache = new Cache();
+const queryCache = new Cache(5000);
 const insightsCache = new Cache();
-const summaryCache = new Cache();
+const summaryCache = new Cache(5000);
 
 const messengers = require("../common/messenger");
 

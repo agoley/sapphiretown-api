@@ -11,9 +11,14 @@ const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
 const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
 
-const dayCache = new Cache();
-const chartCache = new Cache();
-const chartCacheLL = new Cache();
+  const YAHOO_FINANCE_BASE =
+  process.env.YAHOO_FINANCE_BASE;
+const YAHOO_FINANCE_API_KEY =
+  process.env.YAHOO_FINANCE_API_KEY;
+
+const dayCache = new Cache(5000);
+const chartCache = new Cache(5000);
+const chartCacheLL = new Cache(5000);
 
 const getChartLL = (symbol, interval, range) => {
   var uni = unirest(
@@ -35,8 +40,7 @@ const getChartLL = (symbol, interval, range) => {
   uni.query(params);
 
   uni.headers({
-    "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
-    "x-rapidapi-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
     useQueryString: true,
   });
 
@@ -88,8 +92,7 @@ const getChart = (symbol, interval, range, start, end) => {
 
   // Set the request headers.
   uni.headers({
-    "x-rapidapi-host": X_RAPID_API_HOST,
-    "x-rapidapi-key": X_RAPID_API_KEY,
+    "x-api-key": X_RAPID_API_KEY,
   });
 
   // Return a promise for the request.
@@ -123,8 +126,7 @@ const getDay = (symbol, interval, range) => {
   });
 
   uni.headers({
-    "x-rapidapi-host": X_RAPID_API_HOST,
-    "x-rapidapi-key": X_RAPID_API_KEY,
+    "x-api-key": X_RAPID_API_KEY,
   });
 
   return new Promise((resolve, reject) => {
@@ -203,7 +205,7 @@ const ChartService = {
   chartLL: (req, res, next, count) => {
     const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
 
-    if (chartCacheLL.get(cacheKey)) {
+    if (!req.body.bypass && chartCacheLL.get(cacheKey)) {
       res.send(chartCacheLL.get(cacheKey));
       return next();
     }

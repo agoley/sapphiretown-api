@@ -27,8 +27,7 @@ const getMarketsLL = (symbols) => {
   });
 
   uni.headers({
-    "x-rapidapi-host": _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY,
-    "x-rapidapi-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
     useQueryString: true,
   });
 
@@ -173,6 +172,7 @@ const MarketsService = {
         }
       });
   },
+  getMarketsLL: getMarketsLL
 };
 
 module.exports = MarketsService;

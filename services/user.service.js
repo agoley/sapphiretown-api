@@ -233,22 +233,23 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          bcrypt.compare(req.body.password, user.password, function (
-            err,
-            doesMatch
-          ) {
-            if (doesMatch) {
-              //log him in
-              delete user.password;
-              res.send(user);
-            } else {
-              //go away
-              res.send({
-                color: "red",
-                message: "Incorrect Password.",
-              });
+          bcrypt.compare(
+            req.body.password,
+            user.password,
+            function (err, doesMatch) {
+              if (doesMatch) {
+                //log him in
+                delete user.password;
+                res.send(user);
+              } else {
+                //go away
+                res.send({
+                  color: "red",
+                  message: "Incorrect Password.",
+                });
+              }
             }
-          });
+          );
         } else {
           res.send({
             color: "red",
@@ -300,7 +301,7 @@ const UserService = {
             username: req.body.username,
             email: req.body.email,
             password: bcrypt.hashSync(req.body.password, 10),
-            created: new Date().toString()
+            created: new Date().toString(),
           };
 
           var createParams = {
@@ -310,7 +311,7 @@ const UserService = {
               username: { S: usr.username },
               email: { S: usr.email },
               password: { S: usr.password },
-              created: {S: usr.created}
+              created: { S: usr.created },
             },
           };
 
@@ -323,6 +324,158 @@ const UserService = {
               res.send(usr);
               return next();
             }
+          });
+        }
+        return next();
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  update: (req, res, next) => {
+    // Check for username or email conflicts.
+    var params = {
+      TableName: "User",
+      FilterExpression:
+        "(not id = :id and (username = :username or email = :email))",
+      ExpressionAttributeValues: {
+        ":username": req.body.username,
+        ":email": req.body.email,
+        ":id": req.body.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          if (req.body.username === user.username) {
+            // A user already exists with the username.
+            res.send({
+              message: "There is already an account with that username.",
+            });
+          } else {
+            // A user already exists with the email.
+            res.send({
+              message: "There is already an account with that email.",
+            });
+          }
+        } else {
+          // There is no conflict.
+
+          var params = {
+            TableName: "User",
+            Key: {
+              id: req.body.id,
+            },
+            UpdateExpression:
+              "set username = :username, email=:email, theme=:theme",
+            ExpressionAttributeValues: {
+              ":username": req.body.username,
+              ":email": req.body.email,
+              ":theme": req.body.theme || "light-theme",
+            },
+            ReturnValues: "UPDATED_NEW",
+          };
+
+          console.log("Updating the item...");
+          docClient.update(params, function (err, data) {
+            if (err) {
+              console.error(
+                "Unable to update item. Error JSON:",
+                JSON.stringify(err, null, 2)
+              );
+              res.send(err);
+            } else {
+              console.log(
+                "UpdateItem succeeded:",
+                JSON.stringify(data, null, 2)
+              );
+              res.send(data);
+            }
+          });
+        }
+        return next();
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  update_password: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(username = :username or email = :username)",
+      ExpressionAttributeValues: {
+        ":username": req.body.identifier,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send({
+          color: "red",
+          message: "There was an error signing in.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          bcrypt.compare(
+            req.body.password,
+            user.password,
+             (err, doesMatch) => {
+              if (doesMatch) {
+
+                var params = {
+                  TableName: "User",
+                  Key: {
+                    id: req.params.id,
+                  },
+                  UpdateExpression: "set password = :password",
+                  ExpressionAttributeValues: {
+                    ":password": bcrypt.hashSync(req.body.newPassword, 10),
+                  },
+                  ReturnValues: "UPDATED_NEW",
+                };
+
+                console.log("Updating the item...");
+                docClient.update(params, function (err, data) {
+                  if (err) {
+                    console.error(
+                      "Unable to update item. Error JSON:",
+                      JSON.stringify(err, null, 2)
+                    );
+                    res.send(err);
+                  } else {
+                    console.log(
+                      "UpdateItem succeeded:",
+                      JSON.stringify(data, null, 2)
+                    );
+                    res.send(data);
+                  }
+                });
+              } else {
+                //go away
+                res.send({
+                  color: "red",
+                  message: "Incorrect Password.",
+                });
+              }
+            }
+          );
+        } else {
+          res.send({
+            color: "red",
+            message: "Unable to find account with username or email.",
           });
         }
         return next();
