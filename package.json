@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/agoley/sapphiretown-api#readme",
   "dependencies": {
-    "aws-sdk": "^2.695.0",
+    "aws-sdk": "^2.814.0",
     "bcrypt": "^5.0.0",
     "esm": "^3.2.25",
     "jsonwebtoken": "^8.5.1",
