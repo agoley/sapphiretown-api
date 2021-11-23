@@ -25,32 +25,57 @@ class Reducer {
       watcher.page = message.page;
       watcher.portfolio.watch(wss, message.page, message.context);
     } else {
-      docClient.scan(
-        {
-          TableName: "Portfolio",
-          FilterExpression: "(#user_id = :user_id)",
-          ExpressionAttributeNames: { "#user_id": "user_id" },
-          ExpressionAttributeValues: {
-            ":user_id": message.user.id,
-          },
+      var userLookupParams = {
+        TableName: "User",
+        FilterExpression: "(id = :user_id)",
+        ExpressionAttributeValues: {
+          ":user_id": message.user.id,
         },
-        (err, portfolios) => {
-          if (err || portfolios.Items.length === 0) {
-            console.log(err);
-          } else {
-            const portfolio = new Portfolio(
-              portfolios.Items[0].id,
-              JSON.parse(portfolios.Items[0].transactions)
-            );
-            portfolio.watch(wss, message.page, message.context);
-            this.watching.push({
-              id: message.user.id,
-              page: message.page,
-              portfolio: portfolio,
-            });
+      };
+
+      const onUserLookupScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          console.error("There was en error looking up User.");
+        } else {
+          if (data["Items"].length > 0) {
+            const user = data["Items"][0];
+
+            if (user.plan_name === "PRO") {
+              docClient.scan(
+                {
+                  TableName: "Portfolio",
+                  FilterExpression: "(#user_id = :user_id)",
+                  ExpressionAttributeNames: { "#user_id": "user_id" },
+                  ExpressionAttributeValues: {
+                    ":user_id": message.user.id,
+                  },
+                },
+                (err, portfolios) => {
+                  if (err || portfolios.Items.length === 0) {
+                    console.log(err);
+                  } else {
+                    const portfolio = new Portfolio(
+                      portfolios.Items[0].id,
+                      JSON.parse(portfolios.Items[0].transactions)
+                    );
+                    portfolio.watch(wss, message.page, message.context);
+                    this.watching.push({
+                      id: message.user.id,
+                      page: message.page,
+                      portfolio: portfolio,
+                    });
+                  }
+                }
+              );
+            }
           }
         }
-      );
+      };
+      docClient.scan(userLookupParams, onUserLookupScan);
     }
   }
 }

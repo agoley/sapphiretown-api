@@ -23,6 +23,8 @@ function IndexController(server) {
   UserController.reset(server);
   UserController.update(server);
   UserController.update_password(server);
+  UserController.subscribe(server);
+  UserController.unsubscribe(server);
   PortfolioController.get(server);
   PortfolioController.upsert(server);
   PortfolioController.breakdown(server);

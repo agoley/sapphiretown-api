@@ -172,7 +172,7 @@ const MarketsService = {
         }
       });
   },
-  getMarketsLL: getMarketsLL
+  getMarketsLL: getMarketsLL,
 };
 
 module.exports = MarketsService;

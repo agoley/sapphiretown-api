@@ -31,6 +31,16 @@ const UserController = {
       _user.update_password(req, res, next);
     });
   },
+  subscribe: (server) => {
+    server.post("/api/v2/users/:id/subscribe", (req, res, next) => {
+      _user.subscribe(req, res, next);
+    });
+  },
+  unsubscribe: (server) => {
+    server.post("/api/v2/users/:id/unsubscribe", (req, res, next) => {
+      _user.unsubscribe(req, res, next);
+    });
+  },
 };
 
 module.exports = UserController;
