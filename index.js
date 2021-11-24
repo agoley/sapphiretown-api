@@ -25,7 +25,8 @@ server.use(
     mapParams: true,
   })
 );
-const wss = new WebSocket.Server({ port: 8081 });
+// const wss = new WebSocket.Server({ port: 8081 });
+const wss = new WebSocket.Server(server);
 const reducer = new Reducer();
 
 wss.on("connection", (ws) => {
