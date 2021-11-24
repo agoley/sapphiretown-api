@@ -1,19 +1,21 @@
 var nodemailer = require("nodemailer");
 
 var transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  host: "smtp.ezfol.io",
+  port: 587,
   auth: {
-    user: "ezfolio.contact@gmail.com",
+    user: "hello@ezfol.io",
     pass: process.env.MAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
 const MailService = {
   mail: (req, res, next, count) => {
     var mailOptions = {
-      from: "ezfolio.contact@gmail.com",
+      from: "hello@ezfol.io",
       to: process.env.MAIL_TO,
       subject: req.body.subject,
       text: req.body.text,
