@@ -302,6 +302,9 @@ class Portfolio {
       if (page === this.pages.INDEX) {
         // Watch for changes in major indexes.
         MarketsService.getMarketsLL().then((data) => {
+          if (!data) {
+            return;
+          }
           const top3 = data.marketSummaryResponse.result.slice(0, 3);
           top3.forEach((index) => {
             if (this.cache[index.symbol]) {

@@ -47,6 +47,6 @@ server.listen(PORT, function () {
 });
 
 // Every 24hrs records all users value and add to their history.
-// setInterval(() => {
-//   chronical();
-// }, 86400000);
+setInterval(() => {
+  chronical();
+}, 86400000);
