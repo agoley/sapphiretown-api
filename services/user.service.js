@@ -665,7 +665,7 @@ const UserService = {
           } else {
             // 4. Create the stripe customer.
             customer = await stripe.customers.create({
-              description: "new customer",
+              description: user.email,
               payment_method: paymentMethod.id,
               invoice_settings: {
                 default_payment_method: paymentMethod.id,
