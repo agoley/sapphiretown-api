@@ -2,6 +2,21 @@ const Portfolio = require("./portfolio");
 let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
 
+// TODO abastract mailer/transporter
+var nodemailer = require("nodemailer");
+
+var transporter = nodemailer.createTransport({
+  host: "smtp.ezfol.io",
+  port: 587,
+  auth: {
+    user: "hello@ezfol.io",
+    pass: process.env.MAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
 AWS.config.update({
   region: "us-east-1",
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -43,6 +58,19 @@ class Reducer {
         } else {
           if (data["Items"].length > 0) {
             const user = data["Items"][0];
+
+            var mailOptions = {
+              from: "hello@ezfol.io",
+              to: "hello@ezfol.io",
+              subject: `${user.username} (${user.email}) spotted 👀`,
+              html: `${user.username} (${user.email}) just visited`,
+            };
+
+            transporter.sendMail(mailOptions, function (error, info) {
+              if (error) {
+                console.log(error);
+              }
+            });
 
             if (user.plan_name === "PRO") {
               docClient.scan(
