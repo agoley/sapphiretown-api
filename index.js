@@ -48,7 +48,7 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const data = JSON.parse(message);
     if (data.user) {
-\      // Check for subscription.
+      // Check for subscription.
       reducer.handle(data, ws);
 
       var mailOptions = {
