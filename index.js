@@ -57,12 +57,18 @@ wss.on("connection", (ws) => {
         subject: `${data.user.username} (${data.user.email}) spotted 👀`,
         html: `${data.user.username} (${data.user.email}) just visited`,
       };
-      
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.log(error);
-        }
-      });
+
+      if (
+        data.user.username !== "alex" &&
+        data.user.username !== "production" &&
+        data.user.username !== "demo"
+      ) {
+        transporter.sendMail(mailOptions, function (error, info) {
+          if (error) {
+            console.log(error);
+          }
+        });
+      }
     }
   });
 });
