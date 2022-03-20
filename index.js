@@ -59,9 +59,9 @@ wss.on("connection", (ws) => {
       };
 
       if (
-        data.user.username !== "alex" &&
-        data.user.username !== "production" &&
-        data.user.username !== "demo"
+        data?.user.username !== "alex" &&
+        data?.user.username !== "production" &&
+        data?.user.username !== "demo"
       ) {
         transporter.sendMail(mailOptions, function (error, info) {
           if (error) {
@@ -81,6 +81,6 @@ server.listen(PORT, function () {
 });
 
 // Every 24hrs records all users value and add to their history.
-setInterval(() => {
-  chronical();
-}, 86400000);
+// setInterval(() => {
+//   chronical();
+// }, 86400000);
