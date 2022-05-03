@@ -176,12 +176,17 @@ class Portfolio {
 
       return new Promise((resolve, reject) => {
         StockService.getQoute(symbols).then((data) => {
-          data.quoteResponse.result.forEach((res) => {
-            moversArr.push({
-              name: res.symbol,
-              value: res.regularMarketChangePercent.toFixed(2),
+          if (data && data.quoteResponse && data.quoteResponse.result) {
+            data.quoteResponse.result.forEach((res) => {
+              moversArr.push({
+                name: res.symbol,
+                value: res.regularMarketChangePercent.toFixed(2),
+              });
             });
-          });
+          } else {
+            console.error("calcMovers: failure to fetch data");
+            reject();
+          }
           resolve(moversArr);
         });
       });
@@ -248,60 +253,64 @@ class Portfolio {
       });
 
       StockService.getQoute(symbols).then((data) => {
-        data.quoteResponse.result.forEach((res) => {
-          let symbol;
-          if (res.quoteType === "CRYPTOCURRENCY") {
-            symbol = res.fromCurrency.toUpperCase().trim();
-          } else {
-            symbol = res.symbol.toUpperCase().trim();
-          }
+        if (data && data.quoteResponse && data.quoteResponse.result) {
+          data.quoteResponse.result.forEach((res) => {
+            let symbol;
+            if (res.quoteType === "CRYPTOCURRENCY") {
+              symbol = res.fromCurrency.toUpperCase().trim();
+            } else {
+              symbol = res.symbol.toUpperCase().trim();
+            }
 
-          if (this.cache[symbol]) {
-            // check for changes
-            if (
-              res.regularMarketPrice !== this.cache[symbol].regularMarketPrice
-            ) {
-              // Price update, send new data through wss.
-              if (page === this.pages.INDEX) {
-                wss.send(
-                  JSON.stringify({
-                    type: "price update",
-                    symbol: symbol,
-                    data: res,
-                  })
-                );
-              }
-
-              if (page === this.pages.PERFORMANCE) {
-                this.calcBreakdown()
-                  .then((breakdown) => {
-                    wss.send(
-                      JSON.stringify({
-                        type: "breakdown update",
-                        data: breakdown,
-                      })
-                    );
-                  })
-                  .catch((err) => console.log(err));
-
-                this.calcMovers(context.moversRange).then((movers) => {
+            if (this.cache[symbol]) {
+              // check for changes
+              if (
+                res.regularMarketPrice !== this.cache[symbol].regularMarketPrice
+              ) {
+                // Price update, send new data through wss.
+                if (page === this.pages.INDEX) {
                   wss.send(
                     JSON.stringify({
-                      type: "movers update",
-                      data: movers,
+                      type: "price update",
+                      symbol: symbol,
+                      data: res,
                     })
                   );
-                });
-              }
+                }
 
-              // Update the cache.
+                if (page === this.pages.PERFORMANCE) {
+                  this.calcBreakdown()
+                    .then((breakdown) => {
+                      wss.send(
+                        JSON.stringify({
+                          type: "breakdown update",
+                          data: breakdown,
+                        })
+                      );
+                    })
+                    .catch((err) => console.log(err));
+
+                  this.calcMovers(context.moversRange).then((movers) => {
+                    wss.send(
+                      JSON.stringify({
+                        type: "movers update",
+                        data: movers,
+                      })
+                    );
+                  });
+                }
+
+                // Update the cache.
+                this.cache[symbol] = res;
+              }
+            } else {
+              // cache the response
               this.cache[symbol] = res;
             }
-          } else {
-            // cache the response
-            this.cache[symbol] = res;
-          }
-        });
+          });
+        } else {
+          console.error("check: failure to fetch data");
+        }
       });
 
       if (page === this.pages.INDEX) {
