@@ -320,6 +320,10 @@ class Portfolio {
             console.log(data.err)
             return;
           }
+          if (!data.marketSummaryResponse.result) {
+            console.error("failure to load market data");
+            return;
+          }
           const top3 = data.marketSummaryResponse.result.slice(0, 3);
           top3.forEach((index) => {
             if (this.cache[index.symbol]) {
