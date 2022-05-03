@@ -116,7 +116,7 @@ const QueryService = {
             QueryService.query(req, res, next, count);
           }, 1000);
         } else {
-          res.send(data);
+          res.send(err);
           return next();
         }
       });
@@ -146,7 +146,7 @@ const QueryService = {
             QueryService.insights(req, res, next, count);
           }, 1000);
         } else {
-          res.send(data);
+          res.send(err);
           return next();
         }
       });
@@ -176,7 +176,7 @@ const QueryService = {
             QueryService.summary(req, res, next, count);
           }, 1000);
         } else {
-          res.send(data);
+          res.send(err);
           return next();
         }
       });
