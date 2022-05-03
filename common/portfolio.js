@@ -297,7 +297,7 @@ class Portfolio {
                         data: movers,
                       })
                     );
-                  });
+                  }).catch(err => console.error(err));
                 }
 
                 // Update the cache.
