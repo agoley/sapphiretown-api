@@ -154,6 +154,11 @@ const ChartService = {
 
     getDay(req.body.symbol, req.body.interval, req.body.range)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         dayCache.save(cacheKey, data);
         res.send(data);
         return next();
@@ -187,6 +192,11 @@ const ChartService = {
       req.body.end
     )
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         chartCache.save(cacheKey, data);
         res.send(data);
         return next();
@@ -214,6 +224,11 @@ const ChartService = {
 
     getChartLL(req.body.symbol, req.body.interval, req.body.range)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         chartCacheLL.save(cacheKey, data);
         res.send(data);
         return next();

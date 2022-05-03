@@ -73,6 +73,11 @@ const CryptoService = {
 
     getQoute(req.body.symbol)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         qouteCache.save(req.body.symbol, data);
         res.send(data);
         return next();

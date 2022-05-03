@@ -19,12 +19,10 @@ const getQoute = (symbols) => {
     symbols: symbols.join(","),
   });
 
-
   uni.headers({
     "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
-    "useQueryString": true
+    useQueryString: true,
   });
-
 
   return new Promise((resolve, reject) => {
     let tag = messengers.yahooLowLatency.load(uni.send());
@@ -47,6 +45,11 @@ const StockService = {
 
     getQoute(req.body.symbols)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         quoteCache.save(JSON.stringify(req.body.symbols), data);
         res.send(data);
         return next();

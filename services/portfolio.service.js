@@ -41,6 +41,10 @@ const getBreakdown = (id) => {
   return new Promise((resolve, reject) => {
     getPortfolioByUserId(id)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          reject(data);
+        }
         const portfolio = new Portfolio(
           data.Items[0].id,
           JSON.parse(data.Items[0].transactions)
@@ -64,6 +68,10 @@ const getMovers = (id, range, interval) => {
   return new Promise((resolve, reject) => {
     getPortfolioByUserId(id)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          reject(data);
+        }
         const portfolio = new Portfolio(
           data.Items[0].id,
           JSON.parse(data.Items[0].transactions)
@@ -202,7 +210,7 @@ const PortfolioService = {
         return next();
       })
       .catch((error) => {
-        console.log(error)
+        console.log(error);
         res.send(error);
         return next();
       });

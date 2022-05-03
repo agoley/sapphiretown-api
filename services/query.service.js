@@ -99,6 +99,11 @@ const QueryService = {
 
     getQuery(req.body.symbol)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         queryCache.save(req.body.symbol, data);
         res.send(data);
         return next();
@@ -124,6 +129,11 @@ const QueryService = {
 
     getInsights(req.body.symbol)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         summaryCache.save(req.body.symbol, data);
         res.send(data);
         return next();
@@ -149,6 +159,11 @@ const QueryService = {
 
     getSummary(req.body.symbol)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         summaryCache.save(req.body.symbol, data);
         res.send(data);
         return next();

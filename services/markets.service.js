@@ -105,6 +105,11 @@ const MarketsService = {
 
     getMarkets()
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         marketCache.save("summary", data);
         res.send(data);
         return next();
@@ -130,6 +135,11 @@ const MarketsService = {
 
     getMarketsLL()
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         marketCacheLL.save("summary", data);
         res.send(data);
         return next();
@@ -155,6 +165,11 @@ const MarketsService = {
 
     getAutocomplete(req.body.query)
       .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
         marketCache.save(req.body.query, data);
         res.send(data);
         return next();
