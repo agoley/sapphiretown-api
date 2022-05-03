@@ -320,7 +320,7 @@ class Portfolio {
             console.log(data.err)
             return;
           }
-          if (!data.marketSummaryResponse.result) {
+          if (!data.marketSummaryResponse || !data.marketSummaryResponse.result) {
             console.error("failure to load market data");
             return;
           }
