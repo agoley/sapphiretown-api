@@ -130,25 +130,29 @@ class Portfolio {
 
     return new Promise((resolve, reject) => {
       StockService.getQoute(symbols).then((data) => {
-        data.quoteResponse.result.forEach((res) => {
-          const holding = this.holdings.find((h) => {
-            if (res.quoteType === "CRYPTOCURRENCY") {
-              return (
-                h.symbol.toUpperCase().trim() ===
-                res.fromCurrency.toUpperCase().trim()
-              );
-            } else {
-              return (
-                h.symbol.toUpperCase().trim() ===
-                res.symbol.toUpperCase().trim()
-              );
-            }
+        if (data && data.quoteResponse && data.quoteResponse.result) {
+          data.quoteResponse.result.forEach((res) => {
+            const holding = this.holdings.find((h) => {
+              if (res.quoteType === "CRYPTOCURRENCY") {
+                return (
+                  h.symbol.toUpperCase().trim() ===
+                  res.fromCurrency.toUpperCase().trim()
+                );
+              } else {
+                return (
+                  h.symbol.toUpperCase().trim() ===
+                  res.symbol.toUpperCase().trim()
+                );
+              }
+            });
+            breakdownArr.push({
+              name: holding.symbol,
+              value: +holding.shares * res.regularMarketPrice,
+            });
           });
-          breakdownArr.push({
-            name: holding.symbol,
-            value: +holding.shares * res.regularMarketPrice,
-          });
-        });
+        } else {
+          throw new Error("calcBreakdown: failure to get quotes");
+        }
         resolve(breakdownArr);
       });
     });
