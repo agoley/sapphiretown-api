@@ -151,7 +151,8 @@ class Portfolio {
             });
           });
         } else {
-          throw new Error("calcBreakdown: failure to get quotes");
+          console.error("calcBreakdown: failure to get quotes");
+          reject();
         }
         resolve(breakdownArr);
       });
