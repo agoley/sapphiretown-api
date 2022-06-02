@@ -61,7 +61,8 @@ wss.on("connection", (ws) => {
       if (
         data?.user.username !== "alex" &&
         data?.user.username !== "production" &&
-        data?.user.username !== "demo"
+        data?.user.username !== "demo" &&
+        data?.user.username !== "test1" 
       ) {
         transporter.sendMail(mailOptions, function (error, info) {
           if (error) {

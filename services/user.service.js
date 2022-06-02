@@ -9,14 +9,11 @@ var nodemailer = require("nodemailer");
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 var transporter = nodemailer.createTransport({
-  host: "smtp.ezfol.io",
+  host: "smtp.gmail.com",
   port: 587,
   auth: {
-    user: "hello@ezfol.io",
+    user: "help@ezfol.io",
     pass: process.env.MAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
   },
 });
 
