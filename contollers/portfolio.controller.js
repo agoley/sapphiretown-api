@@ -6,6 +6,11 @@ const PortfolioController = {
       _portfolio.get(req, res, next);
     });
   },
+  allByUser: (server) => {
+    server.get("/api/v2/portfolios/:userId", (req, res, next) => {
+      _portfolio.allByUser(req, res, next);
+    });
+  },
   upsert: (server) => {
     server.post("/api/v1/portfolios", (req, res, next) => {
       _portfolio.upsert(req, res, next);

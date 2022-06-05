@@ -26,6 +26,7 @@ function IndexController(server) {
   UserController.subscribe(server);
   UserController.unsubscribe(server);
   PortfolioController.get(server);
+  PortfolioController.allByUser(server);
   PortfolioController.upsert(server);
   PortfolioController.breakdown(server);
   PortfolioController.movers(server);

@@ -33,14 +33,11 @@ const wss = new WebSocket.Server(server);
 const reducer = new Reducer();
 
 var transporter = nodemailer.createTransport({
-  host: "smtp.ezfol.io",
+  host: "smtp.gmail.com",
   port: 587,
   auth: {
-    user: "hello@ezfol.io",
+    user: "help@ezfol.io",
     pass: process.env.MAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
   },
 });
 
