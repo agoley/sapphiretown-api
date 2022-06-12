@@ -47,7 +47,7 @@ const PortfolioController = {
     });
   },
   movers: (server) => {
-    server.post("/api/v2/portfolio/movers", (req, res, next) => {
+    server.post("/api/v2/portfolio/:id/movers", (req, res, next) => {
       _portfolio.movers(req, res, next);
     });
   },

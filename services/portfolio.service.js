@@ -91,7 +91,7 @@ const getBreakdown = (id) => {
 
 const getMovers = (id, range, interval) => {
   return new Promise((resolve, reject) => {
-    getPortfolioByUserId(id)
+    getPortfolioById(id)
       .then((data) => {
         if (data.err) {
           console.error(data.err);
@@ -432,7 +432,7 @@ const PortfolioService = {
       });
   },
   movers: (req, res, next) => {
-    getMovers(req.body.userId, req.body.range, req.body.interval)
+    getMovers(req.params.id, req.body.range, req.body.interval)
       .then((movers) => {
         res.send(movers);
         return next();
