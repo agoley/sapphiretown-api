@@ -8,7 +8,7 @@ var qouteCache = new Cache();
 var mapCache = new Cache();
 var autocompleteCache = new Cache();
 
-const getQoute = (symbol) => {
+const getQuote = (symbol) => {
   var uni = unirest(
     "GET",
     "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
@@ -71,7 +71,7 @@ const CryptoService = {
       return next();
     }
 
-    getQoute(req.body.symbol)
+    getQuote(req.body.symbol)
       .then((data) => {
         if (data.err) {
           console.error(data.err);
@@ -119,7 +119,7 @@ const CryptoService = {
       return next();
     });
   },
-  getQoute: getQoute,
+  getQuote: getQuote,
   getMap: getMap,
 };
 

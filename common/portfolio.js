@@ -4,6 +4,7 @@ const StockService = require("../services/stock.service");
 const MarketService = require("../services/markets.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
+import { qoute } from "../services/crypto.service";
 import MarketsService from "../services/markets.service";
 
 const ASSET_CLASSES = {
@@ -13,7 +14,7 @@ const ASSET_CLASSES = {
 };
 
 class Portfolio {
-  constructor(id, transactions) {
+  constructor(id, transactions, portfolio_name) {
     this.id = id;
     this.transactions = transactions;
     this.updates = new Subject();
@@ -22,11 +23,177 @@ class Portfolio {
     this.pages = {
       INDEX: "INDEX",
       PERFORMANCE: "PERFORMANCE",
+      PORTFOLIOS: "PORTFOLIOS",
     };
+    this.portfolio_name = portfolio_name;
   }
 
   get holdings() {
     return this.calcHoldings();
+  }
+
+  get totalGain() {}
+
+  get realizedGain() {}
+
+  get cash() {}
+
+  calcDailyChange() {
+    const symbols = [];
+    let startingPriceOnDay = 0;
+    let currentPriceOnDay = 0;
+
+    // Gather requests for stock quotes.
+    this.holdings.forEach((h) => {
+      if (h.class === ASSET_CLASSES.CRYPTO) {
+        symbols.push(`${h.symbol}-USD`);
+      } else if (h.class === ASSET_CLASSES.STOCK) {
+        symbols.push(h.symbol);
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      StockService.getQuote(symbols).then((data) => {
+        data.quoteResponse.result.forEach((quote) => {
+          const holding = this.holdings.find(
+            (h) => h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+          );
+
+          startingPriceOnDay +=
+            holding.shares * quote.regularMarketPreviousClose;
+
+          currentPriceOnDay += holding.shares * quote.regularMarketPrice;
+        });
+        const diff = currentPriceOnDay - startingPriceOnDay;
+        const percent = (diff / startingPriceOnDay) * 100;
+
+        resolve({
+          raw: diff,
+          percent: percent,
+          start: startingPriceOnDay,
+          current: currentPriceOnDay,
+        });
+      });
+    });
+  }
+
+  calcSummary() {
+    const symbols = [];
+    let startingPriceOnDay = 0;
+    let currentPriceOnDay = 0;
+    let cashBalance = 0;
+
+    // Gather requests for stock quotes.
+    this.holdings.forEach((h) => {
+      if (h.class === ASSET_CLASSES.CRYPTO) {
+        symbols.push(`${h.symbol}-USD`);
+      } else if (h.class === ASSET_CLASSES.STOCK) {
+        symbols.push(h.symbol);
+      } else if (h.class === ASSET_CLASSES.CASH) {
+        cashBalance += +h.shares;
+      }
+    });
+
+    const portfolio_name = this.portfolio_name
+      ? this.portfolio_name
+      : "Unnamed Portfolio";
+
+    if (!this.holdings.length) {
+      return Promise.resolve({
+        portfolio_name: portfolio_name,
+        principal: 0,
+        change: {
+          raw: 0,
+          percent: 0,
+        },
+        allTimeChange: {
+          raw: 0,
+          percent: 0,
+        },
+        regularMarketPreviousClose: 0,
+        regularMarketPrice: 0,
+        netBalance: 0,
+      });
+    }
+
+    let allTimeStart = this.transactions
+      .filter((t) => t.class !== "cash")
+      .reduce((prev, curr) => {
+        return prev + curr.price * curr.quantity;
+      }, 0);
+    allTimeStart = allTimeStart.toFixed(2);
+
+    return new Promise((resolve, reject) => {
+      if (symbols.length) {
+        StockService.getQuote(symbols).then((data) => {
+          data.quoteResponse.result.forEach((quote) => {
+            const holding = this.holdings.find(
+              (h) =>
+                h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+            );
+
+            if (quote.regularMarketPrice) {
+              startingPriceOnDay +=
+                holding.shares * quote.regularMarketPreviousClose;
+
+              currentPriceOnDay += holding.shares * quote.regularMarketPrice;
+            }
+          });
+
+          const diff = currentPriceOnDay - startingPriceOnDay;
+          const percent = (diff / startingPriceOnDay) * 100;
+          const net = currentPriceOnDay + cashBalance;
+
+          const summary = {
+            portfolio_name: portfolio_name,
+            principal: allTimeStart,
+            change: {
+              raw: diff,
+              percent: percent,
+            },
+            allTimeChange: {
+              raw: currentPriceOnDay - allTimeStart,
+              percent:
+                ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
+            },
+            regularMarketPreviousClose: startingPriceOnDay,
+            regularMarketPrice: currentPriceOnDay,
+            netBalance: net,
+          };
+
+          resolve(summary);
+        });
+      } else {
+        const portfolio_name = this.portfolio_name
+          ? this.portfolio_name
+          : "Unnamed Portfolio";
+        const summary = {
+          portfolio_name: portfolio_name,
+          principal: 0,
+          change: {
+            raw: 0,
+            percent: 0,
+          },
+          allTimeChange: {
+            raw: 0,
+            percent: 0,
+          },
+          regularMarketPreviousClose: 0,
+          regularMarketPrice: 0,
+          netBalance: 0,
+        };
+
+        resolve(summary);
+      }
+    });
+  }
+
+  get change() {
+    return this.calcDailyChange();
+  }
+
+  get summary() {
+    return this.calcSummary();
   }
 
   /**
@@ -36,21 +203,27 @@ class Portfolio {
     if (!this.transactions || this.transactions.length === 0) {
       return [];
     }
+
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
-    const holdings = uniqueAssets.map((ua) => {
-      return {
-        symbol: ua,
-        shares: this.transactions
-          .filter(
-            (t) => t.symbol === ua && (t.owned > 0 || t.owned === undefined)
-          )
-          .map((t) => (t.owned ? +t.owned : +t.quantity))
-          .reduce((acc, curr) => acc + curr, 0),
-        class: this.transactions.filter((t) => t.symbol === ua)[0].class
-          ? this.transactions.filter((t) => t.symbol === ua)[0].class
-          : "stock",
-      };
-    });
+    const holdings = uniqueAssets
+      .map((ua) => {
+        return {
+          symbol: ua,
+          shares: this.transactions
+            .filter(
+              (t) =>
+                t.symbol === ua &&
+                t.type === "PURCHASE" &&
+                (t.owned > 0 || t.owned === undefined)
+            )
+            .map((t) => (t.owned ? +t.owned : +t.quantity))
+            .reduce((acc, curr) => acc + curr, 0),
+          class: this.transactions.filter((t) => t.symbol === ua)[0].class
+            ? this.transactions.filter((t) => t.symbol === ua)[0].class
+            : "stock",
+        };
+      })
+      .filter((h) => h.shares > 0);
 
     return holdings;
   }
@@ -129,33 +302,37 @@ class Portfolio {
     });
 
     return new Promise((resolve, reject) => {
-      StockService.getQoute(symbols).then((data) => {
-        if (data && data.quoteResponse && data.quoteResponse.result) {
-          data.quoteResponse.result.forEach((res) => {
-            const holding = this.holdings.find((h) => {
-              if (res.quoteType === "CRYPTOCURRENCY") {
-                return (
-                  h.symbol.toUpperCase().trim() ===
-                  res.fromCurrency.toUpperCase().trim()
-                );
-              } else {
-                return (
-                  h.symbol.toUpperCase().trim() ===
-                  res.symbol.toUpperCase().trim()
-                );
-              }
+      if (symbols.length) {
+        StockService.getQuote(symbols).then((data) => {
+          if (data && data.quoteResponse && data.quoteResponse.result) {
+            data.quoteResponse.result.forEach((res) => {
+              const holding = this.holdings.find((h) => {
+                if (res.quoteType === "CRYPTOCURRENCY") {
+                  return (
+                    h.symbol.toUpperCase().trim() ===
+                    res.fromCurrency.toUpperCase().trim()
+                  );
+                } else {
+                  return (
+                    h.symbol.toUpperCase().trim() ===
+                    res.symbol.toUpperCase().trim()
+                  );
+                }
+              });
+              breakdownArr.push({
+                name: holding.symbol,
+                value: +holding.shares * res.regularMarketPrice,
+              });
             });
-            breakdownArr.push({
-              name: holding.symbol,
-              value: +holding.shares * res.regularMarketPrice,
-            });
-          });
-        } else {
-          console.error("calcBreakdown: failure to get quotes");
-          reject();
-        }
-        resolve(breakdownArr);
-      });
+          } else {
+            console.error("calcBreakdown: failure to get quotes");
+            reject();
+          }
+          resolve(breakdownArr);
+        });
+      } else {
+        resolve([]);
+      }
     });
   }
 
@@ -175,7 +352,7 @@ class Portfolio {
       });
 
       return new Promise((resolve, reject) => {
-        StockService.getQoute(symbols).then((data) => {
+        StockService.getQuote(symbols).then((data) => {
           if (data && data.quoteResponse && data.quoteResponse.result) {
             data.quoteResponse.result.forEach((res) => {
               moversArr.push({
@@ -252,7 +429,7 @@ class Portfolio {
         }
       });
 
-      StockService.getQoute(symbols).then((data) => {
+      StockService.getQuote(symbols).then((data) => {
         if (data && data.quoteResponse && data.quoteResponse.result) {
           data.quoteResponse.result.forEach((res) => {
             let symbol;
@@ -290,14 +467,16 @@ class Portfolio {
                     })
                     .catch((err) => console.log(err));
 
-                  this.calcMovers(context.moversRange).then((movers) => {
-                    wss.send(
-                      JSON.stringify({
-                        type: "movers update",
-                        data: movers,
-                      })
-                    );
-                  }).catch(err => console.error(err));
+                  this.calcMovers(context.moversRange)
+                    .then((movers) => {
+                      wss.send(
+                        JSON.stringify({
+                          type: "movers update",
+                          data: movers,
+                        })
+                      );
+                    })
+                    .catch((err) => console.error(err));
                 }
 
                 // Update the cache.
@@ -317,10 +496,13 @@ class Portfolio {
         // Watch for changes in major indexes.
         MarketsService.getMarketsLL().then((data) => {
           if (data.err) {
-            console.log(data.err)
+            console.log(data.err);
             return;
           }
-          if (!data.marketSummaryResponse || !data.marketSummaryResponse.result) {
+          if (
+            !data.marketSummaryResponse ||
+            !data.marketSummaryResponse.result
+          ) {
             console.error("failure to load market data");
             return;
           }

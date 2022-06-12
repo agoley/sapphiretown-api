@@ -99,7 +99,6 @@ const QueryService = {
 
     getQuery(req.body.symbol)
       .then((data) => {
-        console.log(data);
         if (data.err) {
           console.error(data.err);
           res.send(data);

@@ -1,6 +1,11 @@
 const _user = require("../services/user.service");
 
 const UserController = {
+  get: (server) => {
+    server.get("/api/v3/users/:id", (req, res, next) => {
+      _user.get(req, res, next);
+    });
+  },
   auth: (server) => {
     server.post("/api/v1/users/auth", (req, res, next) => {
       _user.auth(req, res, next);

@@ -377,11 +377,13 @@ const UserService = {
               id: req.body.id,
             },
             UpdateExpression:
-              "set username = :username, email=:email, theme=:theme",
+              "set username = :username, email=:email, theme=:theme, active_portfolio=:active_portfolio",
             ExpressionAttributeValues: {
               ":username": req.body.username,
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
+              ":active_portfolio":
+                req.body.active_portfolio || user.active_portfolio || "",
             },
             ReturnValues: "UPDATED_NEW",
           };
@@ -477,6 +479,35 @@ const UserService = {
       }
     };
     docClient.scan(params, onScan);
+  },
+  get: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      Key: {
+        id: req.params.id,
+      },
+      ConsistentRead: true,
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send(null);
+      } else {
+        if (data["Item"]) {
+          var user = data["Item"];
+          delete user.password;
+          res.send(user);
+        } else {
+          res.send(null);
+        }
+        return next();
+      }
+    };
+    docClient.get(params, onScan);
   },
   /**
    * @param {*} user - { id }
@@ -628,7 +659,7 @@ const UserService = {
             });
             return next();
           }
-          
+
           let customer;
           if (user.stripe_customer_id) {
             // 3. If the user has a customer already attach the new payment method.

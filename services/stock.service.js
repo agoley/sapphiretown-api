@@ -9,7 +9,7 @@ const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
 const quoteCache = new Cache(5000);
 const messengers = require("../common/messenger");
 
-const getQoute = (symbols) => {
+const getQuote = (symbols) => {
   var uni = unirest(
     "GET",
     "https://" + _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY + "/v6/finance/quote"
@@ -43,7 +43,7 @@ const StockService = {
       return next();
     }
 
-    getQoute(req.body.symbols)
+    getQuote(req.body.symbols)
       .then((data) => {
         if (data.err) {
           console.error(data.err);
@@ -67,7 +67,7 @@ const StockService = {
         }
       });
   },
-  getQoute: getQoute,
+  getQuote: getQuote,
 };
 
 module.exports = StockService;
