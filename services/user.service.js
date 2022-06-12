@@ -369,6 +369,7 @@ const UserService = {
             });
           }
         } else {
+          var user = data["Items"][0];
           // There is no conflict.
 
           var params = {
@@ -383,7 +384,7 @@ const UserService = {
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
               ":active_portfolio":
-                req.body.active_portfolio || user.active_portfolio || "",
+                req.body.active_portfolio || user?.active_portfolio || "",
             },
             ReturnValues: "UPDATED_NEW",
           };
