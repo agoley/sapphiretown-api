@@ -1,6 +1,5 @@
 let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
-const HistoryService = require("./history.service");
 const Portfolio = require("../common/portfolio");
 
 AWS.config.update({
@@ -150,7 +149,6 @@ const PortfolioService = {
                 JSON.stringify(err, null, 2)
               );
             } else {
-              HistoryService.record(req.params.userId).then((res) => {});
               res.send(data);
             }
           });
