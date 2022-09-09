@@ -1,10 +1,8 @@
-const { summary } = require("../services/query.service");
 const QueryService = require("../services/query.service");
 const StockService = require("../services/stock.service");
-const MarketService = require("../services/markets.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
-import { qoute } from "../services/crypto.service";
+import CryptoService from "../services/crypto.service";
 import MarketsService from "../services/markets.service";
 
 const ASSET_CLASSES = {
@@ -29,7 +27,8 @@ class Portfolio {
   }
 
   get holdings() {
-    return this.calcHoldings();
+    const holdings = this.calcHoldings();
+    return holdings;
   }
 
   get totalGain() {}
@@ -205,7 +204,7 @@ class Portfolio {
     }
 
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
-    const holdings = uniqueAssets
+    let holdings = uniqueAssets
       .map((ua) => {
         return {
           symbol: ua,
@@ -405,6 +404,210 @@ class Portfolio {
         });
       });
     }
+  }
+
+  /**
+   * Get the price action of the entire portfolio as a time series.
+   * @param {*} range Time range for the time series
+   */
+  async calcPriceAction(range, interval) {
+    // Get the portfolios holdings
+    const holdings = this.holdings;
+
+    // Maps holdings to respective price action
+    const holdingToPriceActionMap = {};
+
+    // Loop through each holding and get the price action for the given range.
+    for (let i = 0; i < this.holdings.length; i++) {
+      // The current holding
+      let holding = holdings[i];
+
+      switch (holding.class) {
+        case ASSET_CLASSES.CRYPTO:
+          // Use the chart service with an extended range and filter for the desired market hours
+          const ohlcv = await ChartService.getChartLL(
+            `${holding.symbol}-USD`,
+            interval,
+            "5d"
+          );
+
+        case ASSET_CLASSES.STOCK:
+          // The chart information for this symbol
+          const response = await ChartService.getChartLL(
+            holding.class === ASSET_CLASSES.STOCK
+              ? holding.symbol
+              : `${holding.symbol}-USD`,
+            interval,
+            range
+          );
+
+          if (!response.chart) {
+            // The request failed
+            console.error(response);
+            break;
+          }
+
+          response.chart.result[0].timestamp =
+            response.chart.result[0].timestamp.map((t) => t * 1000);
+
+          // Get the history of this asset in the portfolio during the charts time range
+
+          // Timestamp for the start of the action
+          const rangeStartTime = response.chart.result[0].timestamp[0];
+
+          // Transactions for symbol in this portfolio, these could be of type purchase or sale
+          const transactions = this.transactions.filter(
+            (t) => t.symbol === holding.symbol
+          );
+
+          // Map of the holdings quantity at different times during range
+          const holdingActivityWithinRange = [];
+
+          // Accumulator for quantity
+          let quantity = 0;
+
+          for (let i = 0; i < transactions.length; i++) {
+            // The current transaction for symbol
+            const transaction = transactions[i];
+
+            if (
+              transaction.date >= rangeStartTime &&
+              holdingActivityWithinRange.length === 0
+            ) {
+              // This is the first transaction after the start of the range
+
+              // Record the quantity at the start of the range
+              holdingActivityWithinRange.push({
+                time: rangeStartTime,
+                quantity: quantity,
+              });
+            }
+
+            // Update quantity per the transaction
+            if (transaction.type === "PURCHASE") {
+              quantity += parseFloat(transaction.quantity);
+            }
+            if (transaction.type === "SALE") {
+              quantity -= parseFloat(transaction.quantity);
+            }
+
+            if (transaction.date >= rangeStartTime) {
+              // This transaction occurs during the charts time range
+
+              // Record the time and the new quantity
+              holdingActivityWithinRange.push({
+                time: transaction.date,
+                quantity: quantity,
+              });
+            }
+          }
+
+          if (holdingActivityWithinRange.length === 0) {
+            // no transaction occurs after the range start time
+
+            // Record the quantity at the end of the range
+            holdingActivityWithinRange.push({
+              time: rangeStartTime,
+              quantity: quantity,
+            });
+          }
+
+          // Get the price action for this holding using the chart data and holdings
+          // history
+
+          let holdingActionChartData = [];
+
+          /**
+           * Gets the value of the holding at a point in time
+           * @param {*} timestamp 
+           * @param {*} field field in question (high, low, open, close, volume)
+           * @returns {number} the value of the holding in the portfolio at the corresponding time
+           */
+          const getValueAtTime = (timestamp, field) => {
+            // TODO use timestamp to find index instead of index, because not all charts are guaranteed to have the same length
+
+            const index = response.chart.result[0].timestamp.findIndex(ts => ts === timestamp);
+
+            const closestActivityBeforeOrAtTime = holdingActivityWithinRange
+              .reverse()
+              .find(
+                (activity) =>
+                  activity.time <= response.chart.result[0].timestamp[index]
+              );
+
+            if (!closestActivityBeforeOrAtTime) {
+              // There is no activity before or at this time, thus no value in the portfolio
+
+              return 0;
+            }
+
+            return (
+              closestActivityBeforeOrAtTime.quantity *
+              response.chart.result[0].indicators.quote[0][field][index]
+            );
+          };
+
+          // TODO: Process the chart data
+          // Loop through time periods of length interval from
+          // start to end times, get the value of the portfolio 
+          // at each time period to get the OHCLV for that time 
+          // period
+
+          response.chart.result[0].timestamp.forEach((t, i) => {
+            // if (i <= minLength) {
+            holdingActionChartData.push({
+              date: new Date(t).toLocaleTimeString(),
+              high: getValueAtTime(t, "high"),
+              low: getValueAtTime(t, "low"),
+              open: getValueAtTime(t, "open"),
+              close: getValueAtTime(t, "close"),
+              volume: response.chart.result[0].indicators.quote[0]["volume"][i],
+            });
+            // }
+          });
+
+          holdingToPriceActionMap[holding.symbol] = holdingActionChartData;
+          break;
+        default:
+          console.log("huh? handle me");
+          break;
+      }
+    }
+
+    // Join all holdings to get the total portfolio values
+
+    // List of joined values
+    const totalPortfolioAction = [];
+
+    for (
+      let i = 0;
+      i <
+      holdingToPriceActionMap[Object.keys(holdingToPriceActionMap)[0]].length;
+      i++
+    ) {
+      let joinedIndicators = {
+        date: holdingToPriceActionMap[
+          Object.keys(holdingToPriceActionMap)[0]
+        ][0].date,
+        high: 0,
+        low: 0,
+        open: 0,
+        close: 0,
+        volume: 0,
+      };
+
+      for (const key in holdingToPriceActionMap) {
+        joinedIndicators.high += holdingToPriceActionMap[key][i].high;
+        joinedIndicators.low += holdingToPriceActionMap[key][i].low;
+        joinedIndicators.open += holdingToPriceActionMap[key][i].open;
+        joinedIndicators.close += holdingToPriceActionMap[key][i].close;
+        joinedIndicators.volume += holdingToPriceActionMap[key][i].volume;
+      }
+
+      totalPortfolioAction.push(joinedIndicators);
+    }
+
+    return Promise.resolve(totalPortfolioAction);
   }
 
   // Watch portfolio for changes and send updates through the web socket.

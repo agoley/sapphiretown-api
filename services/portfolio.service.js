@@ -115,6 +115,34 @@ const getMovers = (id, range, interval) => {
   });
 };
 
+const getPriceAction = (id, range, interval) => {
+  return new Promise((resolve, reject) => {
+    getPortfolioById(id)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          reject(data);
+        }
+        const portfolio = new Portfolio(
+          data.Items[0].id,
+          JSON.parse(data.Items[0].transactions)
+        );
+        portfolio
+          .calcPriceAction(range, interval)
+          .then((pa) => {
+            resolve(pa);
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+
+}
+
 const PortfolioService = {
   upsert: (req, res, next) => {
     var params = {
@@ -433,6 +461,18 @@ const PortfolioService = {
     getMovers(req.params.id, req.body.range, req.body.interval)
       .then((movers) => {
         res.send(movers);
+        return next();
+      })
+      .catch((error) => {
+        console.log(error);
+        res.send(error);
+        return next();
+      });
+  },
+  action: (req, res, next) => {
+    getPriceAction(req.params.id, req.body.range, req.body.interval)
+      .then((pa) => {
+        res.send(pa);
         return next();
       })
       .catch((error) => {

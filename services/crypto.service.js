@@ -34,6 +34,36 @@ const getQuote = (symbol) => {
   });
 };
 
+const getOHCLV = (symbol, time_start, time_end) => {
+  var uni = unirest(
+    "GET",
+    "https://pro-api.coinmarketcap.com/v2/cryptocurrency/ohlcv/historical"
+  );
+
+  uni.query({
+    symbol: symbol,
+    time_start: time_start,
+    time_end: time_end
+  });
+
+  uni.headers({
+    "X-CMC_PRO_API_KEY": X_CMC_PRO_API_KEY,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.cmc.load(uni.send());
+    messengers.cmc.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
+
+
+
 const getMap = () => {
   if (mapCache.get("map")) {
     return new Promise((resolve, reject) => {
@@ -121,6 +151,7 @@ const CryptoService = {
   },
   getQuote: getQuote,
   getMap: getMap,
+  getOHCLV: getOHCLV,
 };
 
 module.exports = CryptoService;

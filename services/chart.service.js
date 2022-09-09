@@ -11,11 +11,6 @@ const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
 const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
 
-  const YAHOO_FINANCE_BASE =
-  process.env.YAHOO_FINANCE_BASE;
-const YAHOO_FINANCE_API_KEY =
-  process.env.YAHOO_FINANCE_API_KEY;
-
 const dayCache = new Cache(5000);
 const chartCache = new Cache(5000);
 const chartCacheLL = new Cache(5000);

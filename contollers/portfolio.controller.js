@@ -51,6 +51,11 @@ const PortfolioController = {
       _portfolio.movers(req, res, next);
     });
   },
+  action: (server) => {
+    server.post("/api/v2/portfolio/:id/action", (req, res, next) => {
+      _portfolio.action(req, res, next);
+    });
+  },
 };
 
 module.exports = PortfolioController;

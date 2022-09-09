@@ -48,6 +48,7 @@ function IndexController(server) {
   PortfolioController.delete(server);
   PortfolioController.breakdown(server);
   PortfolioController.movers(server);
+  PortfolioController.action(server);
 
   // crypto endpoints 
   CryptoController.quote(server);

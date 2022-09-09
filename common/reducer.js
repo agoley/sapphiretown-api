@@ -58,9 +58,12 @@ class Reducer {
                   if (err || portfolios.Items.length === 0) {
                     console.log(err);
                   } else {
+                    // marshal the response and get the active portfolio
+                    let marshalled = portfolios.Items.map(p => ({...p, transactions: JSON.parse(p.transactions)}));
+                    let activePortfolio = user.active_portfolio ? marshalled.find(p => p.id === user.active_portfolio) : marshalled[0];
                     const portfolio = new Portfolio(
-                      portfolios.Items[0].id,
-                      JSON.parse(portfolios.Items[0].transactions)
+                      activePortfolio.id,
+                      activePortfolio.transactions
                     );
                     portfolio.watch(wss, message.page, message.context);
                     this.watching.push({
