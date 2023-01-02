@@ -140,8 +140,14 @@ const getPriceAction = (id, range, interval) => {
         reject(error);
       });
   });
+};
 
-}
+const getComparison = (id, range, interval) => {
+  return new Promise((resolve, reject) => {
+    resolve([]);
+  });
+  // TODO - Fill in.
+};
 
 const PortfolioService = {
   upsert: (req, res, next) => {
@@ -185,7 +191,7 @@ const PortfolioService = {
             id: uuidv1(),
             user_id: req.body.userId,
             transactions: req.body.transactions,
-            createTime: new Date().getTime()
+            createTime: new Date().getTime(),
           };
 
           var params = {
@@ -473,6 +479,18 @@ const PortfolioService = {
     getPriceAction(req.params.id, req.body.range, req.body.interval)
       .then((pa) => {
         res.send(pa);
+        return next();
+      })
+      .catch((error) => {
+        console.log(error);
+        res.send(error);
+        return next();
+      });
+  },
+  comparison: (req, res, next) => {
+    getComparison(req.params.id, req.body.range, req.body.interval)
+      .then((comparison) => {
+        res.send(comparison);
         return next();
       })
       .catch((error) => {

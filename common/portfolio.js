@@ -480,11 +480,11 @@ class Portfolio {
         // The current holding
         let holding = holdings[i];
 
-        // references to the chart api response, and the first timestamp in the chart.
+        // References the chart api response, and the first timestamp in the chart.
         let response, firstTimestamp;
 
         if (holding.class !== ASSET_CLASSES.CASH) {
-          // The chart information for this symbol
+          // The chart information for this symbol.
           response = await ChartService.getChartLL(
             holding.class === ASSET_CLASSES.STOCK
               ? holding.symbol
@@ -494,9 +494,9 @@ class Portfolio {
           );
 
           if (!(response && response.chart && response.chart.result[0])) {
-            // The request failed
+            // The request failed.
             console.error(response);
-            // Throw an error, to be caught and handled down stream
+            // Throw an error, to be caught and handled down stream.
             throw new Error();
           }
 
@@ -507,15 +507,15 @@ class Portfolio {
           firstTimestamp = response.chart.result[0].timestamp[0];
         }
 
-        // Transactions for symbol in this portfolio, these could be of type purchase or sale
+        // Transactions for symbol in this portfolio, these could be of type purchase or sale.
         const transactions = this.transactions
           .filter((t) => t.symbol === holding.symbol)
           .map((t) => ({ ...t, date: new Date(t.date).getTime() }));
 
-        // Map of the holdings quantity at different times during range
-        const holdingTimeMachine = [];
+        // Map of the holdings quantity at different times during range.
+        const holdingTimeMachineArr = [];
 
-        // Accumulator for quantity
+        // Accumulator for quantity.
         let quantity = 0;
 
         // Record the holdings history at different times during the time range.
@@ -527,11 +527,11 @@ class Portfolio {
           if (transaction.date >= firstTimestamp) {
             // This transaction occurs during the chart time period
 
-            if (holdingTimeMachine.length === 0) {
+            if (holdingTimeMachineArr.length === 0) {
               // The first transaction for this holding occurs after the start of this chart
               // Record 0 as the quantity at the start.
 
-              holdingTimeMachine.push({
+              holdingTimeMachineArr.push({
                 time: firstTimestamp,
                 quantity: 0,
               });
@@ -554,41 +554,41 @@ class Portfolio {
             // This transaction is relevant to the chart range.
 
             // Record the holding quantity at this time.
-            holdingTimeMachine.push({
+            holdingTimeMachineArr.push({
               time: transaction.date,
               quantity: quantity,
             });
           }
         }
 
-        if (holdingTimeMachine.length === 0) {
+        if (holdingTimeMachineArr.length === 0) {
           // No transaction occurs after the range start time.
 
           // Record the quantity at the most recent transaction time
-          holdingTimeMachine.push({
+          holdingTimeMachineArr.push({
             time: transactions[transactions.length - 1].date,
             quantity: quantity,
           });
         }
 
         // The history of value for this holding.
-        let holdingHistory = [];
+        let holdingHistoryArr = [];
 
         if (holding.class !== ASSET_CLASSES.CASH) {
           // This is a stock or crypto holding
 
           // Iterate over the charts x axis (time) recording the value at each
           response.chart.result[0].timestamp.forEach((t, i) => {
-            let action = getValueAtTime(t, response, holdingTimeMachine);
+            let action = getValueAtTime(t, response, holdingTimeMachineArr);
 
-            holdingHistory.push(action);
+            holdingHistoryArr.push(action);
           });
         } else {
           // This is a cash holding
 
           // Add action using the quantity for all values, as cash is the base currency.
-          holdingTimeMachine.forEach((ac) => {
-            holdingHistory.push({
+          holdingTimeMachineArr.forEach((ac) => {
+            holdingHistoryArr.push({
               date: ac.time,
               high: ac.quantity,
               low: ac.quantity,
@@ -599,16 +599,16 @@ class Portfolio {
           });
         }
 
-        holdingHistoryMap[holding.symbol] = holdingHistory;
+        holdingHistoryMap[holding.symbol] = holdingHistoryArr;
       }
 
       // Maps timestamps to a snapshot of the portfolio at that time
       const timeSnapshotMap = {};
 
-      let symbols = Object.keys(holdingHistoryMap);
+      let symbolsArr = Object.keys(holdingHistoryMap);
 
       // Iterate over all symbols in the portfolio
-      symbols.forEach((key) => {
+      symbolsArr.forEach((key) => {
         // the historical data for this portfolio
         const action = holdingHistoryMap[key];
 
@@ -655,12 +655,12 @@ class Portfolio {
         let snapshot = timeSnapshotMap[ts];
 
         // Iterate over all symbols
-        symbols.forEach((key) => {
+        symbolsArr.forEach((key) => {
           if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
             // Snapshot doesn't include a value for the current symbol
 
             // Timestamps before the current one, reversed
-            let timestampsToSearch = timestamps.slice(0, i - 1).reverse();
+            let timestampsToSearch = timestamps.slice(0, i - 1).reverse().slice(0, 1);
 
             // The most recent snapshot that includes this symbol
             let recent = timestampsToSearch.find((t) =>
@@ -707,7 +707,7 @@ class Portfolio {
           }
         });
 
-        if (count === symbols.length) {
+        if (count === symbolsArr.length) {
           // This snapshot represents all holdings in the portfolio
 
           // Add the snapshot to the array
@@ -815,44 +815,49 @@ class Portfolio {
 
       if (page === this.pages.INDEX) {
         // Watch for changes in major indexes.
-        MarketsService.getMarketsLL().then((data) => {
-          if (data.err) {
-            console.log(data.err);
-            return;
-          }
-          if (
-            !data.marketSummaryResponse ||
-            !data.marketSummaryResponse.result
-          ) {
-            console.error("failure to load market data");
-            return;
-          }
-          const top3 = data.marketSummaryResponse.result.slice(0, 3);
-          top3.forEach((index) => {
-            if (this.cache[index.symbol]) {
-              // check for changes
-              if (
-                index.regularMarketPrice.raw !==
-                this.cache[index.symbol].regularMarketPrice.raw
-              ) {
-                // Price update, send new data through wss.
-                wss.send(
-                  JSON.stringify({
-                    type: "market update",
-                    symbol: index.symbol,
-                    data: index,
-                  })
-                );
+        MarketsService.getMarketsLL()
+          .then((data) => {
+            if (data.err) {
+              console.log(data.err);
+              return;
+            }
+            if (
+              !data.marketSummaryResponse ||
+              !data.marketSummaryResponse.result
+            ) {
+              console.error("failure to load market data");
+              return;
+            }
+            const top3 = data.marketSummaryResponse.result.slice(0, 3);
+            top3.forEach((index) => {
+              if (this.cache[index.symbol]) {
+                // check for changes
+                if (
+                  index.regularMarketPrice.raw !==
+                  this.cache[index.symbol].regularMarketPrice.raw
+                ) {
+                  // Price update, send new data through wss.
+                  wss.send(
+                    JSON.stringify({
+                      type: "market update",
+                      symbol: index.symbol,
+                      data: index,
+                    })
+                  );
 
-                // Update the cache.
+                  // Update the cache.
+                  this.cache[index.symbol] = index;
+                }
+              } else {
+                // cache the response
                 this.cache[index.symbol] = index;
               }
-            } else {
-              // cache the response
-              this.cache[index.symbol] = index;
-            }
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            return;
           });
-        });
       }
     }
   }

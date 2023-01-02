@@ -56,6 +56,11 @@ const PortfolioController = {
       _portfolio.action(req, res, next);
     });
   },
+  comparison: (server) => {
+    server.post("/api/v2/portfolio/:id/comparison", (req, res, next) => {
+      _portfolio.comparison(req, res, next);
+    });
+  },
 };
 
 module.exports = PortfolioController;
