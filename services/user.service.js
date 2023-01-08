@@ -227,6 +227,7 @@ const UserService = {
           "Unable to scan the table. Error JSON:",
           JSON.stringify(err, null, 2)
         );
+        console.log("HELLO")
         res.send({
           color: "red",
           message: "There was an error signing in.",
@@ -235,23 +236,19 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          bcrypt.compare(
-            req.body.password,
-            user.password,
-            function (err, doesMatch) {
-              if (doesMatch) {
-                //log him in
-                delete user.password;
-                res.send(user);
-              } else {
-                //go away
-                res.send({
-                  color: "red",
-                  message: "Incorrect Password.",
-                });
-              }
+          bcrypt.compare(req.body.password, user.password, (err, doesMatch) => {
+            if (doesMatch) {
+              //log him in
+              delete user.password;
+              res.json(user);
+            } else {
+              //go away
+              res.send({
+                color: "red",
+                message: "Incorrect Password.",
+              });
             }
-          );
+          });
         } else {
           res.send({
             color: "red",
