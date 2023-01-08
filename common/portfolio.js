@@ -2,7 +2,6 @@ const QueryService = require("../services/query.service");
 const StockService = require("../services/stock.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
-import CryptoService from "../services/crypto.service";
 import MarketsService from "../services/markets.service";
 
 const ASSET_CLASSES = {
@@ -465,18 +464,23 @@ class Portfolio {
   /**
    * Get the price action of the entire portfolio as a time series.
    * @param {*} range Time range for the time series
-   * @param {*} Interval interval for values in time series
+   * @param {*} Interval Interval for values in time series
+   * @param {boolean} cashFlag If false doesn't include cash in the price.
    */
-  async calcPriceAction(range, interval) {
+  async calcPriceAction(range, interval, cashFlag) {
     try {
       // Get the portfolios holdings
-      const holdings = this.holdings;
+      let holdings = [...this.holdings];
+
+      if (!cashFlag) {
+        holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
+      }
 
       // Maps holdings to respective price action
       const holdingHistoryMap = {};
 
       // Loop through each holding and get the price action for the given range.
-      for (let i = 0; i < this.holdings.length; i++) {
+      for (let i = 0; i < holdings.length; i++) {
         // The current holding
         let holding = holdings[i];
 
@@ -660,7 +664,10 @@ class Portfolio {
             // Snapshot doesn't include a value for the current symbol
 
             // Timestamps before the current one, reversed
-            let timestampsToSearch = timestamps.slice(0, i - 1).reverse().slice(0, 1);
+            let timestampsToSearch = timestamps
+              .slice(0, i - 1)
+              .reverse()
+              .slice(0, 1);
 
             // The most recent snapshot that includes this symbol
             let recent = timestampsToSearch.find((t) =>
@@ -728,6 +735,108 @@ class Portfolio {
     }
   }
 
+  /**
+   * Calculate comparison chart data for the portfolio and comparisons.
+   * @param {String[]} comparisons
+   * @param {Number} range
+   * @param {Number} interval
+   */
+  async calcComparison(comparisons, range, interval) {
+    // Gather the chart queries for comparisons to batch the requests.
+    const queries = [];
+    comparisons.forEach((symbol) => {
+      queries.push(ChartService.getChartLL(symbol, interval, range));
+    });
+
+    // Get charts for each comp.
+    let charts = await Promise.all(queries);
+
+    // Get quotes for each comp.
+    let quotes = await StockService.getQuote(comparisons);
+
+    let comparisonChartArr = [];
+
+    comparisons.forEach((comp) => {
+      // Get the previous close to use as the original number for percentage calculations.
+      let original = quotes.quoteResponse.result.find(
+        (resp) => resp.symbol === comp
+      ).regularMarketPreviousClose;
+
+      let market = charts.find(
+        (res) => res.chart.result[0].meta.symbol === comp
+      );
+
+      let percentageTimeline =
+        market.chart.result[0].indicators.quote[0].close.map((p, index) => {
+          let curr = ((p - original) / p) * 100;
+
+          if (curr === Infinity || curr === -Infinity) {
+            const last =
+              market.chart.result[0].indicators.quote[0].close[index - 1];
+            curr = ((last - original) / last) * 100;
+          }
+          return curr;
+        });
+
+      comparisonChartArr.push({
+        name: comp,
+        chart: {
+          y: percentageTimeline,
+          x: market.chart.result[0].timestamp.map((index) => index * 1000),
+        },
+      });
+    });
+
+    let portfolioChart = await this.calcPriceAction(range, interval, false);
+
+    let original = portfolioChart[0].open;
+
+    let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
+      let curr = ((p.close - original) / p.close) * 100;
+
+      if (curr === Infinity || curr === -Infinity) {
+        const last = portfolioChart[index - 1];
+        curr = ((last.close - original) / last.close) * 100;
+      }
+      return curr;
+    });
+
+    let portfolioComparisonTimeline = {
+      name: this.portfolio_name || "portfolio",
+      chart: {
+        x: portfolioChart
+          .filter(
+            (index) => index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
+          )
+          .map((index) => index.date),
+        y: portfolioPercentageTimeline,
+      },
+    };
+
+    let response = { [portfolioComparisonTimeline.name]: [] };
+    comparisons.forEach((comp) => {
+      response[comp] = [];
+    });
+
+    portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
+      comparisonChartArr.forEach((comparison) => {
+        const closestMatchingIndex = comparison.chart.x.findIndex(
+          (t) => t >= timestamp
+        );
+        response[comparison.name].push({
+          value: comparison.chart.y[closestMatchingIndex],
+          date: timestamp,
+        });
+      });
+      response[portfolioComparisonTimeline.name].push({
+        value: portfolioComparisonTimeline.chart.y[index],
+        date: timestamp,
+      });
+    });
+
+    return Promise.resolve(response);
+  }
+
   // Watch portfolio for changes and send updates through the web socket.
   watch(wss, page, context) {
     this.interval = setInterval(
@@ -736,7 +845,7 @@ class Portfolio {
     );
   }
 
-  // Check for page relavent changes, and send updates through wss.
+  // Check for page relevant changes, and send updates through wss.
   check(wss, page, context) {
     let symbols = [];
 

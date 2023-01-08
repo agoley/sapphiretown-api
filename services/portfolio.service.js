@@ -128,7 +128,7 @@ const getPriceAction = (id, range, interval) => {
           JSON.parse(data.Items[0].transactions)
         );
         portfolio
-          .calcPriceAction(range, interval)
+          .calcPriceAction(range, interval, true)
           .then((pa) => {
             resolve(pa);
           })
@@ -142,11 +142,32 @@ const getPriceAction = (id, range, interval) => {
   });
 };
 
-const getComparison = (id, range, interval) => {
+const getComparison = (id, comparisons, range, interval) => {
   return new Promise((resolve, reject) => {
-    resolve([]);
+    getPortfolioById(id)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          reject(data);
+        }
+        const portfolio = new Portfolio(
+          data.Items[0].id,
+          JSON.parse(data.Items[0].transactions),
+          data.Items[0].portfolio_name
+        );
+        portfolio
+          .calcComparison(comparisons, range, interval)
+          .then((comparison) => {
+            resolve(comparison);
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+      .catch((error) => {
+        reject(error);
+      });
   });
-  // TODO - Fill in.
 };
 
 const PortfolioService = {
@@ -488,7 +509,12 @@ const PortfolioService = {
       });
   },
   comparison: (req, res, next) => {
-    getComparison(req.params.id, req.body.range, req.body.interval)
+    getComparison(
+      req.params.id,
+      req.body.comparisons,
+      req.body.range,
+      req.body.interval
+    )
       .then((comparison) => {
         res.send(comparison);
         return next();
