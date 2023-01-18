@@ -170,6 +170,27 @@ const getComparison = (id, comparisons, range, interval) => {
   });
 };
 
+const getAvailableRanges = (id) => {
+  return new Promise((resolve, reject) => {
+    getPortfolioById(id)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          reject(data);
+        }
+        const portfolio = new Portfolio(
+          data.Items[0].id,
+          JSON.parse(data.Items[0].transactions),
+          data.Items[0].portfolio_name
+        );
+        resolve(portfolio.getAvailableRanges());
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+
 const PortfolioService = {
   upsert: (req, res, next) => {
     var params = {
@@ -517,6 +538,18 @@ const PortfolioService = {
     )
       .then((comparison) => {
         res.send(comparison);
+        return next();
+      })
+      .catch((error) => {
+        console.log(error);
+        res.send(error);
+        return next();
+      });
+  },
+  availableRanges: (req, res, next) => {
+    getAvailableRanges(req.params.id)
+      .then((availableRanges) => {
+        res.send(availableRanges);
         return next();
       })
       .catch((error) => {

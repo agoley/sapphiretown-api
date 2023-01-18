@@ -75,6 +75,7 @@ class Portfolio {
       PORTFOLIOS: "PORTFOLIOS",
     };
     this.portfolio_name = portfolio_name;
+    this.availableRanges = this.getAvailableRanges();
   }
 
   get holdings() {
@@ -835,6 +836,62 @@ class Portfolio {
     });
 
     return Promise.resolve(response);
+  }
+
+  getAvailableRanges() {
+    let availableRangesArr = [{value: "1d", label: "Today"}];
+
+    // The earliest recorded holding in this portfolio.
+    const getgo = new Date(this.transactions[0].date);
+
+    // Milliseconds since the getgo.
+    const lifespan = (new Date()).getTime() - getgo.getTime();
+
+    // Check each range and narrow down to ranges that fit within the lifespan.
+    // All available ranges:
+    // 1d 5d 1mo 3mo 6mo 1y 5y 10y ytd
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 5)) {
+      // 5d
+      availableRangesArr.push({value: "5d", label: "Week"});
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31)) {
+      // 1mo
+      availableRangesArr.push({value: "1mo", label: "1 Month"})
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31 * 3)) {
+      // 3mo
+      availableRangesArr.push({value: "3mo", label: "3 Month"})
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31 * 6)) {
+      // 6mo
+      availableRangesArr.push({value: "6mo", label: "6 Month"})
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31 * 12)) {
+      // 1y
+      availableRangesArr.push({value: "1y", label: "1 Year"})
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31 * 12 * 5)) {
+      // 5y
+      availableRangesArr.push({value: "5y", label: "5 Year"})
+    }
+
+    if (lifespan >= (1000 * 60 * 60 * 24 * 31 * 12 * 10)) {
+      // 10y
+      availableRangesArr.push({value: "10yr", label: "10 Year"})
+    }
+
+    // ytd is always available.
+    availableRangesArr.push({value: "ytd", label: "YTD"});
+
+
+    return availableRangesArr;
+
   }
 
   // Watch portfolio for changes and send updates through the web socket.
