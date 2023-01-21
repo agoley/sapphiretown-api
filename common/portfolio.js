@@ -839,6 +839,10 @@ class Portfolio {
   }
 
   getAvailableRanges() {
+    if (!this.transactions || this.transactions.length === 0) {
+      return [];
+    }
+    
     let availableRangesArr = [{value: "1d", label: "Today"}];
 
     // The earliest recorded holding in this portfolio.
