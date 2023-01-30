@@ -74,6 +74,17 @@ wss.on("connection", (ws) => {
 // APPLY CONTROLLERS
 controllers(server);
 
+var restifySwaggerJsdoc = require('restify-swagger-jsdoc');
+restifySwaggerJsdoc.createSwaggerPage({
+    title: 'EZFol.io API documentation', // Page title
+    version: '1.0.0', // Server version
+    server: server, // Restify server instance created with restify.createServer()
+    path: '/docs/swagger', // Public url where the swagger page will be available
+    apis: ['./services/*.service.js'],
+    host: "localhost:8080",
+    schemes: ["http"]
+});
+
 server.listen(PORT, function () {
   console.log("%s listening at %s", server.name, server.url);
 });

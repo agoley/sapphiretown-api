@@ -36,6 +36,22 @@ const getPortfolioByUserId = (id) => {
   });
 };
 
+/**
+ * @swagger
+ * /api/v3/portfolios/{id}:
+ *   get:
+ *     summary: Retrieve a Portfolio by ID.
+ *   parameters:
+ *     - in: path
+ *       name: id
+ *       required: true
+ *       description: ID of the Portfolio to retrieve.
+ *       schema:
+ *       type: string
+ *
+ * @param {*} id
+ * @returns {Object} Portfolio
+ */
 const getPortfolioById = (id) => {
   return new Promise((resolve, reject) => {
     var params = {
@@ -61,6 +77,21 @@ const getPortfolioById = (id) => {
   });
 };
 
+/**
+ * @swagger
+ * /api/v2/portfolio/breakdown/{id}:
+ *   get:
+ *     summary: Retrieves the breakdown of a portfolio.
+ *   parameters:
+ *     - in: path
+ *       name: id
+ *       required: true
+ *       description: ID of the Portfolio to retrieve.
+ *       schema:
+ *       type: string
+ * @param {*} id
+ * @returns {Object} Breakdown
+ */
 const getBreakdown = (id) => {
   return new Promise((resolve, reject) => {
     getPortfolioById(id)
@@ -88,6 +119,50 @@ const getBreakdown = (id) => {
   });
 };
 
+/**
+ * @swagger
+ * definitions:
+ *   MoverModel:
+ *     type: object
+ *     properties:
+ *       name:
+ *         type: string
+ *         description: Symbol of the holding.
+ *         example: "APPLE"
+ *       value:
+ *         type: number
+ *         description: Percentage change over range.
+ *         example: 0.5
+ *
+ *   MoversBody:
+ *     type: object
+ *     properties:
+ *       range:
+ *         type: string
+ *
+ * /api/v2/portfolio/{id}/movers:
+ *  get:
+ *    summary: Retrieves the percentage change of each holding in the Portfolio.
+ *    consumes:
+ *      - application/json
+ *    parameters:
+ *     - in: path
+ *       name: id
+ *       description: ID of the Portfolio to retrieve.
+ *       required: true
+ *       schema:
+ *         type: string
+ *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *     - in: body
+ *       required: true
+ *       schema:
+ *         type: object
+ *         default: { range: "1d"}
+ *         properties:
+ *           range:
+ *             type: string
+ *
+ */
 const getMovers = (id, range, interval) => {
   return new Promise((resolve, reject) => {
     getPortfolioById(id)
@@ -115,6 +190,13 @@ const getMovers = (id, range, interval) => {
   });
 };
 
+/**
+ *
+ * @param {*} id
+ * @param {*} range
+ * @param {*} interval
+ * @returns
+ */
 const getPriceAction = (id, range, interval) => {
   return new Promise((resolve, reject) => {
     getPortfolioById(id)
@@ -142,6 +224,14 @@ const getPriceAction = (id, range, interval) => {
   });
 };
 
+/**
+ *
+ * @param {*} id
+ * @param {*} comparisons
+ * @param {*} range
+ * @param {*} interval
+ * @returns
+ */
 const getComparison = (id, comparisons, range, interval) => {
   return new Promise((resolve, reject) => {
     getPortfolioById(id)
@@ -170,6 +260,11 @@ const getComparison = (id, comparisons, range, interval) => {
   });
 };
 
+/**
+ *
+ * @param {*} id
+ * @returns
+ */
 const getAvailableRanges = (id) => {
   return new Promise((resolve, reject) => {
     getPortfolioById(id)
