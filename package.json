@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "engines" : { 
-    "npm" : ">=8.0.0 <9.0.0",
-    "node" : ">=17.0.0 <18.0.0"
+  "engines": {
+    "npm": "8.x",
+    "node": "17.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -30,7 +30,7 @@
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
     "restify": "^8.4.0",
-    "restify-cors-middleware": "^1.1.1",
+    "restify-cors-middleware2": "^2.2.0",
     "restify-jwt-community": "^1.1.4",
     "restify-swagger-jsdoc": "^3.3.0",
     "rxjs": "^6.5.2",

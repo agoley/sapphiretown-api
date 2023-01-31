@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 8080;
 var server = restify.createServer();
 
 // CORS CONFIG
-const corsMiddleware = require("restify-cors-middleware");
+const corsMiddleware = require('restify-cors-middleware2')
 const cors = corsMiddleware({
   origins: [RESTIFY_ORIGIN, "https://www.ezfol.io", "https://ezfol.io"],
 });
