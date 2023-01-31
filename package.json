@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "engines" : { 
+    "npm" : ">=8.0.0 <9.0.0",
     "node" : ">=17.0.0 <18.0.0"
-  },  "scripts": {
+  },
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node -r esm index.js"
   },
