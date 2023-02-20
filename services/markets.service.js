@@ -72,16 +72,17 @@ const getMarkets = () => {
 };
 
 const getAutocomplete = (query) => {
-  var uni = unirest("GET", "https://" + X_RAPID_API_HOST + "/auto-complete");
+  var uni = unirest("GET", "https://" + _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY + "/v6/finance/autocomplete");
 
   uni.query({
+    lang: "en",
     region: "US",
-    q: query,
+    query: query,
   });
 
   uni.headers({
-    "x-rapidapi-host": X_RAPID_API_HOST,
-    "x-rapidapi-key": X_RAPID_API_KEY,
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
   });
 
   return new Promise((resolve, reject) => {
@@ -182,7 +183,7 @@ const MarketsService = {
             MarketsService.autocomplete(req, res, next, count);
           }, 1000);
         } else {
-          res.send(data);
+          res.send(err);
           return next();
         }
       });
