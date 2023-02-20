@@ -100,7 +100,6 @@ const UserService = {
                     );
                     delete user.password;
                     res.send(user);
-                    return next();
                   }
                 });
               } else {
@@ -109,7 +108,6 @@ const UserService = {
                   message: "Unable to find account.",
                 });
               }
-              return next();
             }
           };
           docClient.scan(params, onUserLookupScan);
@@ -120,7 +118,6 @@ const UserService = {
               "Invalid token: Token may have expired. Try requesting a reset again.",
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -168,7 +165,6 @@ const UserService = {
             if (err) {
               console.log("Error", err);
               res.send({});
-              return next();
             } else {
               var mailOptions = {
                 from: "ezfolio.contact@gmail.com",
@@ -193,12 +189,10 @@ const UserService = {
                   return next();
                 } else {
                   res.send({});
-                  return next();
                 }
               });
 
               res.send({});
-              return next();
             }
           });
         } else {
@@ -207,7 +201,6 @@ const UserService = {
             message: "Unable to find account with username or email.",
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -255,7 +248,6 @@ const UserService = {
             message: "Unable to find account with username or email.",
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -321,11 +313,9 @@ const UserService = {
             } else {
               delete usr.password;
               res.send(usr);
-              return next();
             }
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -402,7 +392,6 @@ const UserService = {
             }
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -473,7 +462,6 @@ const UserService = {
             message: "Unable to find account with username or email.",
           });
         }
-        return next();
       }
     };
     docClient.scan(params, onScan);
@@ -502,7 +490,6 @@ const UserService = {
         } else {
           res.send(null);
         }
-        return next();
       }
     };
     docClient.get(params, onScan);
@@ -578,7 +565,6 @@ const UserService = {
           }
         }
       }
-      return next();
     };
     docClient.scan(getUserByIdParams, onUnsubscribeScan);
   },
@@ -609,7 +595,6 @@ const UserService = {
           message: "There was an error getting user by ID.",
         });
         console.log("failed to get user");
-        return next();
       } else {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
@@ -655,7 +640,6 @@ const UserService = {
                 err?.raw?.message ||
                 "There was an error creating payment method.",
             });
-            return next();
           }
 
           let customer;
@@ -707,7 +691,6 @@ const UserService = {
               color: "red",
               message: "There was an error creating customer account.",
             });
-            return next();
           }
 
           if (user.stripe_subscription_id) {
@@ -734,7 +717,6 @@ const UserService = {
               color: "red",
               message: "There was an error creating subscription.",
             });
-            return next();
           }
 
           // 7. update the user with stripe customer id, and pro subsription.
@@ -761,10 +743,8 @@ const UserService = {
                 JSON.stringify(err, null, 2)
               );
               res.send(err);
-              return next();
             } else {
               res.send(data["Attributes"]);
-              return next();
             }
           });
         } else {
@@ -772,10 +752,8 @@ const UserService = {
             color: "red",
             message: "Unable to find user with that ID.",
           });
-          return next();
         }
       }
-      return next();
     };
     docClient.scan(getUserByIdParams, onSubscribeUserScan);
   },

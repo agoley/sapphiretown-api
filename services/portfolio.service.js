@@ -133,15 +133,15 @@ const getBreakdown = (id) => {
  *         type: number
  *         description: Percentage change over range.
  *         example: 0.5
+ * 
+ *     MoversArray:
+ *       type: array
+ *       items:
+ *         $ref: '#/definitions/MoverModel'
  *
- *   MoversBody:
- *     type: object
- *     properties:
- *       range:
- *         type: string
  *
  * /api/v2/portfolio/{id}/movers:
- *  get:
+ *  post:
  *    summary: Retrieves the percentage change of each holding in the Portfolio.
  *    consumes:
  *      - application/json
@@ -154,13 +154,25 @@ const getBreakdown = (id) => {
  *         type: string
  *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
  *     - in: body
- *       required: true
+ *       name: MoversBody
  *       schema:
  *         type: object
- *         default: { range: "1d"}
+ *         required:
+ *            - range
  *         properties:
  *           range:
  *             type: string
+ *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `ytd`"
+ *           interval:
+ *             type: string
+ *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+ *    responses:
+ *      '200':
+ *        description: A list of symbols and its holdings percentage movement in the provided range.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/MoversArray'
  *
  */
 const getMovers = (id, range, interval) => {
