@@ -666,7 +666,7 @@ class Portfolio {
 
             // Timestamps before the current one, reversed
             let timestampsToSearch = timestamps
-              .slice(0, i - 1)
+              .slice(0, i - 2)
               .reverse()
               .slice(0, 1);
 
