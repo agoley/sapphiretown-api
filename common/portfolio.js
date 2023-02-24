@@ -786,6 +786,13 @@ class Portfolio {
     // Get quotes for each comp.
     let quotes = await StockService.getQuote(comparisons);
 
+    if (!quotes) {
+
+    if (!portfolioChart.length) {
+      return Promise.resolve([]);
+    }
+    }
+
     let comparisonChartArr = [];
 
     comparisons.forEach((comp) => {
