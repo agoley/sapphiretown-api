@@ -279,6 +279,37 @@ class Portfolio {
     return holdings;
   }
 
+  holdingsAtTime(ts) {
+    if (!this.transactions || this.transactions.length === 0) {
+      return [];
+    }
+
+    let transactions = this.transactions.filter(t => new Date(t.date) <= ts);
+
+    const uniqueAssets = [...new Set(transactions.map((t) => t.symbol))];
+    let holdings = uniqueAssets
+      .map((ua) => {
+        return {
+          symbol: ua,
+          shares: transactions
+            .filter(
+              (t) =>
+                t.symbol === ua &&
+                t.type === "PURCHASE" &&
+                (t.owned > 0 || t.owned === undefined)
+            )
+            .map((t) => (t.owned ? +t.owned : +t.quantity))
+            .reduce((acc, curr) => acc + curr, 0),
+          class: transactions.filter((t) => t.symbol === ua)[0].class
+            ? transactions.filter((t) => t.symbol === ua)[0].class
+            : "stock",
+        };
+      })
+      .filter((h) => h.shares > 0);
+
+    return holdings;
+  }
+
   get value() {
     return this.calcValue();
   }
@@ -715,7 +746,7 @@ class Portfolio {
           }
         });
 
-        if (count === symbolsArr.length) {
+        if (count === this.holdingsAtTime(ts).length) {
           // This snapshot represents all holdings in the portfolio
 
           // Add the snapshot to the array
