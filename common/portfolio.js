@@ -279,12 +279,12 @@ class Portfolio {
     return holdings;
   }
 
-  holdingsAtTime(ts) {
+  holdingsAtTime(ts, cashFlag) {
     if (!this.transactions || this.transactions.length === 0) {
       return [];
     }
 
-    let transactions = this.transactions.filter(t => new Date(t.date) <= ts);
+    let transactions = this.transactions.filter((t) => new Date(t.date) <= ts);
 
     const uniqueAssets = [...new Set(transactions.map((t) => t.symbol))];
     let holdings = uniqueAssets
@@ -306,6 +306,10 @@ class Portfolio {
         };
       })
       .filter((h) => h.shares > 0);
+
+    if (!cashFlag) {
+      holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
+    }
 
     return holdings;
   }
@@ -746,7 +750,7 @@ class Portfolio {
           }
         });
 
-        if (count === this.holdingsAtTime(ts).length) {
+        if (count === this.holdingsAtTime(ts, cashFlag).length) {
           // This snapshot represents all holdings in the portfolio
 
           // Add the snapshot to the array
@@ -787,10 +791,10 @@ class Portfolio {
     let quotes = await StockService.getQuote(comparisons);
 
     if (!quotes) {
-
-    if (!portfolioChart.length) {
-      return Promise.resolve([]);
-    }
+      console.log("failure to get quotes");
+      if (!portfolioChart.length) {
+        return Promise.resolve([]);
+      }
     }
 
     let comparisonChartArr = [];
@@ -826,7 +830,7 @@ class Portfolio {
       });
     });
 
-    let portfolioChart = await this.calcPriceAction(range, interval, false);
+    const portfolioChart = await this.calcPriceAction(range, interval, false);
 
     if (!portfolioChart.length) {
       return Promise.resolve([]);
