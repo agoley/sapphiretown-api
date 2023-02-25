@@ -540,7 +540,7 @@ class Portfolio {
             throw new Error();
           }
 
-          console.log( response.chart.result[0].timestamp.slice(5))
+          console.log( response.chart.result[0].timestamp.slice(0, 5))
 
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
