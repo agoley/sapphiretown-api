@@ -683,7 +683,7 @@ class Portfolio {
           timeSnapshotMap[candle.date] = snapshot;
         });
       });
-      console.log(timeSnapshotMap.slice(0, 2));
+      console.log(Object.keys(timeSnapshotMap).slice(0, 2));
 
       // Get all timestamps in the map, convert to numbers, and sort
       const timestamps = Object.keys(timeSnapshotMap)
