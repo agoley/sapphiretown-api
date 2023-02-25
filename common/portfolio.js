@@ -521,7 +521,7 @@ class Portfolio {
         let holding = holdings[i];
 
         // References the chart api response, and the first timestamp in the chart.
-        let response;
+        let response, firstTimestamp;
 
         if (holding.class !== ASSET_CLASSES.CASH) {
           // The chart information for this symbol.
@@ -540,14 +540,12 @@ class Portfolio {
             throw new Error();
           }
 
-
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
-            response.chart.result[0].timestamp.map((t) => (t * 1000));
+            response.chart.result[0].timestamp.map((t) => t * 1000);
+
+          firstTimestamp = response.chart.result[0].timestamp[0];
         }
-
-        const firstTimestamp = response.chart.result[0].timestamp[0];
-
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
         const transactions = this.transactions
@@ -608,7 +606,7 @@ class Portfolio {
 
           // Record the quantity at the most recent transaction time
           holdingTimeMachineArr.push({
-            time: firstTimestamp,
+            time: transactions[transactions.length - 1].date,
             quantity: quantity,
           });
         }
@@ -1004,7 +1002,7 @@ class Portfolio {
                     })
                     .catch((err) => console.log(err));
 
-                  this.calcMovers(context ? context.moversRange : '1d')
+                  this.calcMovers(context ? context.moversRange : "1d")
                     .then((movers) => {
                       wss.send(
                         JSON.stringify({
