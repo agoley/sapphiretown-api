@@ -625,11 +625,10 @@ class Portfolio {
           });
         } else {
           // This is a cash holding
-
           // Add action using the quantity for all values, as cash is the base currency.
           holdingTimeMachineArr.forEach((ac) => {
             holdingHistoryArr.push({
-              date: ac.time,
+              date: 1677350100000, // This can screw things up when before start of range!!
               high: ac.quantity,
               low: ac.quantity,
               open: ac.quantity,
