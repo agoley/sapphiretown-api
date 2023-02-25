@@ -546,7 +546,7 @@ class Portfolio {
 
           firstTimestamp = response.chart.result[0].timestamp[0];
 
-          // console.log(firstTimestamp)
+          console.log(firstTimestamp)
         }
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
