@@ -515,24 +515,26 @@ class Portfolio {
         start.setHours(0);
         return new Date(start.getFullYear(), start.getMonth(), 1).getTime();
       case "3mo":
+        console.log(range)
         start.setHours(0);
-        start.setMonth(d.getMonth() - 3);
+        start.setMonth(start.getMonth() - 3);
+        console.log(start)
         return start.getTime();
       case "6mo":
         start.setHours(0);
-        start.setMonth(d.getMonth() - 6);
+        start.setMonth(start.getMonth() - 6);
         return start.getTime();
       case "1y":
         start.setHours(0);
-        start.setFullYear(d.getFullYear() - 1);
+        start.setFullYear(start.getFullYear() - 1);
         return start.getTime();
       case "5y":
         start.setHours(0);
-        start.setFullYear(d.getFullYear() - 5);
+        start.setFullYear(start.getFullYear() - 5);
         return start.getTime();
       case "10y":
         start.setHours(0);
-        start.setFullYear(d.getFullYear() - 10);
+        start.setFullYear(start.getFullYear() - 10);
         return start.getTime();
       case "ytd":
         start.setHours(0);
