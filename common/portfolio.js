@@ -546,7 +546,6 @@ class Portfolio {
 
           firstTimestamp = response.chart.result[0].timestamp[0];
 
-          console.log(firstTimestamp)
         }
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
@@ -1004,7 +1003,7 @@ class Portfolio {
                     })
                     .catch((err) => console.log(err));
 
-                  this.calcMovers(context.moversRange)
+                  this.calcMovers(context.moversRange || '1d')
                     .then((movers) => {
                       wss.send(
                         JSON.stringify({
