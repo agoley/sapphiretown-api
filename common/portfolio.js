@@ -540,11 +540,13 @@ class Portfolio {
             throw new Error();
           }
 
-          console.log( `holding: ${holding.symbol}, first timestamps: ${response.chart.result[0].timestamp.slice(0, 5)}`)
 
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
             response.chart.result[0].timestamp.map((t) => (t * 1000));
+
+            console.log( `holding: ${holding.symbol}, first timestamps: ${response.chart.result[0].timestamp.slice(0, 5)}`)
+
 
           firstTimestamp = response.chart.result[0].timestamp[0];
 
