@@ -504,6 +504,12 @@ class Portfolio {
       case "1d":
         start.setHours(0);
         return start.getTime();
+
+      case "5d":
+        start.setHours(0);
+        var day = start.getDay(),
+          diff = start.getDate() - day + (day == 0 ? -6 : 1);
+        return new Date(start.setDate(diff)).getTime();
       default:
         return 0;
     }
