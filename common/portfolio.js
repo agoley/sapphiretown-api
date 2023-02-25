@@ -835,7 +835,7 @@ class Portfolio {
 
     const portfolioChart = await this.calcPriceAction(range, interval, false);
 
-    if (!portfolioChart.length) {
+    if (!portfolioChart || !portfolioChart.length) {
       return Promise.resolve([]);
     }
 
