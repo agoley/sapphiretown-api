@@ -540,14 +540,11 @@ class Portfolio {
             throw new Error();
           }
 
-
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
-            response.chart.result[0].timestamp.map((t) => (t * 1000));
-
+            response.chart.result[0].timestamp.map((t) => t * 1000);
 
           firstTimestamp = response.chart.result[0].timestamp[0];
-
         }
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
@@ -686,13 +683,14 @@ class Portfolio {
           timeSnapshotMap[candle.date] = snapshot;
         });
       });
+      console.log(timeSnapshotMap.slice(0, 2));
 
       // Get all timestamps in the map, convert to numbers, and sort
       const timestamps = Object.keys(timeSnapshotMap)
         .map((ts) => +ts)
         .sort((a, b) => a - b);
 
-        console.log(timestamps.slice(0,2))
+      console.log(timestamps.slice(0, 2));
 
       // Iterate over all timestamps that have portfolio snapshots
       timestamps.forEach((ts, i) => {
@@ -1007,7 +1005,7 @@ class Portfolio {
                     })
                     .catch((err) => console.log(err));
 
-                  this.calcMovers(context ? context.moversRange : '1d')
+                  this.calcMovers(context ? context.moversRange : "1d")
                     .then((movers) => {
                       wss.send(
                         JSON.stringify({
