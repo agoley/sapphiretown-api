@@ -506,10 +506,39 @@ class Portfolio {
         return start.getTime();
 
       case "5d":
+        // Get the first day of the week from current date.
         start.setHours(0);
         var day = start.getDay(),
           diff = start.getDate() - day + (day == 0 ? -6 : 1);
         return new Date(start.setDate(diff)).getTime();
+      case "1mo":
+        start.setHours(0);
+        return new Date(start.getFullYear(), start.getMonth(), 1).getTime();
+      case "3mo":
+        start.setHours(0);
+        start.setMonth(d.getMonth() - 3);
+        return start.getTime();
+      case "6mo":
+        start.setHours(0);
+        start.setMonth(d.getMonth() - 6);
+        return start.getTime();
+      case "1y":
+        start.setHours(0);
+        start.setFullYear(d.getFullYear() - 1);
+        return start.getTime();
+      case "5y":
+        start.setHours(0);
+        start.setFullYear(d.getFullYear() - 5);
+        return start.getTime();
+      case "10y":
+        start.setHours(0);
+        start.setFullYear(d.getFullYear() - 10);
+        return start.getTime();
+      case "ytd":
+        start.setHours(0);
+        start.setMonth(0);
+        start.setDate(0);
+        return start.getTime();
       default:
         return 0;
     }
