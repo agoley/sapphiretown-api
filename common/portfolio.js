@@ -1003,7 +1003,7 @@ class Portfolio {
                     })
                     .catch((err) => console.log(err));
 
-                  this.calcMovers(context?.moversRange || '1d')
+                  this.calcMovers(context ? context.moversRange : '1d')
                     .then((movers) => {
                       wss.send(
                         JSON.stringify({
