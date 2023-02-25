@@ -689,8 +689,6 @@ class Portfolio {
         .map((ts) => +ts)
         .sort((a, b) => a - b);
 
-      timestamps = timestamps.filter((ts) => ts > firstTimestamp);
-
       // Iterate over all timestamps that have portfolio snapshots
       timestamps.forEach((ts, i) => {
         // Snapshot for this timestamp
