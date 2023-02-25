@@ -683,14 +683,13 @@ class Portfolio {
           timeSnapshotMap[candle.date] = snapshot;
         });
       });
-      console.log(Object.keys(timeSnapshotMap).slice(0, 2));
 
       // Get all timestamps in the map, convert to numbers, and sort
-      const timestamps = Object.keys(timeSnapshotMap)
+      let timestamps = Object.keys(timeSnapshotMap)
         .map((ts) => +ts)
         .sort((a, b) => a - b);
 
-      console.log(timestamps.slice(0, 2));
+      timestamps = timestamps.filter((ts) => ts > firstTimestamp);
 
       // Iterate over all timestamps that have portfolio snapshots
       timestamps.forEach((ts, i) => {
