@@ -521,7 +521,7 @@ class Portfolio {
         let holding = holdings[i];
 
         // References the chart api response, and the first timestamp in the chart.
-        let response, firstTimestamp;
+        let response;
 
         if (holding.class !== ASSET_CLASSES.CASH) {
           // The chart information for this symbol.
@@ -544,13 +544,10 @@ class Portfolio {
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
             response.chart.result[0].timestamp.map((t) => (t * 1000));
-
-            console.log( `holding: ${holding.symbol}, first timestamps: ${response.chart.result[0].timestamp.slice(0, 5)}`)
-
-
-          firstTimestamp = response.chart.result[0].timestamp[0];
-
         }
+
+        const firstTimestamp = response.chart.result[0].timestamp[0];
+
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
         const transactions = this.transactions
@@ -611,7 +608,7 @@ class Portfolio {
 
           // Record the quantity at the most recent transaction time
           holdingTimeMachineArr.push({
-            time: transactions[transactions.length - 1].date,
+            time: firstTimestamp,
             quantity: quantity,
           });
         }
