@@ -497,6 +497,18 @@ class Portfolio {
     }
   }
 
+  getStartTime(range) {
+    let start = new Date();
+
+    switch (range) {
+      case "1d":
+        start.setHours(0);
+        return start.getTime();
+      default:
+        return 0;
+    }
+  }
+
   /**
    * Get the price action of the entire portfolio as a time series.
    * @param {*} range Time range for the time series
@@ -628,7 +640,7 @@ class Portfolio {
           // Add action using the quantity for all values, as cash is the base currency.
           holdingTimeMachineArr.forEach((ac) => {
             holdingHistoryArr.push({
-              date: ac.time, // This can screw things up when before start of range!!
+              date: this.getStartTime(range), // This can screw things up when before start of range!!
               high: ac.quantity,
               low: ac.quantity,
               open: ac.quantity,
