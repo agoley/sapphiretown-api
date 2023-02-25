@@ -608,10 +608,10 @@ class Portfolio {
           // No transaction occurs after the range start time.
 
           // Record the quantity at the most recent transaction time
-          // holdingTimeMachineArr.push({
-          //   time: transactions[transactions.length - 1].date,
-          //   quantity: quantity,
-          // });
+          holdingTimeMachineArr.push({
+            time: transactions[transactions.length - 1].date,
+            quantity: quantity,
+          });
         }
 
         // The history of value for this holding.
