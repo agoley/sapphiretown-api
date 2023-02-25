@@ -542,9 +542,11 @@ class Portfolio {
 
           // Convert timestamps to ms
           response.chart.result[0].timestamp =
-            response.chart.result[0].timestamp.map((t) => t * 1000);
+            response.chart.result[0].timestamp.map((t) => (t * 1000));
 
           firstTimestamp = response.chart.result[0].timestamp[0];
+
+          // console.log(firstTimestamp)
         }
 
         // Transactions for symbol in this portfolio, these could be of type purchase or sale.
