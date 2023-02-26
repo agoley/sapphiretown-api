@@ -3,6 +3,7 @@ const StockService = require("../services/stock.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
+const Cache = require("../common/cache");
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -11,6 +12,9 @@ const ASSET_CLASSES = {
 };
 
 const CRYPTO_POSTFIX = "-USD";
+
+const actionCache = new Cache(60000);
+const comparisonCache = new Cache(60000);
 
 /**
  * Gets the value of the holding at a point in time
@@ -515,10 +519,8 @@ class Portfolio {
         start.setHours(0);
         return new Date(start.getFullYear(), start.getMonth(), 1).getTime();
       case "3mo":
-        console.log(range)
         start.setHours(0);
         start.setMonth(start.getMonth() - 3);
-        console.log(start)
         return start.getTime();
       case "6mo":
         start.setHours(0);
@@ -553,6 +555,11 @@ class Portfolio {
    * @param {boolean} cashFlag If false doesn't include cash in the price.
    */
   async calcPriceAction(range, interval, cashFlag) {
+
+    if (actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)) {
+      return Promise.resolve(actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`));
+    }
+
     try {
       // Get the portfolios holdings
       let holdings = [...this.holdings];
@@ -806,6 +813,7 @@ class Portfolio {
         }
       });
 
+      actionCache.save(`${this.id}-${range}-${interval}-${cashFlag}`, snapshots);
       return Promise.resolve(snapshots);
     } catch (err) {
       // An error occurred during processing, resolve a descriptive error
@@ -826,6 +834,17 @@ class Portfolio {
    * @param {Number} interval
    */
   async calcComparison(comparisons, range, interval) {
+    if (
+      comparisonCache.get(
+        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+      )
+    ) {
+      return Promise.resolve(
+        comparisonCache.get(
+          `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+        )
+      );
+    }
     // Gather the chart queries for comparisons to batch the requests.
     const queries = [];
     comparisons.forEach((symbol) => {
@@ -929,6 +948,10 @@ class Portfolio {
       });
     });
 
+    comparisonCache.save(
+      `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
+      response
+    );
     return Promise.resolve(response);
   }
 

@@ -94,7 +94,6 @@ const QueryService = {
   query: (req, res, next, count) => {
     if (queryCache.get(req.body.symbol)) {
       res.send(queryCache.get(req.body.symbol));
-      return next();
     }
 
     getQuery(req.body.symbol)
@@ -102,11 +101,9 @@ const QueryService = {
         if (data.err) {
           console.error(data.err);
           res.send(data);
-          return next();
         }
         queryCache.save(req.body.symbol, data);
         res.send(data);
-        return next();
       })
       .catch((err) => {
         count = count ? count + 1 : 1;
@@ -117,14 +114,12 @@ const QueryService = {
           }, 1000);
         } else {
           res.send(err);
-          return next();
         }
       });
   },
   insights: (req, res, next, count) => {
     if (insightsCache.get(req.body.symbol)) {
       res.send(insightsCache.get(req.body.symbol));
-      return next();
     }
 
     getInsights(req.body.symbol)
@@ -132,11 +127,9 @@ const QueryService = {
         if (data.err) {
           console.error(data.err);
           res.send(data);
-          return next();
         }
         summaryCache.save(req.body.symbol, data);
         res.send(data);
-        return next();
       })
       .catch((err) => {
         count = count ? count + 1 : 1;
@@ -147,14 +140,12 @@ const QueryService = {
           }, 1000);
         } else {
           res.send(err);
-          return next();
         }
       });
   },
   summary: (req, res, next, count) => {
     if (summaryCache.get(req.body.symbol)) {
       res.send(summaryCache.get(req.body.symbol));
-      return next();
     }
 
     getSummary(req.body.symbol)
@@ -162,11 +153,9 @@ const QueryService = {
         if (data.err) {
           console.error(data.err);
           res.send(data);
-          return next();
         }
         summaryCache.save(req.body.symbol, data);
         res.send(data);
-        return next();
       })
       .catch((err) => {
         count = count ? count + 1 : 1;
@@ -177,7 +166,6 @@ const QueryService = {
           }, 1000);
         } else {
           res.send(err);
-          return next();
         }
       });
   },
