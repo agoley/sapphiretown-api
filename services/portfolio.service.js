@@ -38,6 +38,82 @@ const getPortfolioByUserId = (id) => {
 
 /**
  * @swagger
+ * definitions:
+ *   CandleModel:
+ *     type: object
+ *     properties:
+ *       date: 
+ *         type: Date
+ *       high:
+ *         type: number
+ *         description: High price for this interval
+ *         example: "55552"
+ *       close:
+ *         type: number
+ *         description: Closing price for this interval
+ *         example: "54321"
+ *       open:
+ *         type: number
+ *         description: Opening price for this interval
+ *         example: "53621"
+ *       low:
+ *         type: number
+ *         description: Low price for this interval
+ *         example: "52621"
+ *       volume:
+ *         type: number
+ *         description: Volume during this interval
+ *         example: "16096813"
+ *   BreakoutModel:
+ *     type: object
+ *     properties:
+ *       symbol:
+ *         type: string
+ *         description: Ticker for this holding
+ *         example: "AAPL"
+ *       candle:
+ *         type: object
+ *         $ref: '#/definitions/CandleModel'
+ *   MoverModel:
+ *     type: object
+ *     properties:
+ *       high:
+ *         type: number
+ *         description: High price for this interval
+ *         example: "55552"
+ *       close:
+ *         type: number
+ *         description: Closing price for this interval
+ *         example: "54321"
+ *       open:
+ *         type: number
+ *         description: Opening price for this interval
+ *         example: "53621"
+ *       low:
+ *         type: number
+ *         description: Low price for this interval
+ *         example: "52621"
+ *       volume:
+ *         type: number
+ *         description: Volume during this interval
+ *         example: "16096813"
+ *       breakout:
+ *         type: object
+ *         $ref: '#/definitions/BreakoutModel'
+ *         description: Individual holding action
+ *   ActionArray:
+ *     type: array
+ *     items:
+ *       $ref: '#/definitions/ActionModel'
+ *   MoversArray:
+ *     type: array
+ *     items:
+ *       $ref: '#/definitions/MoverModel'
+ *
+ */
+
+/**
+ * @swagger
  * /api/v3/portfolios/{id}:
  *   get:
  *     summary: Retrieve a Portfolio by ID.
@@ -121,25 +197,6 @@ const getBreakdown = (id) => {
 
 /**
  * @swagger
- * definitions:
- *   MoverModel:
- *     type: object
- *     properties:
- *       name:
- *         type: string
- *         description: Symbol of the holding.
- *         example: "APPLE"
- *       value:
- *         type: number
- *         description: Percentage change over range.
- *         example: 0.5
- * 
- *     MoversArray:
- *       type: array
- *       items:
- *         $ref: '#/definitions/MoverModel'
- *
- *
  * /api/v2/portfolio/{id}/movers:
  *  post:
  *    summary: Retrieves the percentage change of each holding in the Portfolio.
@@ -163,9 +220,11 @@ const getBreakdown = (id) => {
  *           range:
  *             type: string
  *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `ytd`"
+ *             example: "1d"
  *           interval:
  *             type: string
  *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+ *             example: "5m"
  *    responses:
  *      '200':
  *        description: A list of symbols and its holdings percentage movement in the provided range.
@@ -202,12 +261,44 @@ const getMovers = (id, range, interval) => {
   });
 };
 
-/**
+/**  
+ * @swagger 
+ * /api/v2/portfolio/{id}/action:
+ *  post:
+ *    summary: Retrieves the price action for the time range in increments of interval.
+ *    consumes:
+ *      - application/json
+ *    parameters:
+ *     - in: path
+ *       name: id
+ *       description: ID of the Portfolio to retrieve.
+ *       required: true
+ *       schema:
+ *         type: string
+ *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *     - in: body
+ *       name: MoversBody
+ *       schema:
+ *         type: object
+ *         required:
+ *            - range
+ *         properties:
+ *           range:
+ *             type: string
+ *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `ytd`"
+ *             example: "1d"
+ *           interval:
+ *             type: string
+ *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+ *             example: "5m"
+ *    responses:
+ *      '200':
+ *        description: A list of symbols and its holdings percentage movement in the provided range.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/MoversArray'
  *
- * @param {*} id
- * @param {*} range
- * @param {*} interval
- * @returns
  */
 const getPriceAction = (id, range, interval) => {
   return new Promise((resolve, reject) => {
