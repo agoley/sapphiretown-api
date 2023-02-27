@@ -15,7 +15,7 @@ var server = restify.createServer();
 // CORS CONFIG
 const corsMiddleware = require('restify-cors-middleware2')
 const cors = corsMiddleware({
-  origins: [RESTIFY_ORIGIN, "https://www.ezfol.io", "https://ezfol.io"],
+  origins: [RESTIFY_ORIGIN, "https://www.ezfol.io", "https://ezfol.io",],
 });
 
 // APPLY CORS
@@ -81,8 +81,8 @@ restifySwaggerJsdoc.createSwaggerPage({
     server: server, // Restify server instance created with restify.createServer()
     path: '/docs/swagger', // Public url where the swagger page will be available
     apis: ['./services/*.service.js'],
-    host: "localhost:8080",
-    schemes: ["http"]
+    host: "aqueous-beyond-14838.herokuapp.com/",
+    schemes: ["https", "http"]
 });
 
 server.listen(PORT, function () {
