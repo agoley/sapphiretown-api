@@ -720,6 +720,7 @@ const PortfolioService = {
       .then((pa) => {
         res.send(pa);
         return next();
+
       })
       .catch((error) => {
         console.log(error);

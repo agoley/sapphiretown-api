@@ -13,7 +13,7 @@ const ASSET_CLASSES = {
 
 const CRYPTO_POSTFIX = "-USD";
 
-const actionCache = new Cache(60000);
+const actionCache = new Cache(120000);
 const comparisonCache = new Cache(60000);
 
 /**
@@ -557,6 +557,7 @@ class Portfolio {
   async calcPriceAction(range, interval, cashFlag) {
 
     if (actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)) {
+      console.log("using cache")
       return Promise.resolve(actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`));
     }
 
@@ -567,6 +568,8 @@ class Portfolio {
       if (!cashFlag) {
         holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
       }
+
+      // console.log(holdings);
 
       // Maps holdings to respective price action
       const holdingHistoryMap = {};
@@ -813,10 +816,13 @@ class Portfolio {
         }
       });
 
+
       actionCache.save(`${this.id}-${range}-${interval}-${cashFlag}`, snapshots);
       return Promise.resolve(snapshots);
     } catch (err) {
       // An error occurred during processing, resolve a descriptive error
+
+      console.log(err);
 
       Promise.resolve({
         error: {
