@@ -15,7 +15,7 @@ var server = restify.createServer();
 // CORS CONFIG
 const corsMiddleware = require('restify-cors-middleware2')
 const cors = corsMiddleware({
-  // preflightMaxAge: 600, 
+  preflightMaxAge: 600000, 
   origins: [RESTIFY_ORIGIN, "https://www.ezfol.io", "https://ezfol.io",],
 });
 
