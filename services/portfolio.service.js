@@ -74,7 +74,7 @@ const getPortfolioByUserId = (id) => {
  *       candle:
  *         type: object
  *         $ref: '#/definitions/CandleModel'
- *   MoverModel:
+ *   ActionModel:
  *     type: object
  *     properties:
  *       high:
@@ -101,6 +101,15 @@ const getPortfolioByUserId = (id) => {
  *         type: object
  *         $ref: '#/definitions/BreakoutModel'
  *         description: Individual holding action
+ *   MoverModel:
+ *     type: object
+ *     properties:  
+ *       name: 
+ *         type: string
+ *         descriptions: Symbol for the holding
+ *       value:
+ *         type: number
+ *         description: Percentage change for the time period  
  *   ActionArray:
  *     type: array
  *     items:
