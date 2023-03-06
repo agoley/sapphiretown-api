@@ -24,8 +24,6 @@ server.pre(cors.preflight);
 server.use(cors.actual);
 server.use(restify.plugins.queryParser());
 
-server.server.setTimeout(60000*10);
-
 server.use(
   restify.plugins.bodyParser({
     mapParams: true,

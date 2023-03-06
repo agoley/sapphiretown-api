@@ -109,6 +109,9 @@ const getPortfolioByUserId = (id) => {
  *     type: array
  *     items:
  *       $ref: '#/definitions/MoverModel'
+ *   ComparisonResponse: 
+ *     type: object
+ *     description: An object with keys for each comparison symbol, and a the portfolios name. The values of each key is an array of tuples (value, date) representing a chart interval.
  *
  */
 
@@ -211,7 +214,7 @@ const getBreakdown = (id) => {
  *         type: string
  *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
  *     - in: body
- *       name: MoversBody
+ *       name: ChartBody
  *       schema:
  *         type: object
  *         required:
@@ -277,7 +280,7 @@ const getMovers = (id, range, interval) => {
  *         type: string
  *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
  *     - in: body
- *       name: MoversBody
+ *       name: ChartBody
  *       schema:
  *         type: object
  *         required:
@@ -327,13 +330,48 @@ const getPriceAction = (id, range, interval) => {
   });
 };
 
-/**
+/**  
+ * @swagger 
+ * /api/v2/portfolio/{id}/comparison:
+ *  post:
+ *    summary: Calculates and returns a percentage comparison chart for time range in increments of interval.
+ *    consumes:
+ *      - application/json
+ *    parameters:
+ *     - in: path
+ *       name: id
+ *       description: ID of the Portfolio.
+ *       required: true
+ *       schema:
+ *         type: string
+ *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *     - in: body
+ *       name: ChartBody
+ *       schema:
+ *         type: object
+ *         required:
+ *            - range
+ *         properties:
+ *           comparisons:
+ *             type: array
+ *             description: An array of tickers to compare performance against.
+ *             example: ["^GSPC", "^DJI", "^IXIC"]
+ *           range:
+ *             type: string
+ *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `ytd`"
+ *             example: "1d"
+ *           interval:
+ *             type: string
+ *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+ *             example: "5m"
+ *    responses:
+ *      '200':
+ *        description: A list of symbols and an array of percentage chart data for the provided range in increments of interval.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/ComparisonResponse'
  *
- * @param {*} id
- * @param {*} comparisons
- * @param {*} range
- * @param {*} interval
- * @returns
  */
 const getComparison = (id, comparisons, range, interval) => {
   return new Promise((resolve, reject) => {

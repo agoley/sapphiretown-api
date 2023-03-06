@@ -569,8 +569,6 @@ class Portfolio {
         holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
       }
 
-      // console.log(holdings);
-
       // Maps holdings to respective price action
       const holdingHistoryMap = {};
 
