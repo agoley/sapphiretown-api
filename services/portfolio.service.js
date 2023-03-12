@@ -325,7 +325,7 @@ const getPriceAction = (id, range, interval) => {
           JSON.parse(data.Items[0].transactions)
         );
         portfolio
-          .calcPriceAction(range, interval, true)
+          .calcPriceActionParallel(range, interval, true)
           .then((pa) => {
             resolve(pa);
           })
@@ -396,7 +396,7 @@ const getComparison = (id, comparisons, range, interval) => {
           data.Items[0].portfolio_name
         );
         portfolio
-          .calcComparison(comparisons, range, interval)
+          .calcComparisonParallel(comparisons, range, interval)
           .then((comparison) => {
             resolve(comparison);
           })
