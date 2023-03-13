@@ -554,284 +554,284 @@ class Portfolio {
    * @param {*} Interval Interval for values in time series
    * @param {boolean} cashFlag If false doesn't include cash in the price.
    */
-  async calcPriceAction(range, interval, cashFlag) {
-    if (actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)) {
-      return Promise.resolve(
-        actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)
-      );
-    }
+  // async calcPriceAction(range, interval, cashFlag) {
+  //   if (actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)) {
+  //     return Promise.resolve(
+  //       actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)
+  //     );
+  //   }
 
-    try {
-      // Get the portfolios holdings
-      let holdings = [...this.holdings];
+  //   try {
+  //     // Get the portfolios holdings
+  //     let holdings = [...this.holdings];
 
-      if (!cashFlag) {
-        holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
-      }
+  //     if (!cashFlag) {
+  //       holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
+  //     }
 
-      // Maps holdings to respective price action
-      const holdingHistoryMap = {};
+  //     // Maps holdings to respective price action
+  //     const holdingHistoryMap = {};
 
-      // Loop through each holding and get the price action for the given range.
-      for (let i = 0; i < holdings.length; i++) {
-        // The current holding
-        let holding = holdings[i];
+  //     // Loop through each holding and get the price action for the given range.
+  //     for (let i = 0; i < holdings.length; i++) {
+  //       // The current holding
+  //       let holding = holdings[i];
 
-        // References the chart api response, and the first timestamp in the chart.
-        let response, firstTimestamp;
+  //       // References the chart api response, and the first timestamp in the chart.
+  //       let response, firstTimestamp;
 
-        if (holding.class !== ASSET_CLASSES.CASH) {
-          // The chart information for this symbol.
-          response = await ChartService.getChartLL(
-            holding.class === ASSET_CLASSES.STOCK
-              ? holding.symbol
-              : `${holding.symbol + CRYPTO_POSTFIX}`,
-            interval,
-            range
-          );
+  //       if (holding.class !== ASSET_CLASSES.CASH) {
+  //         // The chart information for this symbol.
+  //         response = await ChartService.getChartLL(
+  //           holding.class === ASSET_CLASSES.STOCK
+  //             ? holding.symbol
+  //             : `${holding.symbol + CRYPTO_POSTFIX}`,
+  //           interval,
+  //           range
+  //         );
 
-          if (!(response && response.chart && response.chart.result[0])) {
-            // The request failed.
-            console.error(response);
-            // Throw an error, to be caught and handled down stream.
-            throw new Error();
-          }
+  //         if (!(response && response.chart && response.chart.result[0])) {
+  //           // The request failed.
+  //           console.error(response);
+  //           // Throw an error, to be caught and handled down stream.
+  //           throw new Error();
+  //         }
 
-          // Convert timestamps to ms
-          response.chart.result[0].timestamp =
-            response.chart.result[0].timestamp.map((t) => t * 1000);
+  //         // Convert timestamps to ms
+  //         response.chart.result[0].timestamp =
+  //           response.chart.result[0].timestamp.map((t) => t * 1000);
 
-          firstTimestamp = response.chart.result[0].timestamp[0];
-        }
+  //         firstTimestamp = response.chart.result[0].timestamp[0];
+  //       }
 
-        // Transactions for symbol in this portfolio, these could be of type purchase or sale.
-        const transactions = this.transactions
-          .filter((t) => t.symbol === holding.symbol)
-          .map((t) => ({ ...t, date: new Date(t.date).getTime() }));
+  //       // Transactions for symbol in this portfolio, these could be of type purchase or sale.
+  //       const transactions = this.transactions
+  //         .filter((t) => t.symbol === holding.symbol)
+  //         .map((t) => ({ ...t, date: new Date(t.date).getTime() }));
 
-        // Map of the holdings quantity at different times during range.
-        const holdingTimeMachineArr = [];
+  //       // Map of the holdings quantity at different times during range.
+  //       const holdingTimeMachineArr = [];
 
-        // Accumulator for quantity.
-        let quantity = 0;
+  //       // Accumulator for quantity.
+  //       let quantity = 0;
 
-        // Record the holdings history at different times during the time range.
-        // Iterate over the holdings transactions to build this time machine.
-        for (let i = 0; i < transactions.length; i++) {
-          // The current transaction for symbol
-          const transaction = transactions[i];
+  //       // Record the holdings history at different times during the time range.
+  //       // Iterate over the holdings transactions to build this time machine.
+  //       for (let i = 0; i < transactions.length; i++) {
+  //         // The current transaction for symbol
+  //         const transaction = transactions[i];
 
-          if (transaction.date >= firstTimestamp) {
-            // This transaction occurs during the chart time period
+  //         if (transaction.date >= firstTimestamp) {
+  //           // This transaction occurs during the chart time period
 
-            if (holdingTimeMachineArr.length === 0) {
-              // The first transaction for this holding occurs after the start of this chart
-              // Record 0 as the quantity at the start.
+  //           if (holdingTimeMachineArr.length === 0) {
+  //             // The first transaction for this holding occurs after the start of this chart
+  //             // Record 0 as the quantity at the start.
 
-              holdingTimeMachineArr.push({
-                time: firstTimestamp,
-                quantity: 0,
-              });
-            }
-          }
+  //             holdingTimeMachineArr.push({
+  //               time: firstTimestamp,
+  //               quantity: 0,
+  //             });
+  //           }
+  //         }
 
-          if (transaction.type === "PURCHASE") {
-            // This is a purchase add to the current holding quantity
+  //         if (transaction.type === "PURCHASE") {
+  //           // This is a purchase add to the current holding quantity
 
-            quantity += parseFloat(transaction.quantity);
-          }
+  //           quantity += parseFloat(transaction.quantity);
+  //         }
 
-          if (transaction.type === "SALE") {
-            // This is a sale remove to the current holding quantity
+  //         if (transaction.type === "SALE") {
+  //           // This is a sale remove to the current holding quantity
 
-            quantity -= parseFloat(transaction.quantity);
-          }
+  //           quantity -= parseFloat(transaction.quantity);
+  //         }
 
-          if (transaction.date >= firstTimestamp) {
-            // This transaction is relevant to the chart range.
+  //         if (transaction.date >= firstTimestamp) {
+  //           // This transaction is relevant to the chart range.
 
-            // Record the holding quantity at this time.
-            holdingTimeMachineArr.push({
-              time: transaction.date,
-              quantity: quantity,
-            });
-          }
-        }
+  //           // Record the holding quantity at this time.
+  //           holdingTimeMachineArr.push({
+  //             time: transaction.date,
+  //             quantity: quantity,
+  //           });
+  //         }
+  //       }
 
-        if (holdingTimeMachineArr.length === 0) {
-          // No transaction occurs after the range start time.
+  //       if (holdingTimeMachineArr.length === 0) {
+  //         // No transaction occurs after the range start time.
 
-          // Record the quantity at the most recent transaction time
-          holdingTimeMachineArr.push({
-            time: transactions[transactions.length - 1].date,
-            quantity: quantity,
-          });
-        }
+  //         // Record the quantity at the most recent transaction time
+  //         holdingTimeMachineArr.push({
+  //           time: transactions[transactions.length - 1].date,
+  //           quantity: quantity,
+  //         });
+  //       }
 
-        // The history of value for this holding.
-        let holdingHistoryArr = [];
+  //       // The history of value for this holding.
+  //       let holdingHistoryArr = [];
 
-        if (holding.class !== ASSET_CLASSES.CASH) {
-          // This is a stock or crypto holding
+  //       if (holding.class !== ASSET_CLASSES.CASH) {
+  //         // This is a stock or crypto holding
 
-          // Iterate over the charts x axis (time) recording the value at each
-          response.chart.result[0].timestamp.forEach((t, i) => {
-            let action = getValueAtTime(t, response, holdingTimeMachineArr);
+  //         // Iterate over the charts x axis (time) recording the value at each
+  //         response.chart.result[0].timestamp.forEach((t, i) => {
+  //           let action = getValueAtTime(t, response, holdingTimeMachineArr);
 
-            holdingHistoryArr.push(action);
-          });
-        } else {
-          // This is a cash holding
-          // Add action using the quantity for all values, as cash is the base currency.
-          holdingTimeMachineArr.forEach((ac) => {
-            holdingHistoryArr.push({
-              date: this.getStartTime(range), // This can screw things up when before start of range!!
-              high: ac.quantity,
-              low: ac.quantity,
-              open: ac.quantity,
-              close: ac.quantity,
-              volume: 0,
-            });
-          });
-        }
+  //           holdingHistoryArr.push(action);
+  //         });
+  //       } else {
+  //         // This is a cash holding
+  //         // Add action using the quantity for all values, as cash is the base currency.
+  //         holdingTimeMachineArr.forEach((ac) => {
+  //           holdingHistoryArr.push({
+  //             date: this.getStartTime(range), // This can screw things up when before start of range!!
+  //             high: ac.quantity,
+  //             low: ac.quantity,
+  //             open: ac.quantity,
+  //             close: ac.quantity,
+  //             volume: 0,
+  //           });
+  //         });
+  //       }
 
-        holdingHistoryMap[holding.symbol] = holdingHistoryArr;
-      }
+  //       holdingHistoryMap[holding.symbol] = holdingHistoryArr;
+  //     }
 
-      // Maps timestamps to a snapshot of the portfolio at that time
-      const timeSnapshotMap = {};
+  //     // Maps timestamps to a snapshot of the portfolio at that time
+  //     const timeSnapshotMap = {};
 
-      let symbolsArr = Object.keys(holdingHistoryMap);
+  //     let symbolsArr = Object.keys(holdingHistoryMap);
 
-      // Iterate over all symbols in the portfolio
-      symbolsArr.forEach((key) => {
-        // the historical data for this portfolio
-        const action = holdingHistoryMap[key];
+  //     // Iterate over all symbols in the portfolio
+  //     symbolsArr.forEach((key) => {
+  //       // the historical data for this portfolio
+  //       const action = holdingHistoryMap[key];
 
-        action.forEach((candle) => {
-          // Get the snapshot for this holding at the time of this action
-          let snapshot = timeSnapshotMap[candle.date];
+  //       action.forEach((candle) => {
+  //         // Get the snapshot for this holding at the time of this action
+  //         let snapshot = timeSnapshotMap[candle.date];
 
-          if (snapshot) {
-            // The snapshot exists at this timestamp
+  //         if (snapshot) {
+  //           // The snapshot exists at this timestamp
 
-            // Merge the current candle with the snapshot
-            snapshot.high += candle.high;
-            snapshot.close += candle.close;
-            snapshot.open += candle.open;
-            snapshot.low += candle.low;
-            snapshot.volume += candle.volume;
-            snapshot.breakout.push({ symbol: key, candle: candle });
-          } else {
-            // No snapshot exists at this timestamp
+  //           // Merge the current candle with the snapshot
+  //           snapshot.high += candle.high;
+  //           snapshot.close += candle.close;
+  //           snapshot.open += candle.open;
+  //           snapshot.low += candle.low;
+  //           snapshot.volume += candle.volume;
+  //           snapshot.breakout.push({ symbol: key, candle: candle });
+  //         } else {
+  //           // No snapshot exists at this timestamp
 
-            // Initialize the snapshot with this candle for this timestamp
-            snapshot = {
-              high: candle.high,
-              close: candle.close,
-              open: candle.open,
-              low: candle.low,
-              volume: candle.volume,
-              date: candle.date,
-              breakout: [{ symbol: key, candle: candle }],
-            };
-          }
-          timeSnapshotMap[candle.date] = snapshot;
-        });
-      });
+  //           // Initialize the snapshot with this candle for this timestamp
+  //           snapshot = {
+  //             high: candle.high,
+  //             close: candle.close,
+  //             open: candle.open,
+  //             low: candle.low,
+  //             volume: candle.volume,
+  //             date: candle.date,
+  //             breakout: [{ symbol: key, candle: candle }],
+  //           };
+  //         }
+  //         timeSnapshotMap[candle.date] = snapshot;
+  //       });
+  //     });
 
-      // Get all timestamps in the map, convert to numbers, and sort
-      let timestamps = Object.keys(timeSnapshotMap)
-        .map((ts) => +ts)
-        .sort((a, b) => a - b);
+  //     // Get all timestamps in the map, convert to numbers, and sort
+  //     let timestamps = Object.keys(timeSnapshotMap)
+  //       .map((ts) => +ts)
+  //       .sort((a, b) => a - b);
 
-      // Iterate over all timestamps that have portfolio snapshots
-      timestamps.forEach((ts, i) => {
-        // Snapshot for this timestamp
-        let snapshot = timeSnapshotMap[ts];
+  //     // Iterate over all timestamps that have portfolio snapshots
+  //     timestamps.forEach((ts, i) => {
+  //       // Snapshot for this timestamp
+  //       let snapshot = timeSnapshotMap[ts];
 
-        // Iterate over all symbols
-        symbolsArr.forEach((key) => {
-          if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
-            // Snapshot doesn't include a value for the current symbol
+  //       // Iterate over all symbols
+  //       symbolsArr.forEach((key) => {
+  //         if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
+  //           // Snapshot doesn't include a value for the current symbol
 
-            // Timestamps before the current one, reversed
-            let timestampsToSearch = timestamps
-              .slice(0, i - 2)
-              .reverse()
-              .slice(0, 1);
+  //           // Timestamps before the current one, reversed
+  //           let timestampsToSearch = timestamps
+  //             .slice(0, i - 2)
+  //             .reverse()
+  //             .slice(0, 1);
 
-            // The most recent snapshot that includes this symbol
-            let recent = timestampsToSearch.find((t) =>
-              timeSnapshotMap[t].breakout.map((bo) => bo.symbol).includes(key)
-            );
+  //           // The most recent snapshot that includes this symbol
+  //           let recent = timestampsToSearch.find((t) =>
+  //             timeSnapshotMap[t].breakout.map((bo) => bo.symbol).includes(key)
+  //           );
 
-            if (recent) {
-              // Get the candle for this symbol from the most recent snapshot
-              let candle = timeSnapshotMap[recent].breakout.find(
-                (bo) => bo.symbol === key
-              ).candle;
+  //           if (recent) {
+  //             // Get the candle for this symbol from the most recent snapshot
+  //             let candle = timeSnapshotMap[recent].breakout.find(
+  //               (bo) => bo.symbol === key
+  //             ).candle;
 
-              if (candle.low > 0) {
-                // This candle holds value
+  //             if (candle.low > 0) {
+  //               // This candle holds value
 
-                // Use the most recent candle to update the current snapshot values
-                timeSnapshotMap[ts].high += candle.high;
-                timeSnapshotMap[ts].close += candle.close;
-                timeSnapshotMap[ts].open += candle.open;
-                timeSnapshotMap[ts].low += candle.low;
-                timeSnapshotMap[ts].volume += candle.volume;
-                timeSnapshotMap[ts].breakout.push({
-                  symbol: key,
-                  candle: candle,
-                });
-              }
-            }
-          }
-        });
-      });
+  //               // Use the most recent candle to update the current snapshot values
+  //               timeSnapshotMap[ts].high += candle.high;
+  //               timeSnapshotMap[ts].close += candle.close;
+  //               timeSnapshotMap[ts].open += candle.open;
+  //               timeSnapshotMap[ts].low += candle.low;
+  //               timeSnapshotMap[ts].volume += candle.volume;
+  //               timeSnapshotMap[ts].breakout.push({
+  //                 symbol: key,
+  //                 candle: candle,
+  //               });
+  //             }
+  //           }
+  //         }
+  //       });
+  //     });
 
-      // The snapshots in chronological order
-      let snapshots = [];
+  //     // The snapshots in chronological order
+  //     let snapshots = [];
 
-      // Iterate over all timestamps in the range
-      timestamps.forEach((ts) => {
-        // count indicating how many holdings are represented at this time
-        let count = 0;
+  //     // Iterate over all timestamps in the range
+  //     timestamps.forEach((ts) => {
+  //       // count indicating how many holdings are represented at this time
+  //       let count = 0;
 
-        timeSnapshotMap[ts].breakout.forEach((bo) => {
-          if (bo.candle.open > 0) {
-            // Increment count for each holding represented in this snapshot
-            count++;
-          }
-        });
+  //       timeSnapshotMap[ts].breakout.forEach((bo) => {
+  //         if (bo.candle.open > 0) {
+  //           // Increment count for each holding represented in this snapshot
+  //           count++;
+  //         }
+  //       });
 
-        if (count === this.holdingsAtTime(ts, cashFlag).length) {
-          // This snapshot represents all holdings in the portfolio
+  //       if (count === this.holdingsAtTime(ts, cashFlag).length) {
+  //         // This snapshot represents all holdings in the portfolio
 
-          // Add the snapshot to the array
-          snapshots.push(timeSnapshotMap[ts]);
-        }
-      });
+  //         // Add the snapshot to the array
+  //         snapshots.push(timeSnapshotMap[ts]);
+  //       }
+  //     });
 
-      actionCache.save(
-        `${this.id}-${range}-${interval}-${cashFlag}`,
-        snapshots
-      );
-      return Promise.resolve(snapshots);
-    } catch (err) {
-      // An error occurred during processing, resolve a descriptive error
+  //     actionCache.save(
+  //       `${this.id}-${range}-${interval}-${cashFlag}`,
+  //       snapshots
+  //     );
+  //     return Promise.resolve(snapshots);
+  //   } catch (err) {
+  //     // An error occurred during processing, resolve a descriptive error
 
-      console.log(err);
+  //     console.log(err);
 
-      Promise.resolve({
-        error: {
-          stack: "portfolio.getPriceAction",
-          message: "Something went wrong generating price action",
-        },
-      });
-    }
-  }
+  //     Promise.resolve({
+  //       error: {
+  //         stack: "portfolio.getPriceAction",
+  //         message: "Something went wrong generating price action",
+  //       },
+  //     });
+  //   }
+  // }
 
   async getTimeMachine(response) {
     if (!(response && response.chart && response.chart.result[0])) {
@@ -1169,127 +1169,127 @@ class Portfolio {
    * @param {Number} range
    * @param {Number} interval
    */
-  async calcComparison(comparisons, range, interval) {
-    if (
-      comparisonCache.get(
-        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
-      )
-    ) {
-      return Promise.resolve(
-        comparisonCache.get(
-          `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
-        )
-      );
-    }
-    // Gather the chart queries for comparisons to batch the requests.
-    const queries = [];
-    comparisons.forEach((symbol) => {
-      queries.push(ChartService.getChartLL(symbol, interval, range));
-    });
+  // async calcComparison(comparisons, range, interval) {
+  //   if (
+  //     comparisonCache.get(
+  //       `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+  //     )
+  //   ) {
+  //     return Promise.resolve(
+  //       comparisonCache.get(
+  //         `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+  //       )
+  //     );
+  //   }
+  //   // Gather the chart queries for comparisons to batch the requests.
+  //   const queries = [];
+  //   comparisons.forEach((symbol) => {
+  //     queries.push(ChartService.getChartLL(symbol, interval, range));
+  //   });
 
-    // Get charts for each comp.
-    let charts = await Promise.allSettled(queries);
+  //   // Get charts for each comp.
+  //   let charts = await Promise.allSettled(queries);
 
-    // Get quotes for each comp.
-    let quotes = await StockService.getQuote(comparisons);
+  //   // Get quotes for each comp.
+  //   let quotes = await StockService.getQuote(comparisons);
 
-    if (!quotes) {
-      console.log("failure to get quotes");
-      if (!portfolioChart.length) {
-        return Promise.resolve([]);
-      }
-    }
+  //   if (!quotes) {
+  //     console.log("failure to get quotes");
+  //     if (!portfolioChart.length) {
+  //       return Promise.resolve([]);
+  //     }
+  //   }
 
-    let comparisonChartArr = [];
+  //   let comparisonChartArr = [];
 
-    comparisons.forEach((comp) => {
-      // Get the previous close to use as the original number for percentage calculations.
-      let original = quotes.quoteResponse.result.find(
-        (resp) => resp.symbol === comp
-      ).regularMarketPreviousClose;
+  //   comparisons.forEach((comp) => {
+  //     // Get the previous close to use as the original number for percentage calculations.
+  //     let original = quotes.quoteResponse.result.find(
+  //       (resp) => resp.symbol === comp
+  //     ).regularMarketPreviousClose;
 
-      let market = charts.find(
-        (res) => res.chart.result[0].meta.symbol === comp
-      );
+  //     let market = charts.find(
+  //       (res) => res.chart.result[0].meta.symbol === comp
+  //     );
 
-      let percentageTimeline =
-        market.chart.result[0].indicators.quote[0].close.map((p, index) => {
-          let curr = ((p - original) / p) * 100;
+  //     let percentageTimeline =
+  //       market.chart.result[0].indicators.quote[0].close.map((p, index) => {
+  //         let curr = ((p - original) / p) * 100;
 
-          if (curr === Infinity || curr === -Infinity) {
-            const last =
-              market.chart.result[0].indicators.quote[0].close[index - 1];
-            curr = ((last - original) / last) * 100;
-          }
-          return curr;
-        });
+  //         if (curr === Infinity || curr === -Infinity) {
+  //           const last =
+  //             market.chart.result[0].indicators.quote[0].close[index - 1];
+  //           curr = ((last - original) / last) * 100;
+  //         }
+  //         return curr;
+  //       });
 
-      comparisonChartArr.push({
-        name: comp,
-        chart: {
-          y: percentageTimeline,
-          x: market.chart.result[0].timestamp.map((index) => index * 1000),
-        },
-      });
-    });
+  //     comparisonChartArr.push({
+  //       name: comp,
+  //       chart: {
+  //         y: percentageTimeline,
+  //         x: market.chart.result[0].timestamp.map((index) => index * 1000),
+  //       },
+  //     });
+  //   });
 
-    const portfolioChart = await this.calcPriceAction(range, interval, false);
+  //   const portfolioChart = await this.calcPriceAction(range, interval, false);
 
-    if (!portfolioChart || !portfolioChart.length) {
-      return Promise.resolve([]);
-    }
+  //   if (!portfolioChart || !portfolioChart.length) {
+  //     return Promise.resolve([]);
+  //   }
 
-    let original = portfolioChart[0].open;
+  //   let original = portfolioChart[0].open;
 
-    let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
-      let curr = ((p.close - original) / p.close) * 100;
+  //   let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
+  //     let curr = ((p.close - original) / p.close) * 100;
 
-      if (curr === Infinity || curr === -Infinity) {
-        const last = portfolioChart[index - 1];
-        curr = ((last.close - original) / last.close) * 100;
-      }
-      return curr;
-    });
+  //     if (curr === Infinity || curr === -Infinity) {
+  //       const last = portfolioChart[index - 1];
+  //       curr = ((last.close - original) / last.close) * 100;
+  //     }
+  //     return curr;
+  //   });
 
-    let portfolioComparisonTimeline = {
-      name: this.portfolio_name || "portfolio",
-      chart: {
-        x: portfolioChart
-          .filter(
-            (index) => index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
-          )
-          .map((index) => index.date),
-        y: portfolioPercentageTimeline,
-      },
-    };
+  //   let portfolioComparisonTimeline = {
+  //     name: this.portfolio_name || "portfolio",
+  //     chart: {
+  //       x: portfolioChart
+  //         .filter(
+  //           (index) => index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
+  //         )
+  //         .map((index) => index.date),
+  //       y: portfolioPercentageTimeline,
+  //     },
+  //   };
 
-    let response = { [portfolioComparisonTimeline.name]: [] };
-    comparisons.forEach((comp) => {
-      response[comp] = [];
-    });
+  //   let response = { [portfolioComparisonTimeline.name]: [] };
+  //   comparisons.forEach((comp) => {
+  //     response[comp] = [];
+  //   });
 
-    portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
-      comparisonChartArr.forEach((comparison) => {
-        const closestMatchingIndex = comparison.chart.x.findIndex(
-          (t) => t >= timestamp
-        );
-        response[comparison.name].push({
-          value: comparison.chart.y[closestMatchingIndex],
-          date: timestamp,
-        });
-      });
-      response[portfolioComparisonTimeline.name].push({
-        value: portfolioComparisonTimeline.chart.y[index],
-        date: timestamp,
-      });
-    });
+  //   portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
+  //     comparisonChartArr.forEach((comparison) => {
+  //       const closestMatchingIndex = comparison.chart.x.findIndex(
+  //         (t) => t >= timestamp
+  //       );
+  //       response[comparison.name].push({
+  //         value: comparison.chart.y[closestMatchingIndex],
+  //         date: timestamp,
+  //       });
+  //     });
+  //     response[portfolioComparisonTimeline.name].push({
+  //       value: portfolioComparisonTimeline.chart.y[index],
+  //       date: timestamp,
+  //     });
+  //   });
 
-    comparisonCache.save(
-      `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
-      response
-    );
-    return Promise.resolve(response);
-  }
+  //   comparisonCache.save(
+  //     `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
+  //     response
+  //   );
+  //   return Promise.resolve(response);
+  // }
 
   async buildCompChart(comparisonChartArr, quotes, comp, charts) {
     // Get the previous close to use as the original number for percentage calculations.

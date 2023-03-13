@@ -252,6 +252,34 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+    /**
+ * @swagger
+ * /api/v1/users:
+ *   post:
+ *     summary: Create a User.
+ *     parameters:
+ *       - in: body
+ *         name: User
+ *         schema:
+ *           type: object
+ *           required:
+ *             - username
+ *             - email
+ *             - password
+ *           properties:
+ *             username: 
+ *               type: string
+ *             email:
+ *               type: string
+ *             password:
+ *               type: string
+ *     responses:
+ *       '200':
+ *         description: The newly created user.
+ *         content:
+ *           application/json:
+ *             type: object
+ */
   create: (req, res, next) => {
     // Check for username or email conflicts.
     var params = {
