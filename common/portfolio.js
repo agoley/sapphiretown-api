@@ -1076,18 +1076,14 @@ class Portfolio {
         .filter((res) => res.status === "fulfilled")
         .map((res) => res.value);
 
-      const timeMachineCalls = responses.map((res) =>
-        this.getTimeMachine(res)
-      );
+      const timeMachineCalls = responses.map((res) => this.getTimeMachine(res));
 
       let timeMachines = await Promise.allSettled(timeMachineCalls);
       timeMachines = timeMachines
         .filter((res) => res.status === "fulfilled")
         .map((res) => res.value);
 
-      const historyCalls = timeMachines.map((tm) =>
-        this.getHoldingChart(tm)
-      );
+      const historyCalls = timeMachines.map((tm) => this.getHoldingChart(tm));
 
       let histories = await Promise.allSettled(historyCalls);
       histories = histories
@@ -1136,16 +1132,11 @@ class Portfolio {
       // Iterate over all timestamps in the range
       timestamps.forEach((ts) => {
         // count indicating how many holdings are represented at this time
-        let count = 0;
+        let count = timeSnapshotMap[ts].breakout.filter(
+          (bo) => bo.candle.open
+        ).length;
 
-        timeSnapshotMap[ts].breakout.forEach((bo) => {
-          if (bo.candle.open > 0) {
-            // Increment count for each holding represented in this snapshot
-            count++;
-          }
-        });
-
-        if (count === this.holdingsAtTime(ts, cashFlag).length - 1) {
+        if (count === this.holdingsAtTime(ts, false).length) {
           // This snapshot represents all holdings in the portfolio
 
           // Add the snapshot to the array
@@ -1341,6 +1332,7 @@ class Portfolio {
         )
       );
     }
+
     // Gather the chart queries for comparisons to batch the requests.
     const queries = [];
     comparisons.forEach((symbol) => {
@@ -1371,7 +1363,11 @@ class Portfolio {
 
     await Promise.all(compChartCalls);
 
-    const portfolioChart = await this.calcPriceAction(range, interval, false);
+    const portfolioChart = await this.calcPriceActionParallel(
+      range,
+      interval,
+      false
+    );
 
     if (!portfolioChart || !portfolioChart.length) {
       return Promise.resolve([]);

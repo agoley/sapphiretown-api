@@ -221,7 +221,7 @@ const getBreakdown = (id) => {
  *       required: true
  *       schema:
  *         type: string
- *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
  *     - in: body
  *       name: ChartBody
  *       schema:
@@ -287,7 +287,7 @@ const getMovers = (id, range, interval) => {
  *       required: true
  *       schema:
  *         type: string
- *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
  *     - in: body
  *       name: ChartBody
  *       schema:
@@ -353,7 +353,7 @@ const getPriceAction = (id, range, interval) => {
  *       required: true
  *       schema:
  *         type: string
- *         example: "5034b9b0-b4e3-11ea-8da0-f543aed5e862"
+ *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
  *     - in: body
  *       name: ChartBody
  *       schema:
