@@ -19,12 +19,19 @@ class Reducer {
   handle(message, wss) {
     const watcher = this.watching.find((i) => i.id === message.user.id);
 
-    if (watcher) {
+    if (watcher && watcher.portfolio.id === message.user.active_portfolio) {
       // Same user new session.
       watcher.portfolio.stop();
       watcher.page = message.page;
       watcher.portfolio.watch(wss, message.page, message.context);
     } else {
+      if (watcher) {
+        watcher.portfolio.stop();
+        this.watching.splice(
+          this.watching.findIndex((i) => i.id === message.user.id),
+          1
+        );
+      }
       var userLookupParams = {
         TableName: "User",
         FilterExpression: "(id = :user_id)",
@@ -59,8 +66,13 @@ class Reducer {
                     console.log(err);
                   } else {
                     // marshal the response and get the active portfolio
-                    let marshalled = portfolios.Items.map(p => ({...p, transactions: JSON.parse(p.transactions)}));
-                    let activePortfolio = user.active_portfolio ? marshalled.find(p => p.id === user.active_portfolio) : marshalled[0];
+                    let marshalled = portfolios.Items.map((p) => ({
+                      ...p,
+                      transactions: JSON.parse(p.transactions),
+                    }));
+                    let activePortfolio = user.active_portfolio
+                      ? marshalled.find((p) => p.id === user.active_portfolio)
+                      : marshalled[0];
                     const portfolio = new Portfolio(
                       activePortfolio.id,
                       activePortfolio.transactions

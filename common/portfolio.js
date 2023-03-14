@@ -71,7 +71,7 @@ class Portfolio {
     this.id = id;
     this.transactions = transactions;
     this.updates = new Subject();
-    this.interval;
+    this.watchInterval;
     this.cache = {};
     this.pages = {
       INDEX: "INDEX",
@@ -1485,7 +1485,7 @@ class Portfolio {
 
   // Watch portfolio for changes and send updates through the web socket.
   watch(wss, page, context) {
-    this.interval = setInterval(
+    this.watchInterval = setInterval(
       this.check.bind(this, wss, page, context),
       5000
     );
@@ -1618,7 +1618,7 @@ class Portfolio {
   }
 
   stop() {
-    clearInterval(this.interval);
+    clearInterval(this.watchInterval);
   }
 }
 
