@@ -1397,6 +1397,15 @@ class Portfolio {
       },
     };
 
+    if (!portfolioComparisonTimeline.chart.x.length) {
+      return Promise.resolve({
+        Error: {
+          message:
+            `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
+        },
+      });
+    }
+
     let response = { [portfolioComparisonTimeline.name]: [] };
     comparisons.forEach((comp) => {
       response[comp] = [];
