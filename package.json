@@ -25,6 +25,7 @@
     "aws-sdk": "^2.695.0",
     "bcrypt": "^5.0.0",
     "esm": "^3.2.25",
+    "formidable": "^2.1.1",
     "jsonwebtoken": "^8.5.1",
     "nodemailer": "^6.4.10",
     "request": "^2.88.0",

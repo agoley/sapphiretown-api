@@ -1581,8 +1581,8 @@ class Portfolio {
         // Watch for changes in major indexes.
         MarketsService.getMarketsLL()
           .then((data) => {
-            if (data.err) {
-              console.log(data.err);
+            if (!data || data.err) {
+              console.log(data);
               return;
             }
             if (
