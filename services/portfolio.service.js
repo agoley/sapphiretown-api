@@ -42,7 +42,7 @@ const getPortfolioByUserId = (id) => {
  *   CandleModel:
  *     type: object
  *     properties:
- *       date: 
+ *       date:
  *         type: Date
  *       high:
  *         type: number
@@ -103,13 +103,13 @@ const getPortfolioByUserId = (id) => {
  *         description: Individual holding action
  *   MoverModel:
  *     type: object
- *     properties:  
- *       name: 
+ *     properties:
+ *       name:
  *         type: string
  *         descriptions: Symbol for the holding
  *       value:
  *         type: number
- *         description: Percentage change for the time period  
+ *         description: Percentage change for the time period
  *   ActionArray:
  *     type: array
  *     items:
@@ -118,10 +118,26 @@ const getPortfolioByUserId = (id) => {
  *     type: array
  *     items:
  *       $ref: '#/definitions/MoverModel'
- *   ComparisonResponse: 
+ *   ComparisonResponse:
  *     type: object
  *     description: An object with keys for each comparison symbol, and a the portfolios name. The values of each key is an array of tuples (value, date) representing a chart interval.
- *
+ *   User:
+ *     type: object
+ *     properties:
+ *       id:
+ *         type: string
+ *         required: true
+ *       active_portfolio:
+ *         type: string
+ *         description: ID of the users active portfolio
+ *         required: true
+ *       theme:
+ *         type: string
+ *         description: Name of this users theme
+ *       username:
+ *         type: string
+ *       email:
+ *         type: string
  */
 
 /**
@@ -134,7 +150,6 @@ const getPortfolioByUserId = (id) => {
  *       name: id
  *       required: true
  *       description: ID of the Portfolio to retrieve.
- *       schema:
  *       type: string
  *
  * @param {*} id
@@ -175,7 +190,6 @@ const getPortfolioById = (id) => {
  *       name: id
  *       required: true
  *       description: ID of the Portfolio to retrieve.
- *       schema:
  *       type: string
  * @param {*} id
  * @returns {Object} Breakdown
@@ -273,8 +287,8 @@ const getMovers = (id, range, interval) => {
   });
 };
 
-/**  
- * @swagger 
+/**
+ * @swagger
  * /api/v2/portfolio/{id}/action:
  *  post:
  *    summary: Retrieves the price action for the time range in increments of interval.
@@ -339,8 +353,8 @@ const getPriceAction = (id, range, interval) => {
   });
 };
 
-/**  
- * @swagger 
+/**
+ * @swagger
  * /api/v2/portfolio/{id}/comparison:
  *  post:
  *    summary: Calculates and returns a percentage comparison chart for time range in increments of interval.
@@ -436,6 +450,39 @@ const getAvailableRanges = (id) => {
   });
 };
 
+/**
+ *
+ * @param {*} id
+ * @returns
+ */
+const save = (portfolio) => {
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "Portfolio",
+      Key: {
+        id: portfolio.id,
+      },
+      UpdateExpression: "set transactions = :transactions",
+      ExpressionAttributeValues: {
+        ":transactions": JSON.stringify(portfolio.transactions),
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+
+    docClient.update(params, (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to update item. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+};
+
 const PortfolioService = {
   upsert: (req, res, next) => {
     var params = {
@@ -445,6 +492,8 @@ const PortfolioService = {
         ":id": req.body.id,
       },
     };
+
+    console.log(req.body.transactions);
 
     const onScan = (err, data) => {
       if (err) {
@@ -611,10 +660,12 @@ const PortfolioService = {
         res.send([]);
       } else {
         if (data["Items"].length > 0) {
-          const portfolios = data.Items.map((item) => ({
-            ...item,
-            transactions: JSON.parse(item.transactions),
-          }));
+          const portfolios = data.Items.map((item) => {
+            return {
+              ...item,
+              transactions: JSON.parse(item.transactions),
+            };
+          });
           const portfolio = new Portfolio(
             portfolios[0].id,
             portfolios[0].transactions,
@@ -767,7 +818,6 @@ const PortfolioService = {
       .then((pa) => {
         res.send(pa);
         return next();
-
       })
       .catch((error) => {
         console.log(error);
@@ -804,6 +854,8 @@ const PortfolioService = {
         return next();
       });
   },
+  save: save,
+  getPortfolioById: getPortfolioById,
 };
 
 module.exports = PortfolioService;

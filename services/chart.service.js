@@ -223,10 +223,11 @@ const ChartService = {
           console.error(data.err);
           res.send(data);
           return next();
+        } else {
+          chartCacheLL.save(cacheKey, data);
+          res.send(data);
+          return next();
         }
-        chartCacheLL.save(cacheKey, data);
-        res.send(data);
-        return next();
       })
       .catch((err) => {
         count = count ? count + 1 : 1;

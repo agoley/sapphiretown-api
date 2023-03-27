@@ -93,6 +93,66 @@ class Portfolio {
 
   get cash() {}
 
+  findIndexOfOldestShares = (symbol) => {
+    const doesTransactionStillHaveOwnedShares = (transaction) => {
+      return (
+        transaction.type !== "SALE" &&
+        (transaction.owned === undefined || parseInt(transaction.owned, 10) > 0)
+      );
+    };
+
+    // get the first transaction for this symbol with owned shares still.
+    let indexOfOldestShares = this.transactions.findIndex(
+      (t, i) => i >= 0 && t.type !== "SALE" && t.symbol === symbol
+    );
+
+    while (
+      !doesTransactionStillHaveOwnedShares(
+        this.transactions[indexOfOldestShares]
+      ) &&
+      indexOfOldestShares > 0
+    ) {
+      // Try the next transaction with shares of this symbol.
+      indexOfOldestShares = this.transactions.findIndex(
+        (t, i) =>
+          i > indexOfOldestShares && t.type !== "SALE" && t.symbol === symbol
+      );
+    }
+    return indexOfOldestShares;
+  };
+
+  async addTransaction(transaction) {
+    const copy = JSON.parse(JSON.stringify(transaction));
+
+    if (copy.type === "SALE") {
+      while (+copy.quantity > 0) {
+        let indexOfOldestShares = this.findIndexOfOldestShares(symbol);
+
+        if (indexOfOldestShares >= 0) {
+          // Subtract the sold shares from the owned shares.
+          let t = this.transactions[indexOfOldestShares];
+          if (!t.owned) {
+            t.owned = +t.quantity;
+          }
+
+          if (+t.quantity > +quantity) {
+            // set the owned shares.
+            t.owned = +t.quantity - +quantity;
+            copy.quantity = 0;
+          } else {
+            // set the owned shares to 0 and decrement quantity.
+            t.owned = 0;
+            copy.quantity = copy.quantity - t.quantity;
+          }
+          transaction.history = transaction.history
+            ? [...transaction.history, t]
+            : [t];
+        }
+      }
+    }
+    this.transactions.push(transaction);
+  }
+
   calcDailyChange() {
     const symbols = [];
     let startingPriceOnDay = 0;
@@ -1400,8 +1460,7 @@ class Portfolio {
     if (!portfolioComparisonTimeline.chart.x.length) {
       return Promise.resolve({
         Error: {
-          message:
-            `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
+          message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
         },
       });
     }
