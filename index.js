@@ -111,6 +111,7 @@ const typeRegexList = [
 const typeValuePurchaseRegexList = [
   /[a-zA-Z]*Bought[a-zA-Z]*/im,
   /[a-zA-Z]*Purchase[a-zA-Z]*/im,
+  /[a-zA-Z]*Buy[a-zA-Z]*/im,
 ];
 const typeValueSaleRegexList = [
   /[a-zA-Z]*Sold[a-zA-Z]*/im,
@@ -120,6 +121,7 @@ const typeValueSaleRegexList = [
 const symbolRegexList = [
   /[a-zA-Z]*Symbol[a-zA-Z]*/im,
   /[a-zA-Z]*Ticker[a-zA-Z]*/im,
+  /[a-zA-Z]*Asset[a-zA-Z]*/im,
 ];
 const quantityRegexList = [
   /[a-zA-Z]*Quantity[a-zA-Z]*/im,
@@ -132,6 +134,9 @@ const transferRegex = /[.]*Transfer[.]*/im;
 const amountRegexList = [
   /[a-zA-Z]*Amount[a-zA-Z]*/im,
   /[a-zA-Z]*Amnt[a-zA-Z]*/im,
+  /[a-zA-Z]*Total[a-zA-Z]*/im,
+  /[a-zA-Z]*Subtotal[a-zA-Z]*/im,
+
 ];
 
 let isDate = (date) => {
@@ -349,6 +354,7 @@ const uploadTransactionsFromCSV =  (req, form) => {
 
             transaction.upload = JSON.stringify(data);
             transaction.owned = transaction.quantity;
+            transaction.class = fields.class;
 
             if (
               transaction.type &&
@@ -388,10 +394,17 @@ const uploadTransactionsFromCSV =  (req, form) => {
  *      - .csv
  *    parameters:
  *     - in: body
- *       name: user
- *       description: The user to create.
- *       schema:
- *          $ref: '#/definitions/User'
+ *       name: fields
+ *       description: Fields supporting the upload
+ *       type: object
+ *       properties:
+ *         user:
+ *           schema:
+ *             $ref: '#/definitions/User'
+ *         class:
+ *           description: Class of the assets being uploaded. 
+ *           example: 'stock'
+ *           type: string
  *    responses:
  *      '200':
  *        description: The newly added transactions, and any errors that ocurred during processing.
