@@ -138,6 +138,26 @@ const getPortfolioByUserId = (id) => {
  *         type: string
  *       email:
  *         type: string
+ *   UploadResponse:
+ *     type: object
+ *     properties:
+ *       data:
+ *         type: object
+ *         required: true
+ *         properties:
+ *           transactions:
+ *             type: array
+ *             description: Array of uploaded transactions.
+ *       errors:
+ *         type: array
+ *         description: Errors that occurred while uploading.
+ *         items:
+ *           type: object
+ *           properties:
+ *             message:
+ *               type: string
+ *               description: A descriptive message about what went wrong.
+ *         
  */
 
 /**

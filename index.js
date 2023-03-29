@@ -94,7 +94,7 @@ restifySwaggerJsdoc.createSwaggerPage({
   version: "1.0.0", // Server version
   server: server, // Restify server instance created with restify.createServer()
   path: "/docs/swagger", // Public url where the swagger page will be available
-  apis: ["./index.js","./services/*.service.js"],
+  apis: ["./index.js", "./services/*.service.js"],
   host: "aqueous-beyond-14838.herokuapp.com/",
   schemes: ["https", "http"],
 });
@@ -146,6 +146,239 @@ let isNumeric = (str) => {
   ); // ...and ensure strings of whitespace fail
 };
 
+const uploadTransactionsFromCSV =  (req, form) => {
+  return new Promise((resolve, reject) => {
+    form.parse(req, async (err, fields, files) => {
+      let data = await PortfolioService.getPortfolioById(
+        JSON.parse(fields.user).active_portfolio
+      );
+      const portfolios = data.Items.map((item) => {
+        return {
+          ...item,
+          transactions: JSON.parse(item.transactions),
+        };
+      });
+
+      let portfolio = new Portfolio(
+        portfolios[0].id,
+        portfolios[0].transactions
+      );
+
+      let fileRows = [];
+      let headerRow,
+        possibleDateCols = [],
+        dateColIndex,
+        possibleTypeCols = [],
+        typeColIndex,
+        possibleSymbolCols = [],
+        symbolColIndex,
+        possibleQuantityCols = [],
+        quantityColIndex,
+        possiblePriceCols = [],
+        priceColIndex,
+        amountColIndex,
+        possibleAmountCols = [];
+
+      csv
+        .parseFile(files.file.filepath)
+        .on("data", async (data) => {
+          let transaction = {};
+          if (!headerRow) {
+            // A transaction needs at least 5 entries Date, Type, Symbol, Quantity, Price
+            let isDateMatch,
+              isTypeMatch,
+              isSymbolMatch,
+              isQuantityMatch,
+              isPriceMatch;
+
+            if (data.length >= 4) {
+              data.forEach((cell, i) => {
+                if (dateRegexList.some((rx) => rx.test(cell))) {
+                  isDateMatch = true;
+                  possibleDateCols.push(i);
+                }
+                if (typeRegexList.some((rx) => rx.test(cell))) {
+                  isTypeMatch = true;
+                  possibleTypeCols.push(i);
+                }
+                if (symbolRegexList.some((rx) => rx.test(cell))) {
+                  isSymbolMatch = true;
+                  possibleSymbolCols.push(i);
+                }
+                if (quantityRegexList.some((rx) => rx.test(cell))) {
+                  isQuantityMatch = true;
+                  possibleQuantityCols.push(i);
+                }
+                if (priceRegexList.some((rx) => rx.test(cell))) {
+                  isPriceMatch = true;
+                  possiblePriceCols.push(i);
+                }
+                if (amountRegexList.some((rx) => rx.test(cell))) {
+                  possibleAmountCols.push(i);
+                }
+              });
+              if (
+                isDateMatch &&
+                isPriceMatch &&
+                isQuantityMatch &&
+                isTypeMatch &&
+                isSymbolMatch
+              ) {
+                headerRow = data;
+              }
+            }
+          } else if (data.length === headerRow.length) {
+            if (!dateColIndex) {
+              possibleDateCols.forEach((i) => {
+                if (isDate(data[i])) {
+                  dateColIndex = i;
+                  transaction.date = new Date(data[i]);
+                }
+              });
+            } else {
+              transaction.date = new Date(data[dateColIndex]);
+            }
+
+            if (!typeColIndex) {
+              possibleTypeCols.forEach((i) => {
+                if (
+                  [
+                    ...typeValuePurchaseRegexList,
+                    ...typeValueSaleRegexList,
+                    dividendRegex,
+                    transferRegex,
+                  ].some((rx) => rx.test(data[i]))
+                ) {
+                  typeColIndex = i;
+                  if (
+                    [
+                      ...typeValuePurchaseRegexList,
+                      dividendRegex,
+                      transferRegex,
+                    ].some((rx) => rx.test(data[i]))
+                  ) {
+                    transaction.type = "PURCHASE";
+
+                    if (dividendRegex.test(data[i])) {
+                      transaction.dividend = true;
+                    }
+
+                    if (transferRegex.test(data[i])) {
+                      transaction.transfer = true;
+                    }
+                  }
+                  if (typeValueSaleRegexList.some((rx) => rx.test(data[i]))) {
+                    transaction.type = "SALE";
+                  }
+                }
+              });
+            } else {
+              if (
+                [
+                  ...typeValuePurchaseRegexList,
+                  dividendRegex,
+                  transferRegex,
+                ].some((rx) => rx.test(data[typeColIndex]))
+              ) {
+                transaction.type = "PURCHASE";
+
+                if (dividendRegex.test(data[typeColIndex])) {
+                  transaction.dividend = true;
+                }
+
+                if (transferRegex.test(data[typeColIndex])) {
+                  transaction.transfer = true;
+                }
+              }
+              if (
+                typeValueSaleRegexList.some((rx) => rx.test(data[typeColIndex]))
+              ) {
+                transaction.type = "SALE";
+              }
+            }
+
+            if (!quantityColIndex) {
+              possibleQuantityCols.forEach((i) => {
+                if (isNumeric(data[i])) {
+                  quantityColIndex = i;
+                  transaction.quantity = data[i];
+                }
+              });
+            } else {
+              transaction.quantity = data[quantityColIndex];
+            }
+
+            if (!priceColIndex) {
+              possiblePriceCols.forEach((i) => {
+                if (isNumeric(data[i])) {
+                  priceColIndex = i;
+                  transaction.price = data[i];
+                }
+              });
+            } else {
+              transaction.price = data[priceColIndex];
+            }
+
+            if (!symbolColIndex) {
+              possibleSymbolCols.forEach((i) => {
+                if (symbolRegex.test(data[i])) {
+                  symbolColIndex = i;
+                  transaction.symbol = data[i] || "USD";
+                }
+              });
+            } else {
+              transaction.symbol = data[symbolColIndex] || "USD";
+            }
+
+            if (
+              !transaction.quantity &&
+              possibleAmountCols.length &&
+              transaction.symbol === "USD"
+            ) {
+              if (!amountColIndex) {
+                possibleAmountCols.forEach((i) => {
+                  if (isNumeric(data[i])) {
+                    amountColIndex = i;
+                    transaction.quantity = data[amountColIndex];
+                  }
+                });
+              } else {
+                transaction.quantity = data[amountColIndex];
+              }
+            }
+
+            transaction.upload = JSON.stringify(data);
+            transaction.owned = transaction.quantity;
+
+            if (
+              transaction.type &&
+              transaction.date &&
+              transaction.symbol &&
+              +transaction.quantity &&
+              transaction.symbol &&
+              transaction.symbol.trim
+            ) {
+              await portfolio.addTransaction(transaction);
+            }
+            fileRows.push(data); // push each row
+          }
+        })
+        .on("end", async () => {
+          fs.unlinkSync(files.file.filepath); // remove temp file
+          if (!headerRow) {
+            reject({
+              data: {},
+              errors: [{ message: "Unable to parse transactions from file" }],
+            });
+          } else {
+            let res = await PortfolioService.save(portfolio);
+            resolve({ data: res.Attributes, errors: []});
+          }
+        });
+    });
+  });
+};
+
 /**
  * @swagger
  * :8445/api/v3/transactions/upload:
@@ -158,10 +391,14 @@ let isNumeric = (str) => {
  *       name: user
  *       description: The user to create.
  *       schema:
-*          $ref: '#/definitions/User'  
+ *          $ref: '#/definitions/User'
  *    responses:
  *      '200':
- *        description: The portfolio after processing transactions. 
+ *        description: The newly added transactions, and any errors that ocurred during processing.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/UploadResponse'
  *
  */
 http
@@ -191,231 +428,15 @@ http
 
     if (req.url == "/api/v3/transactions/upload") {
       var form = new formidable.IncomingForm();
-      form.parse(req, async (err, fields, files) => {
-        let data = await PortfolioService.getPortfolioById(
-          JSON.parse(fields.user).active_portfolio
-        );
-        const portfolios = data.Items.map((item) => {
-          return {
-            ...item,
-            transactions: JSON.parse(item.transactions),
-          };
+      uploadTransactionsFromCSV(req, form)
+        .then((data) => {
+          res.write(JSON.stringify(data));
+          res.end();
+        })
+        .catch((err) => {
+          res.write(JSON.stringify(err));
+          res.end();
         });
-
-        const portfolio = new Portfolio(
-          portfolios[0].id,
-          portfolios[0].transactions
-        );
-
-        let fileRows = [];
-        let headerRow,
-          possibleDateCols = [],
-          dateColIndex,
-          possibleTypeCols = [],
-          typeColIndex,
-          possibleSymbolCols = [],
-          symbolColIndex,
-          possibleQuantityCols = [],
-          quantityColIndex,
-          possiblePriceCols = [],
-          priceColIndex,
-          amountColIndex,
-          possibleAmountCols = [];
-
-        csv
-          .parseFile(files.file.filepath)
-          .on("data", async (data) => {
-            let transaction = {};
-            if (!headerRow) {
-              // A transaction needs at least 5 entries Date, Type, Symbol, Quantity, Price
-              let isDateMatch,
-                isTypeMatch,
-                isSymbolMatch,
-                isQuantityMatch,
-                isPriceMatch;
-
-              if (data.length >= 4) {
-                data.forEach((cell, i) => {
-                  if (dateRegexList.some((rx) => rx.test(cell))) {
-                    isDateMatch = true;
-                    possibleDateCols.push(i);
-                  }
-                  if (typeRegexList.some((rx) => rx.test(cell))) {
-                    isTypeMatch = true;
-                    possibleTypeCols.push(i);
-                  }
-                  if (symbolRegexList.some((rx) => rx.test(cell))) {
-                    isSymbolMatch = true;
-                    possibleSymbolCols.push(i);
-                  }
-                  if (quantityRegexList.some((rx) => rx.test(cell))) {
-                    isQuantityMatch = true;
-                    possibleQuantityCols.push(i);
-                  }
-                  if (priceRegexList.some((rx) => rx.test(cell))) {
-                    isPriceMatch = true;
-                    possiblePriceCols.push(i);
-                  }
-                  if (amountRegexList.some((rx) => rx.test(cell))) {
-                    possibleAmountCols.push(i);
-                  }
-                });
-                if (
-                  isDateMatch &&
-                  isPriceMatch &&
-                  isQuantityMatch &&
-                  isTypeMatch &&
-                  isSymbolMatch
-                ) {
-                  headerRow = data;
-                }
-              }
-            } else if (data.length === headerRow.length) {
-              if (!dateColIndex) {
-                possibleDateCols.forEach((i) => {
-                  if (isDate(data[i])) {
-                    dateColIndex = i;
-                    transaction.date = new Date(data[i]);
-                  }
-                });
-              } else {
-                transaction.date =new Date(data[dateColIndex]);
-              }
-
-              if (!typeColIndex) {
-                possibleTypeCols.forEach((i) => {
-                  if (
-                    [
-                      ...typeValuePurchaseRegexList,
-                      ...typeValueSaleRegexList,
-                      dividendRegex,
-                      transferRegex,
-                    ].some((rx) => rx.test(data[i]))
-                  ) {
-                    typeColIndex = i;
-                    if (
-                      [
-                        ...typeValuePurchaseRegexList,
-                        dividendRegex,
-                        transferRegex,
-                      ].some((rx) => rx.test(data[i]))
-                    ) {
-                      transaction.type = "PURCHASE";
-
-                      if (dividendRegex.test(data[i])) {
-                        transaction.dividend = true;
-                      }
-
-                      if (transferRegex.test(data[i])) {
-                        transaction.transfer = true;
-                      }
-                    }
-                    if (typeValueSaleRegexList.some((rx) => rx.test(data[i]))) {
-                      transaction.type = "SALE";
-                    }
-                  }
-                });
-              } else {
-                if (
-                  [
-                    ...typeValuePurchaseRegexList,
-                    dividendRegex,
-                    transferRegex,
-                  ].some((rx) => rx.test(data[typeColIndex]))
-                ) {
-                  transaction.type = "PURCHASE";
-
-                  if (dividendRegex.test(data[typeColIndex])) {
-                    transaction.dividend = true;
-                  }
-
-                  if (transferRegex.test(data[typeColIndex])) {
-                    transaction.transfer = true;
-                  }
-                }
-                if (
-                  typeValueSaleRegexList.some((rx) =>
-                    rx.test(data[typeColIndex])
-                  )
-                ) {
-                  transaction.type = "SALE";
-                }
-              }
-
-              if (!quantityColIndex) {
-                possibleQuantityCols.forEach((i) => {
-                  if (isNumeric(data[i])) {
-                    quantityColIndex = i;
-                    transaction.quantity = data[i];
-                  }
-                });
-              } else {
-                transaction.quantity = data[quantityColIndex];
-              }
-
-              if (!priceColIndex) {
-                possiblePriceCols.forEach((i) => {
-                  if (isNumeric(data[i])) {
-                    priceColIndex = i;
-                    transaction.price = data[i];
-                  }
-                });
-              } else {
-                transaction.price = data[priceColIndex];
-              }
-
-              if (!symbolColIndex) {
-                possibleSymbolCols.forEach((i) => {
-                  if (symbolRegex.test(data[i])) {
-                    symbolColIndex = i;
-                    transaction.symbol = data[i] || "USD";
-                  }
-                });
-              } else {
-                transaction.symbol = data[symbolColIndex] || "USD";
-              }
-
-              if (
-                !transaction.quantity &&
-                possibleAmountCols.length &&
-                transaction.symbol === "USD"
-              ) {
-                if (!amountColIndex) {
-                  possibleAmountCols.forEach((i) => {
-                    if (isNumeric(data[i])) {
-                      amountColIndex = i;
-                      transaction.quantity = data[amountColIndex];
-                    }
-                  });
-                } else {
-                  transaction.quantity = data[amountColIndex];
-                }
-              }
-
-              transaction.upload = JSON.stringify(data);
-              transaction.owned = transaction.quantity;
-
-              if (
-                transaction.type &&
-                transaction.date &&
-                transaction.symbol &&
-                +transaction.quantity &&
-                transaction.symbol &&
-                transaction.symbol.trim
-              ) {
-                await portfolio.addTransaction(transaction);
-              }
-              fileRows.push(data); // push each row
-            }
-          })
-          .on("end", async () => {
-            let data = await PortfolioService.save(portfolio);
-            fs.unlinkSync(files.file.filepath); // remove temp file
-          });
-
-        res.write("Transactions uploaded");
-        res.end();
-      });
     }
   })
   .listen(8445);
