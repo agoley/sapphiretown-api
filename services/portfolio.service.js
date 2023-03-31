@@ -513,8 +513,6 @@ const PortfolioService = {
       },
     };
 
-    console.log(req.body.transactions);
-
     const onScan = (err, data) => {
       if (err) {
       } else {
@@ -574,6 +572,26 @@ const PortfolioService = {
     };
     docClient.scan(params, onScan);
   },
+  /**
+ * @swagger
+ * /api/v3/portfolios:
+ *  post:
+ *    summary: Creates a new portfolio.
+ *    consumes:
+ *      - application/json
+ *    parameters:
+ *     - in: body
+ *       name: CreatePortfolioBody
+ *       schema:
+ *         type: object
+ *         required:
+ *            - userId
+ *         properties:
+ *           range:
+ *             userId: string
+ *             description: "Id of the user to link this portfolio too"
+ *
+ */
   add: (req, res, next) => {
     const portfolio = {
       id: uuidv1(),
