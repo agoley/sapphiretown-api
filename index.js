@@ -136,7 +136,6 @@ const amountRegexList = [
   /[a-zA-Z]*Amnt[a-zA-Z]*/im,
   /[a-zA-Z]*Total[a-zA-Z]*/im,
   /[a-zA-Z]*Subtotal[a-zA-Z]*/im,
-
 ];
 
 let isDate = (date) => {
@@ -151,12 +150,13 @@ let isNumeric = (str) => {
   ); // ...and ensure strings of whitespace fail
 };
 
-const uploadTransactionsFromCSV =  (req, form) => {
+const uploadTransactionsFromCSV = (req, form) => {
   return new Promise((resolve, reject) => {
     form.parse(req, async (err, fields, files) => {
-      let data = await PortfolioService.getPortfolioById(
-        JSON.parse(fields.user).active_portfolio
-      );
+      let matches = [
+        ...req.url.matchAll(/^\/api\/v3\/portfolios\/(.+)\/transactions$/g),
+      ][0];
+      let data = await PortfolioService.getPortfolioById(matches[1]);
       const portfolios = data.Items.map((item) => {
         return {
           ...item,
@@ -378,7 +378,7 @@ const uploadTransactionsFromCSV =  (req, form) => {
             });
           } else {
             let res = await PortfolioService.save(portfolio);
-            resolve({ data: res.Attributes, errors: []});
+            resolve({ data: res.Attributes, errors: [] });
           }
         });
     });
@@ -387,24 +387,46 @@ const uploadTransactionsFromCSV =  (req, form) => {
 
 /**
  * @swagger
- * :8445/api/v3/transactions/upload:
+ * :8445/api/v3/portfolios/:id/transactions:
  *  post:
  *    summary: Uploads a csv or excel file of transactions.
  *    consumes:
- *      - .csv
+ *      - multipart/form-data
+ *    requestBody:
+ *      content:
+ *        multipart/form-data:
+ *          schema:
+ *            type: object
+ *            properties:
+ *              class:
+ *                type: string
+ *              file:
+ *                type: string
+ *                format: binary
  *    parameters:
- *     - in: body
- *       name: fields
- *       description: Fields supporting the upload
- *       type: object
- *       properties:
- *         user:
- *           schema:
- *             $ref: '#/definitions/User'
- *         class:
- *           description: Class of the assets being uploaded. 
- *           example: 'stock'
- *           type: string
+ *      - in: path
+ *        name: id
+ *        description: ID of the Portfolio to upload transactions to.
+ *        required: true
+ *        schema:
+ *          type: string
+ *          example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
+ *      - in: body
+ *        name: TransactionUploadBody
+ *        description: Form data containing the form, and class of assets.
+ *        schema:
+ *          type: object
+ *          required:
+ *            - file
+ *          properties:
+ *            file:
+ *              type: string
+ *              format: binary
+ *              description: The file containing transaction data.
+ *            class:
+ *              type: string
+ *              description: The asset class, either 'stock', or 'crypto'.
+ *              example: "stock"
  *    responses:
  *      '200':
  *        description: The newly added transactions, and any errors that ocurred during processing.
@@ -439,7 +461,7 @@ http
       return;
     }
 
-    if (req.url == "/api/v3/transactions/upload") {
+    if (/^\/api\/v3\/portfolios\/(.+)\/transactions$/.test(req.url)) {
       var form = new formidable.IncomingForm();
       uploadTransactionsFromCSV(req, form)
         .then((data) => {
