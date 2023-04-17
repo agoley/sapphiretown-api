@@ -90,6 +90,7 @@ const authenticateKey = (req, res, next) => {
 server.pre(enterpriseCors.preflight);
 server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
+  console.log(req)
   if (req.host === "ezfolio-enterprise-server.herokuapp.com") {
     next();
   } else {
