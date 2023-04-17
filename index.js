@@ -54,7 +54,7 @@ server.use(
 );
 
 const authenticateKey = (req, res, next) => {
-  let api_key = req.header("x-api-key"); 
+  let api_key = req.header("x-api-key");
 
   // Find user
   var params = {
@@ -532,17 +532,19 @@ http
   })
   .listen(8445);
 
-server.listen(PORT, function () {
-  console.log("%s listening at %s", server.name, server.url);
-});
-
-enterpriseServer.listen(ENTERPRISE_PORT, function () {
-  console.log(
-    "%s listening at %s",
-    enterpriseServer.name,
-    enterpriseServer.url
-  );
-});
+if (process.env.RUN_SERVER === "enterprise") {
+  enterpriseServer.listen(PORT, function () {
+    console.log(
+      "%s listening at %s",
+      enterpriseServer.name,
+      enterpriseServer.url
+    );
+  });
+} else {
+  server.listen(PORT, function () {
+    console.log("%s listening at %s", server.name, server.url);
+  });
+}
 
 // Every 24hrs records all users value and add to their history.
 // setInterval(() => {
