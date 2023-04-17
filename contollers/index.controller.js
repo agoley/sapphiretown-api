@@ -7,10 +7,10 @@ const UserController = require("./user.controller");
 const PortfolioController = require("./portfolio.controller");
 const StockController = require("./stock.controller");
 
-function IndexController(server) {
+function IndexController(server, isEnterprise) {
 
   // mail endpoints
-  MailController.mail(server);
+  if (!isEnterprise) MailController.mail(server);
 
   // markets endpoints
   MarketsController.markets(server);
@@ -30,12 +30,12 @@ function IndexController(server) {
   UserController.get(server);
   UserController.create(server);
   UserController.auth(server);
-  UserController.forgot(server);
-  UserController.reset(server);
+  if (!isEnterprise)UserController.forgot(server);
+  if (!isEnterprise)UserController.reset(server);
   UserController.update(server);
   UserController.update_password(server);
-  UserController.subscribe(server);
-  UserController.unsubscribe(server);
+  if (!isEnterprise) UserController.subscribe(server);
+  if (!isEnterprise) UserController.unsubscribe(server);
 
   // portfolio endpoints
   PortfolioController.get(server);

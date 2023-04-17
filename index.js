@@ -11,10 +11,24 @@ const csv = require("fast-csv");
 // TODO abastract mailer/transporter
 var nodemailer = require("nodemailer");
 
+let AWS = require("aws-sdk");
+
+AWS.config.update({
+  region: "us-east-1",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
+var docClient = new AWS.DynamoDB.DocumentClient();
+
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN || "*";
 const PORT = process.env.PORT || 8080;
+const ENTERPRISE_PORT = process.env.ENTERPRISE_PORT || 9090;
 
 var server = restify.createServer();
+
+var enterpriseServer = restify.createServer();
 
 // CORS CONFIG
 const corsMiddleware = require("restify-cors-middleware2");
@@ -33,12 +47,53 @@ const cors = corsMiddleware({
 server.pre(cors.preflight);
 server.use(cors.actual);
 server.use(restify.plugins.queryParser());
-
 server.use(
   restify.plugins.bodyParser({
     mapParams: true,
   })
 );
+
+const authenticateKey = (req, res, next) => {
+  let api_key = req.header("x-api-key"); 
+
+  // Find user
+  var params = {
+    TableName: "User",
+    FilterExpression: "(api_key = :key )",
+    ExpressionAttributeValues: {
+      ":key": api_key,
+    },
+  };
+
+  const onScan = (err, data) => {
+    if (err) {
+      console.error(
+        "Unable to scan the table. Error JSON:",
+        JSON.stringify(err, null, 2)
+      );
+      res.send({ error: { code: 403, message: "You not allowed." } });
+    } else {
+      if (data["Items"].length > 0) {
+        return next();
+      } else {
+        res.send({ error: { code: 403, message: "You not allowed." } });
+      }
+    }
+  };
+  docClient.scan(params, onScan);
+};
+
+enterpriseServer.use((req, res, next) => {
+  // Apply API Key Authentication
+  authenticateKey(req, res, next);
+});
+enterpriseServer.use(restify.plugins.queryParser());
+enterpriseServer.use(
+  restify.plugins.bodyParser({
+    mapParams: true,
+  })
+);
+
 // const wss = new WebSocket.Server({ port: 8081 });
 const wss = new WebSocket.Server(server);
 const reducer = new Reducer();
@@ -83,7 +138,8 @@ wss.on("connection", (ws) => {
 });
 
 // APPLY CONTROLLERS
-controllers(server);
+controllers(server, false);
+controllers(enterpriseServer, true);
 
 var restifySwaggerJsdoc = require("restify-swagger-jsdoc");
 const PortfolioService = require("./services/portfolio.service");
@@ -478,6 +534,14 @@ http
 
 server.listen(PORT, function () {
   console.log("%s listening at %s", server.name, server.url);
+});
+
+enterpriseServer.listen(ENTERPRISE_PORT, function () {
+  console.log(
+    "%s listening at %s",
+    enterpriseServer.name,
+    enterpriseServer.url
+  );
 });
 
 // Every 24hrs records all users value and add to their history.

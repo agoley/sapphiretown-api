@@ -26,6 +26,13 @@ AWS.config.update({
 var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
 
+const genAPIKey = () => {
+  //create a base-36 string that contains 30 chars in a-z,0-9
+  return [...Array(30)]
+    .map((e) => ((Math.random() * 36) | 0).toString(36))
+    .join("");
+};
+
 // TODO: abstract a lot of the db accesses to observables.
 
 const UserService = {
@@ -220,7 +227,6 @@ const UserService = {
           "Unable to scan the table. Error JSON:",
           JSON.stringify(err, null, 2)
         );
-        console.log("HELLO")
         res.send({
           color: "red",
           message: "There was an error signing in.",
@@ -252,34 +258,34 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
-    /**
- * @swagger
- * /api/v1/users:
- *   post:
- *     summary: Create a User.
- *     parameters:
- *       - in: body
- *         name: User
- *         schema:
- *           type: object
- *           required:
- *             - username
- *             - email
- *             - password
- *           properties:
- *             username: 
- *               type: string
- *             email:
- *               type: string
- *             password:
- *               type: string
- *     responses:
- *       '200':
- *         description: The newly created user.
- *         content:
- *           application/json:
- *             type: object
- */
+  /**
+   * @swagger
+   * /api/v1/users:
+   *   post:
+   *     summary: Create a User.
+   *     parameters:
+   *       - in: body
+   *         name: User
+   *         schema:
+   *           type: object
+   *           required:
+   *             - username
+   *             - email
+   *             - password
+   *           properties:
+   *             username:
+   *               type: string
+   *             email:
+   *               type: string
+   *             password:
+   *               type: string
+   *     responses:
+   *       '200':
+   *         description: The newly created user.
+   *         content:
+   *           application/json:
+   *             type: object
+   */
   create: (req, res, next) => {
     // Check for username or email conflicts.
     var params = {
@@ -733,10 +739,17 @@ const UserService = {
             }
           }
 
+          console.log(req.body.payment)
+
+          let price =
+            req.body.payment.plan_name === "PRO"
+              ? process.env.STRIPE_PRO_PRICE_ID
+              : process.env.STRIPE_ENTERPRISE_PRICE_ID;
+
           // 6. Create the subscription.
           const subscription = await stripe.subscriptions.create({
             customer: customer.id,
-            items: [{ price: process.env.STRIPE_PRO_PRICE_ID }],
+            items: [{ price: price }],
           });
           console.log("created new subscription");
 
@@ -747,22 +760,67 @@ const UserService = {
             });
           }
 
-          // 7. update the user with stripe customer id, and pro subsription.
-          var setStripeCustomerIdParams = {
-            TableName: "User",
-            Key: {
-              id: user.id,
-            },
-            UpdateExpression:
-              "set stripe_customer_id=:stripe_customer_id, plan_name=:plan_name, stripe_payment_method_id=:stripe_payment_method_id, stripe_subscription_id=:stripe_subscription_id",
-            ExpressionAttributeValues: {
-              ":stripe_customer_id": customer.id,
-              ":plan_name": "PRO",
-              ":stripe_payment_method_id": paymentMethod.id,
-              ":stripe_subscription_id": subscription.id,
-            },
-            ReturnValues: "ALL_NEW",
-          };
+          // 7. update the user with stripe customer id, and subscription.
+          var setStripeCustomerIdParams;
+
+          if (req.body.payment.plan_name === "PRO") {
+            setStripeCustomerIdParams = {
+              TableName: "User",
+              Key: {
+                id: user.id,
+              },
+              UpdateExpression:
+                "set stripe_customer_id=:stripe_customer_id, plan_name=:plan_name, stripe_payment_method_id=:stripe_payment_method_id, stripe_subscription_id=:stripe_subscription_id",
+              ExpressionAttributeValues: {
+                ":stripe_customer_id": customer.id,
+                ":plan_name": req.body.payment.plan_name,
+                ":stripe_payment_method_id": paymentMethod.id,
+                ":stripe_subscription_id": subscription.id,
+              },
+              ReturnValues: "ALL_NEW",
+            };
+          } else if (req.body.payment.plan_name === "ENTERPRISE") {
+            const key = genAPIKey();
+            setStripeCustomerIdParams = {
+              TableName: "User",
+              Key: {
+                id: user.id,
+              },
+              UpdateExpression:
+                "set stripe_customer_id=:stripe_customer_id, plan_name=:plan_name, stripe_payment_method_id=:stripe_payment_method_id, stripe_subscription_id=:stripe_subscription_id, api_key=:api_key",
+              ExpressionAttributeValues: {
+                ":stripe_customer_id": customer.id,
+                ":plan_name": req.body.payment.plan_name,
+                ":stripe_payment_method_id": paymentMethod.id,
+                ":stripe_subscription_id": subscription.id,
+                ":api_key": key,
+              },
+              ReturnValues: "ALL_NEW",
+            };
+
+            // Email the user the API key
+
+            var mailOptions = {
+              from: "hello@ezfol.io",
+              to: user.email,
+              subject: "Your API Key",
+              html:
+                "<p>Thank you for subscribing to EZFol.io Enterprise. Here is your API Key</p>" +
+                "<b>" + key + "</b>" +
+                "<p>Keep it secret, keep it safe!</p>" +
+                "<p>Sincerely,</p>" +
+                "<p> - EZFol.io Customer Service Team",
+            };
+
+            transporter.sendMail(mailOptions, function (error, info) {
+              if (error) {
+                console.log(error);
+              } else {
+                console.log("customer key sent.")
+              }
+            });
+
+          }
 
           docClient.update(setStripeCustomerIdParams, function (err, data) {
             if (err) {

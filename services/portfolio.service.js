@@ -157,7 +157,7 @@ const getPortfolioByUserId = (id) => {
  *             message:
  *               type: string
  *               description: A descriptive message about what went wrong.
- *         
+ *
  */
 
 /**
@@ -282,6 +282,9 @@ const getBreakdown = (id) => {
  */
 const getMovers = (id, range, interval) => {
   return new Promise((resolve, reject) => {
+    if (!id || !range || !interval) {
+      reject("Invalid params");
+    }
     getPortfolioById(id)
       .then((data) => {
         if (data.err) {
@@ -348,6 +351,9 @@ const getMovers = (id, range, interval) => {
  */
 const getPriceAction = (id, range, interval) => {
   return new Promise((resolve, reject) => {
+    if (!id || !range || !interval) {
+      reject("Invalid params");
+    }
     getPortfolioById(id)
       .then((data) => {
         if (data.err) {
@@ -418,6 +424,9 @@ const getPriceAction = (id, range, interval) => {
  */
 const getComparison = (id, comparisons, range, interval) => {
   return new Promise((resolve, reject) => {
+    if (!id || !range || !interval) {
+      reject("Invalid params");
+    }
     getPortfolioById(id)
       .then((data) => {
         if (data.err) {
@@ -573,25 +582,25 @@ const PortfolioService = {
     docClient.scan(params, onScan);
   },
   /**
- * @swagger
- * /api/v3/portfolios:
- *  post:
- *    summary: Creates a new portfolio.
- *    consumes:
- *      - application/json
- *    parameters:
- *     - in: body
- *       name: CreatePortfolioBody
- *       schema:
- *         type: object
- *         required:
- *            - userId
- *         properties:
- *           range:
- *             userId: string
- *             description: "Id of the user to link this portfolio too"
- *
- */
+   * @swagger
+   * /api/v3/portfolios:
+   *  post:
+   *    summary: Creates a new portfolio.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: body
+   *       name: CreatePortfolioBody
+   *       schema:
+   *         type: object
+   *         required:
+   *            - userId
+   *         properties:
+   *           range:
+   *             userId: string
+   *             description: "Id of the user to link this portfolio too"
+   *
+   */
   add: (req, res, next) => {
     const portfolio = {
       id: uuidv1(),
