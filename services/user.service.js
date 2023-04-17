@@ -811,7 +811,7 @@ const UserService = {
                 "</b>" +
                 "<p>Keep it secret, keep it safe!</p>" +
                 "<p>You can now access the api at 'https://ezfolio-enterprise-server.herokuapp.com', documentation " +
-                "can be found at 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/index.html,  enter 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/swagger.json' into the schema search.</p> " +
+                "can be found at 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/index.html',  enter 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/swagger.json' into the schema search.</p> " +
                 "<p>add you're key to your requests as an authorization header 'x-api-key'.</p>" +
                 "<p>Sincerely,</p>" +
                 "<p> - EZFol.io Customer Service Team",
