@@ -739,7 +739,7 @@ const UserService = {
             }
           }
 
-          console.log(req.body.payment)
+          console.log(req.body.payment);
 
           let price =
             req.body.payment.plan_name === "PRO"
@@ -806,10 +806,13 @@ const UserService = {
               subject: "Your API Key",
               html:
                 "<p>Thank you for subscribing to EZFol.io Enterprise. Here is your API Key</p>" +
-                "<b>" + key + "</b>" +
+                "<b>" +
+                key +
+                "</b>" +
                 "<p>Keep it secret, keep it safe!</p>" +
                 "<p>You can now access the api at 'https://ezfolio-enterprise-server.herokuapp.com', documentation " +
-                "can be found at </p>"
+                "can be found at 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/index.html,  enter 'https://ezfolio-enterprise-server.herokuapp.com/docs/swagger/swagger.json' into the schema search.</p> " +
+                "<p>add you're key to your requests as an authorization header 'x-api-key'.</p>" +
                 "<p>Sincerely,</p>" +
                 "<p> - EZFol.io Customer Service Team",
             };
@@ -818,10 +821,9 @@ const UserService = {
               if (error) {
                 console.log(error);
               } else {
-                console.log("customer key sent.")
+                console.log("customer key sent.");
               }
             });
-
           }
 
           docClient.update(setStripeCustomerIdParams, function (err, data) {
