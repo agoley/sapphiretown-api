@@ -44,9 +44,7 @@ const cors = corsMiddleware({
 
 const enterpriseCors = corsMiddleware({
   preflightMaxAge: 600000,
-  origins: [
-   "x"
-  ],
+  origins: ["x"],
 });
 
 // APPLY CORS
@@ -92,8 +90,12 @@ const authenticateKey = (req, res, next) => {
 server.pre(enterpriseCors.preflight);
 server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
-  // Apply API Key Authentication
-  authenticateKey(req, res, next);
+  if (req.host === "ezfolio-enterprise-server.herokuapp.com") {
+    next();
+  } else {
+    // Apply API Key Authentication
+    authenticateKey(req, res, next);
+  }
 });
 enterpriseServer.use(restify.plugins.queryParser());
 enterpriseServer.use(
