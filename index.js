@@ -42,6 +42,13 @@ const cors = corsMiddleware({
   ],
 });
 
+const enterpriseCors = corsMiddleware({
+  preflightMaxAge: 600000,
+  origins: [
+   "x"
+  ],
+});
+
 // APPLY CORS
 server.pre(cors.preflight);
 server.use(cors.actual);
@@ -82,6 +89,8 @@ const authenticateKey = (req, res, next) => {
   docClient.scan(params, onScan);
 };
 
+server.pre(enterpriseCors.preflight);
+server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
   // Apply API Key Authentication
   authenticateKey(req, res, next);
