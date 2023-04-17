@@ -24,7 +24,6 @@ var docClient = new AWS.DynamoDB.DocumentClient();
 
 const RESTIFY_ORIGIN = process.env.RESTIFY_ORIGIN || "*";
 const PORT = process.env.PORT || 8080;
-const ENTERPRISE_PORT = process.env.ENTERPRISE_PORT || 9090;
 
 var server = restify.createServer();
 
@@ -148,10 +147,10 @@ const Portfolio = require("./common/portfolio");
 restifySwaggerJsdoc.createSwaggerPage({
   title: "EZFol.io API documentation", // Page title
   version: "1.0.0", // Server version
-  server: server, // Restify server instance created with restify.createServer()
+  server: enterpriseServer, // Restify server instance created with restify.createServer()
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
-  host: "aqueous-beyond-14838.herokuapp.com/",
+  host: "https://ezfolio-enterprise-server.herokuapp.com/",
   schemes: ["https", "http"],
 });
 

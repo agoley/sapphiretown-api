@@ -808,6 +808,8 @@ const UserService = {
                 "<p>Thank you for subscribing to EZFol.io Enterprise. Here is your API Key</p>" +
                 "<b>" + key + "</b>" +
                 "<p>Keep it secret, keep it safe!</p>" +
+                "<p>You can now access the api at 'https://ezfolio-enterprise-server.herokuapp.com', documentation " +
+                "can be found at </p>"
                 "<p>Sincerely,</p>" +
                 "<p> - EZFol.io Customer Service Team",
             };
