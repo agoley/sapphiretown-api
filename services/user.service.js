@@ -739,18 +739,33 @@ const UserService = {
             }
           }
 
-          console.log(req.body.payment);
+          let subscription;
 
-          let price =
-            req.body.payment.plan_name === "PRO"
-              ? process.env.STRIPE_PRO_PRICE_ID
-              : process.env.STRIPE_ENTERPRISE_PRICE_ID;
+          if (req.body.payment.plan_name === "ENTERPRISE") {
+            let trialEndDate = new Date();
+            if (trialEndDate.getMonth() == 11) {
+              trialEndDate = new Date(trialEndDate.getFullYear() + 1, 0, 1);
+            } else {
+              trialEndDate = new Date(
+                trialEndDate.getFullYear(),
+                trialEndDate.getMonth() + 1,
+                1
+              );
+            }
 
-          // 6. Create the subscription.
-          const subscription = await stripe.subscriptions.create({
-            customer: customer.id,
-            items: [{ price: price }],
-          });
+            // 6. Create the subscription.
+            subscription = await stripe.subscriptions.create({
+              customer: customer.id,
+              items: [{ price: process.env.STRIPE_ENTERPRISE_PRICE_ID }],
+              trial_end: trialEndDate.getTime()/1000, // Calc 1mo
+            });
+          } else {
+            subscription = await stripe.subscriptions.create({
+              customer: customer.id,
+              items: [{ price: process.env.STRIPE_PRO_PRICE_ID }],
+            });
+          }
+
           console.log("created new subscription");
 
           if (!subscription || subscription.statusCode >= 400) {

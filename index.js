@@ -90,7 +90,7 @@ const authenticateKey = (req, res, next) => {
 server.pre(enterpriseCors.preflight);
 server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
-  console.log(req.headers)
+  console.log(req.headers);
   if (req.headers.host === "ezfolio-enterprise-server.herokuapp.com") {
     next();
   } else {
@@ -220,234 +220,250 @@ let isNumeric = (str) => {
 const uploadTransactionsFromCSV = (req, form) => {
   return new Promise((resolve, reject) => {
     form.parse(req, async (err, fields, files) => {
-      let matches = [
-        ...req.url.matchAll(/^\/api\/v3\/portfolios\/(.+)\/transactions$/g),
-      ][0];
-      let data = await PortfolioService.getPortfolioById(matches[1]);
-      const portfolios = data.Items.map((item) => {
-        return {
-          ...item,
-          transactions: JSON.parse(item.transactions),
-        };
-      });
+      try {
+        if (!files.file) {
+          reject({
+            data: {},
+            errors: [{ message: "Unable to parse file" }],
+          });
+        }
 
-      let portfolio = new Portfolio(
-        portfolios[0].id,
-        portfolios[0].transactions
-      );
+        let matches = [
+          ...req.url.matchAll(/^\/api\/v3\/portfolios\/(.+)\/transactions$/g),
+        ][0];
+        let data = await PortfolioService.getPortfolioById(matches[1]);
+        const portfolios = data.Items.map((item) => {
+          return {
+            ...item,
+            transactions: JSON.parse(item.transactions),
+          };
+        });
 
-      let fileRows = [];
-      let headerRow,
-        possibleDateCols = [],
-        dateColIndex,
-        possibleTypeCols = [],
-        typeColIndex,
-        possibleSymbolCols = [],
-        symbolColIndex,
-        possibleQuantityCols = [],
-        quantityColIndex,
-        possiblePriceCols = [],
-        priceColIndex,
-        amountColIndex,
-        possibleAmountCols = [];
+        let portfolio = new Portfolio(
+          portfolios[0].id,
+          portfolios[0].transactions
+        );
 
-      csv
-        .parseFile(files.file.filepath)
-        .on("data", async (data) => {
-          let transaction = {};
-          if (!headerRow) {
-            // A transaction needs at least 5 entries Date, Type, Symbol, Quantity, Price
-            let isDateMatch,
-              isTypeMatch,
-              isSymbolMatch,
-              isQuantityMatch,
-              isPriceMatch;
+        let fileRows = [];
+        let headerRow,
+          possibleDateCols = [],
+          dateColIndex,
+          possibleTypeCols = [],
+          typeColIndex,
+          possibleSymbolCols = [],
+          symbolColIndex,
+          possibleQuantityCols = [],
+          quantityColIndex,
+          possiblePriceCols = [],
+          priceColIndex,
+          amountColIndex,
+          possibleAmountCols = [];
 
-            if (data.length >= 4) {
-              data.forEach((cell, i) => {
-                if (dateRegexList.some((rx) => rx.test(cell))) {
-                  isDateMatch = true;
-                  possibleDateCols.push(i);
-                }
-                if (typeRegexList.some((rx) => rx.test(cell))) {
-                  isTypeMatch = true;
-                  possibleTypeCols.push(i);
-                }
-                if (symbolRegexList.some((rx) => rx.test(cell))) {
-                  isSymbolMatch = true;
-                  possibleSymbolCols.push(i);
-                }
-                if (quantityRegexList.some((rx) => rx.test(cell))) {
-                  isQuantityMatch = true;
-                  possibleQuantityCols.push(i);
-                }
-                if (priceRegexList.some((rx) => rx.test(cell))) {
-                  isPriceMatch = true;
-                  possiblePriceCols.push(i);
-                }
-                if (amountRegexList.some((rx) => rx.test(cell))) {
-                  possibleAmountCols.push(i);
-                }
-              });
-              if (
-                isDateMatch &&
-                isPriceMatch &&
-                isQuantityMatch &&
-                isTypeMatch &&
-                isSymbolMatch
-              ) {
-                headerRow = data;
-              }
-            }
-          } else if (data.length === headerRow.length) {
-            if (!dateColIndex) {
-              possibleDateCols.forEach((i) => {
-                if (isDate(data[i])) {
-                  dateColIndex = i;
-                  transaction.date = new Date(data[i]);
-                }
-              });
-            } else {
-              transaction.date = new Date(data[dateColIndex]);
-            }
+        csv
+          .parseFile(files.file.filepath)
+          .on("data", async (data) => {
+            let transaction = {};
+            if (!headerRow) {
+              // A transaction needs at least 5 entries Date, Type, Symbol, Quantity, Price
+              let isDateMatch,
+                isTypeMatch,
+                isSymbolMatch,
+                isQuantityMatch,
+                isPriceMatch;
 
-            if (!typeColIndex) {
-              possibleTypeCols.forEach((i) => {
+              if (data.length >= 4) {
+                data.forEach((cell, i) => {
+                  if (dateRegexList.some((rx) => rx.test(cell))) {
+                    isDateMatch = true;
+                    possibleDateCols.push(i);
+                  }
+                  if (typeRegexList.some((rx) => rx.test(cell))) {
+                    isTypeMatch = true;
+                    possibleTypeCols.push(i);
+                  }
+                  if (symbolRegexList.some((rx) => rx.test(cell))) {
+                    isSymbolMatch = true;
+                    possibleSymbolCols.push(i);
+                  }
+                  if (quantityRegexList.some((rx) => rx.test(cell))) {
+                    isQuantityMatch = true;
+                    possibleQuantityCols.push(i);
+                  }
+                  if (priceRegexList.some((rx) => rx.test(cell))) {
+                    isPriceMatch = true;
+                    possiblePriceCols.push(i);
+                  }
+                  if (amountRegexList.some((rx) => rx.test(cell))) {
+                    possibleAmountCols.push(i);
+                  }
+                });
                 if (
-                  [
-                    ...typeValuePurchaseRegexList,
-                    ...typeValueSaleRegexList,
-                    dividendRegex,
-                    transferRegex,
-                  ].some((rx) => rx.test(data[i]))
+                  isDateMatch &&
+                  isPriceMatch &&
+                  isQuantityMatch &&
+                  isTypeMatch &&
+                  isSymbolMatch
                 ) {
-                  typeColIndex = i;
+                  headerRow = data;
+                }
+              }
+            } else if (data.length === headerRow.length) {
+              if (!dateColIndex) {
+                possibleDateCols.forEach((i) => {
+                  if (isDate(data[i])) {
+                    dateColIndex = i;
+                    transaction.date = new Date(data[i]);
+                  }
+                });
+              } else {
+                transaction.date = new Date(data[dateColIndex]);
+              }
+
+              if (!typeColIndex) {
+                possibleTypeCols.forEach((i) => {
                   if (
                     [
                       ...typeValuePurchaseRegexList,
+                      ...typeValueSaleRegexList,
                       dividendRegex,
                       transferRegex,
                     ].some((rx) => rx.test(data[i]))
                   ) {
-                    transaction.type = "PURCHASE";
+                    typeColIndex = i;
+                    if (
+                      [
+                        ...typeValuePurchaseRegexList,
+                        dividendRegex,
+                        transferRegex,
+                      ].some((rx) => rx.test(data[i]))
+                    ) {
+                      transaction.type = "PURCHASE";
 
-                    if (dividendRegex.test(data[i])) {
-                      transaction.dividend = true;
+                      if (dividendRegex.test(data[i])) {
+                        transaction.dividend = true;
+                      }
+
+                      if (transferRegex.test(data[i])) {
+                        transaction.transfer = true;
+                      }
                     }
-
-                    if (transferRegex.test(data[i])) {
-                      transaction.transfer = true;
+                    if (typeValueSaleRegexList.some((rx) => rx.test(data[i]))) {
+                      transaction.type = "SALE";
                     }
-                  }
-                  if (typeValueSaleRegexList.some((rx) => rx.test(data[i]))) {
-                    transaction.type = "SALE";
-                  }
-                }
-              });
-            } else {
-              if (
-                [
-                  ...typeValuePurchaseRegexList,
-                  dividendRegex,
-                  transferRegex,
-                ].some((rx) => rx.test(data[typeColIndex]))
-              ) {
-                transaction.type = "PURCHASE";
-
-                if (dividendRegex.test(data[typeColIndex])) {
-                  transaction.dividend = true;
-                }
-
-                if (transferRegex.test(data[typeColIndex])) {
-                  transaction.transfer = true;
-                }
-              }
-              if (
-                typeValueSaleRegexList.some((rx) => rx.test(data[typeColIndex]))
-              ) {
-                transaction.type = "SALE";
-              }
-            }
-
-            if (!quantityColIndex) {
-              possibleQuantityCols.forEach((i) => {
-                if (isNumeric(data[i])) {
-                  quantityColIndex = i;
-                  transaction.quantity = data[i];
-                }
-              });
-            } else {
-              transaction.quantity = data[quantityColIndex];
-            }
-
-            if (!priceColIndex) {
-              possiblePriceCols.forEach((i) => {
-                if (isNumeric(data[i])) {
-                  priceColIndex = i;
-                  transaction.price = data[i];
-                }
-              });
-            } else {
-              transaction.price = data[priceColIndex];
-            }
-
-            if (!symbolColIndex) {
-              possibleSymbolCols.forEach((i) => {
-                if (symbolRegex.test(data[i])) {
-                  symbolColIndex = i;
-                  transaction.symbol = data[i] || "USD";
-                }
-              });
-            } else {
-              transaction.symbol = data[symbolColIndex] || "USD";
-            }
-
-            if (
-              !transaction.quantity &&
-              possibleAmountCols.length &&
-              transaction.symbol === "USD"
-            ) {
-              if (!amountColIndex) {
-                possibleAmountCols.forEach((i) => {
-                  if (isNumeric(data[i])) {
-                    amountColIndex = i;
-                    transaction.quantity = data[amountColIndex];
                   }
                 });
               } else {
-                transaction.quantity = data[amountColIndex];
+                if (
+                  [
+                    ...typeValuePurchaseRegexList,
+                    dividendRegex,
+                    transferRegex,
+                  ].some((rx) => rx.test(data[typeColIndex]))
+                ) {
+                  transaction.type = "PURCHASE";
+
+                  if (dividendRegex.test(data[typeColIndex])) {
+                    transaction.dividend = true;
+                  }
+
+                  if (transferRegex.test(data[typeColIndex])) {
+                    transaction.transfer = true;
+                  }
+                }
+                if (
+                  typeValueSaleRegexList.some((rx) =>
+                    rx.test(data[typeColIndex])
+                  )
+                ) {
+                  transaction.type = "SALE";
+                }
               }
-            }
 
-            transaction.upload = JSON.stringify(data);
-            transaction.owned = transaction.quantity;
-            transaction.class = fields.class;
+              if (!quantityColIndex) {
+                possibleQuantityCols.forEach((i) => {
+                  if (isNumeric(data[i])) {
+                    quantityColIndex = i;
+                    transaction.quantity = data[i];
+                  }
+                });
+              } else {
+                transaction.quantity = data[quantityColIndex];
+              }
 
-            if (
-              transaction.type &&
-              transaction.date &&
-              transaction.symbol &&
-              +transaction.quantity &&
-              transaction.symbol &&
-              transaction.symbol.trim
-            ) {
-              await portfolio.addTransaction(transaction);
+              if (!priceColIndex) {
+                possiblePriceCols.forEach((i) => {
+                  if (isNumeric(data[i])) {
+                    priceColIndex = i;
+                    transaction.price = data[i];
+                  }
+                });
+              } else {
+                transaction.price = data[priceColIndex];
+              }
+
+              if (!symbolColIndex) {
+                possibleSymbolCols.forEach((i) => {
+                  if (symbolRegex.test(data[i])) {
+                    symbolColIndex = i;
+                    transaction.symbol = data[i] || "USD";
+                  }
+                });
+              } else {
+                transaction.symbol = data[symbolColIndex] || "USD";
+              }
+
+              if (
+                !transaction.quantity &&
+                possibleAmountCols.length &&
+                transaction.symbol === "USD"
+              ) {
+                if (!amountColIndex) {
+                  possibleAmountCols.forEach((i) => {
+                    if (isNumeric(data[i])) {
+                      amountColIndex = i;
+                      transaction.quantity = data[amountColIndex];
+                    }
+                  });
+                } else {
+                  transaction.quantity = data[amountColIndex];
+                }
+              }
+
+              transaction.upload = JSON.stringify(data);
+              transaction.owned = transaction.quantity;
+              transaction.class = fields.class;
+
+              if (
+                transaction.type &&
+                transaction.date &&
+                transaction.symbol &&
+                +transaction.quantity &&
+                transaction.symbol &&
+                transaction.symbol.trim
+              ) {
+                await portfolio.addTransaction(transaction);
+              }
+              fileRows.push(data); // push each row
             }
-            fileRows.push(data); // push each row
-          }
-        })
-        .on("end", async () => {
-          fs.unlinkSync(files.file.filepath); // remove temp file
-          if (!headerRow) {
-            reject({
-              data: {},
-              errors: [{ message: "Unable to parse transactions from file" }],
-            });
-          } else {
-            let res = await PortfolioService.save(portfolio);
-            resolve({ data: res.Attributes, errors: [] });
-          }
+          })
+          .on("end", async () => {
+            fs.unlinkSync(files.file.filepath); // remove temp file
+            if (!headerRow) {
+              reject({
+                data: {},
+                errors: [{ message: "Unable to parse transactions from file" }],
+              });
+            } else {
+              let res = await PortfolioService.save(portfolio);
+              resolve({ data: res.Attributes, errors: [] });
+            }
+          });
+      } catch {
+        reject({
+          data: {},
+          errors: [{ message: "Unable to parse transactions from file" }],
         });
+      }
     });
   });
 };
