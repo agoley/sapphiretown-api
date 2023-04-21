@@ -91,7 +91,6 @@ server.pre(enterpriseCors.preflight);
 server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
   if (req.headers.host === "ezfolio-enterprise-server.herokuapp.com") {
-      console.log("hello");
     next();
   } else {
     // Apply API Key Authentication
@@ -163,7 +162,7 @@ restifySwaggerJsdoc.createSwaggerPage({
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
   host: "https://ezfolio-enterprise-server.herokuapp.com/",
-  schemes: ["https", "http"],
+  schemes: ["https"],
 });
 
 const dateRegexList = [
