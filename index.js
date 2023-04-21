@@ -90,8 +90,8 @@ const authenticateKey = (req, res, next) => {
 server.pre(enterpriseCors.preflight);
 server.use(enterpriseCors.actual);
 enterpriseServer.use((req, res, next) => {
-  console.log(req.headers);
   if (req.headers.host === "ezfolio-enterprise-server.herokuapp.com") {
+      console.log("hello");
     next();
   } else {
     // Apply API Key Authentication
