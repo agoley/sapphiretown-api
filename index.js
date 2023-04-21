@@ -98,12 +98,12 @@ enterpriseServer.use((req, res, next) => {
     authenticateKey(req, res, next);
   }
 });
-enterpriseServer.use(restify.plugins.queryParser());
-enterpriseServer.use(
-  restify.plugins.bodyParser({
-    mapParams: true,
-  })
-);
+// enterpriseServer.use(restify.plugins.queryParser());
+// enterpriseServer.use(
+//   restify.plugins.bodyParser({
+//     mapParams: true,
+//   })
+// );
 
 // const wss = new WebSocket.Server({ port: 8081 });
 const wss = new WebSocket.Server(server);
