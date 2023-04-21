@@ -547,6 +547,8 @@ http
       return;
     }
 
+    console.log("HELLO!")
+
     if (/^\/api\/v3\/portfolios\/(.+)\/transactions$/.test(req.url)) {
       var form = new formidable.IncomingForm();
       uploadTransactionsFromCSV(req, form)
