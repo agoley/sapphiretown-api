@@ -523,6 +523,7 @@ http
   .createServer((req, res) => {
     const originsWhiteList = [
       RESTIFY_ORIGIN,
+      "*",
       "https://www.ezfol.io",
       "https://ezfol.io",
       "http://www.ezfol.io",
