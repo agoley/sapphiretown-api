@@ -162,7 +162,7 @@ restifySwaggerJsdoc.createSwaggerPage({
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
   host: "ezfolio-enterprise-server.herokuapp.com/",
-  schemes: ["https"],
+  schemes: ["https", "http"],
 });
 
 const dateRegexList = [
