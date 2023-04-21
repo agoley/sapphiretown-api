@@ -1,18 +1,26 @@
 const _query = require("../services/query.service");
+var restify = require("restify");
+
+let middleware = [
+  restify.plugins.queryParser(),
+  restify.plugins.bodyParser({
+    mapParams: true,
+  }),
+];
 
 const QueryController = {
   query: (server) => {
-    server.post("/api/v1/query", (req, res, next) => {
+    server.post("/api/v1/query", ...middleware, (req, res, next) => {
       _query.query(req, res, next);
     });
   },
   insights: (server) => {
-    server.post("/api/v1/insights", (req, res, next) => {
+    server.post("/api/v1/insights", ...middleware, (req, res, next) => {
       _query.insights(req, res, next);
     });
   },
   summary: (server) => {
-    server.post("/api/v1/summary", (req, res, next) => {
+    server.post("/api/v1/summary", ...middleware, (req, res, next) => {
       _query.summary(req, res, next);
     });
   },

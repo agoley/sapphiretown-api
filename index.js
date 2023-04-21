@@ -50,12 +50,12 @@ const enterpriseCors = corsMiddleware({
 // APPLY CORS
 server.pre(cors.preflight);
 server.use(cors.actual);
-server.use(restify.plugins.queryParser());
-server.use(
-  restify.plugins.bodyParser({
-    mapParams: true,
-  })
-);
+// server.use(restify.plugins.queryParser());
+// server.use(
+//   restify.plugins.bodyParser({
+//     mapParams: true,
+//   })
+// );
 
 const authenticateKey = (req, res, next) => {
   let api_key = req.header("x-api-key");
@@ -470,7 +470,7 @@ const uploadTransactionsFromCSV = (req, form) => {
 
 /**
  * @swagger
- * :8445/api/v3/portfolios/:id/transactions:
+ * /api/v3/portfolios/:id/transactions:
  *  post:
  *    summary: Uploads a csv or excel file of transactions.
  *    consumes:
@@ -519,6 +519,8 @@ const uploadTransactionsFromCSV = (req, form) => {
  *              $ref: '#/definitions/UploadResponse'
  *
  */
+
+// Need to move to it's own server
 http
   .createServer((req, res) => {
     const originsWhiteList = [
@@ -547,7 +549,6 @@ http
       return;
     }
 
-    console.log("HELLO!")
 
     if (/^\/api\/v3\/portfolios\/(.+)\/transactions$/.test(req.url)) {
       var form = new formidable.IncomingForm();
