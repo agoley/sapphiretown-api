@@ -527,6 +527,8 @@ http
       "https://ezfol.io",
       "http://www.ezfol.io",
       "http://ezfol.io",
+      "https://aqueous-beyond-14838.herokuapp.com",
+      "http://aqueous-beyond-14838.herokuapp.com"
     ];
 
     if (
