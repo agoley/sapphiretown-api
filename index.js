@@ -44,7 +44,7 @@ const cors = corsMiddleware({
 
 const enterpriseCors = corsMiddleware({
   preflightMaxAge: 600000,
-  origins: ["x"],
+  origins: ["*"],
 });
 
 // APPLY CORS
