@@ -161,7 +161,7 @@ restifySwaggerJsdoc.createSwaggerPage({
   server: enterpriseServer, // Restify server instance created with restify.createServer()
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
-  host: "ezfolio-enterprise-server.herokuapp.com/",
+  host: process.env.SWAGGER_HOST || "ezfolio-enterprise-server.herokuapp.com/",
   schemes: ["https", "http"],
 });
 

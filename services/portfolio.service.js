@@ -343,7 +343,7 @@ const getPortfolioByUserId = (id) => {
 /**
  * @swagger
  * definitions:
- *   CandleModel:
+ *   Candle:
  *     type: object
  *     properties:
  *       date:
@@ -368,7 +368,7 @@ const getPortfolioByUserId = (id) => {
  *         type: number
  *         description: Volume during this interval
  *         example: "16096813"
- *   BreakoutModel:
+ *   Breakout:
  *     type: object
  *     properties:
  *       symbol:
@@ -377,8 +377,8 @@ const getPortfolioByUserId = (id) => {
  *         example: "AAPL"
  *       candle:
  *         type: object
- *         $ref: '#/definitions/CandleModel'
- *   ActionModel:
+ *         $ref: '#/definitions/Candle'
+ *   Action:
  *     type: object
  *     properties:
  *       high:
@@ -403,9 +403,9 @@ const getPortfolioByUserId = (id) => {
  *         example: "16096813"
  *       breakout:
  *         type: object
- *         $ref: '#/definitions/BreakoutModel'
+ *         $ref: '#/definitions/Breakout'
  *         description: Individual holding action
- *   MoverModel:
+ *   Mover:
  *     type: object
  *     properties:
  *       name:
@@ -414,15 +414,15 @@ const getPortfolioByUserId = (id) => {
  *       value:
  *         type: number
  *         description: Percentage change for the time period
- *   ActionArray:
+ *   Actions:
  *     type: array
  *     items:
- *       $ref: '#/definitions/ActionModel'
- *   MoversArray:
+ *       $ref: '#/definitions/Action'
+ *   Movers:
  *     type: array
  *     items:
- *       $ref: '#/definitions/MoverModel'
- *   ComparisonResponse:
+ *       $ref: '#/definitions/Mover'
+ *   Comparison:
  *     type: object
  *     description: An object with keys for each comparison symbol, and a the portfolios name. The values of each key is an array of tuples (value, date) representing a chart interval.
  *   User:
@@ -442,6 +442,24 @@ const getPortfolioByUserId = (id) => {
  *         type: string
  *       email:
  *         type: string
+ *   Transaction:
+ *     type: object
+ *     properties:
+ *        date:
+ *          type: string
+ *          description: Date and time that the transaction was executed.
+ *        type:
+ *          type: Type of transaction
+ *          enum: [SALE, PURCHASE]
+ *        quantity:
+ *          type: string
+ *          description: Quantity of units.
+ *        price:
+ *          type: string
+ *          description: Price paid per unit.
+ *        symbol:
+ *          type: string
+ *          description: Symbol for the holding.
  *   UploadResponse:
  *     type: object
  *     properties:
@@ -452,7 +470,8 @@ const getPortfolioByUserId = (id) => {
  *           transactions:
  *             type: array
  *             description: Array of uploaded transactions.
- *       errors:
+ *             items:
+ *               $ref: '#/definitions/Transaction'
  *         type: array
  *         description: Errors that occurred while uploading.
  *         items:
@@ -581,7 +600,7 @@ const getBreakdown = (id) => {
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/definitions/MoversArray'
+ *              $ref: '#/definitions/Movers'
  *
  */
 const getMovers = (id, range, interval) => {
@@ -650,7 +669,7 @@ const getMovers = (id, range, interval) => {
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/definitions/MoversArray'
+ *              $ref: '#/definitions/Movers'
  *
  */
 const getPriceAction = (id, range, interval) => {
@@ -723,7 +742,7 @@ const getPriceAction = (id, range, interval) => {
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/definitions/ComparisonResponse'
+ *              $ref: '#/definitions/Comparison'
  *
  */
 const getComparison = (id, comparisons, range, interval) => {
@@ -889,7 +908,7 @@ const PortfolioService = {
    * @swagger
    * /api/v3/portfolios:
    *  post:
-   *    summary: Creates a new portfolio. 
+   *    summary: Creates a new portfolio.
    *    consumes:
    *      - application/json
    *    parameters:
@@ -900,13 +919,13 @@ const PortfolioService = {
    *         required:
    *            - userId
    *         properties:
-   *           userId: 
+   *           userId:
    *             type: string
    *             description: "Id of the user to link this portfolio to"
    *           transactions:
    *             type: array
-   *             description: The transactions for this portfolio.
-   * 
+   *             items:
+   *               $ref: '#/definitions/Transaction'
    *
    */
   add: (req, res, next) => {
@@ -1212,14 +1231,14 @@ const PortfolioService = {
   upload: async (req, res, next) => {
     var form = new formidable.IncomingForm();
     uploadTransactionsFromCSV(req, form)
-    .then((data) => {
-      res.write(JSON.stringify(data));
-      res.end();
-    })
-    .catch((err) => {
-      res.write(JSON.stringify(err));
-      res.end();
-    });
+      .then((data) => {
+        res.write(JSON.stringify(data));
+        res.end();
+      })
+      .catch((err) => {
+        res.write(JSON.stringify(err));
+        res.end();
+      });
   },
   save: save,
   getPortfolioById: getPortfolioById,
