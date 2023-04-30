@@ -472,8 +472,9 @@ const getPortfolioByUserId = (id) => {
  *             description: Array of uploaded transactions.
  *             items:
  *               $ref: '#/definitions/Transaction'
- *         type: array
- *         description: Errors that occurred while uploading.
+ *           errors:
+ *             type: array
+ *             description: Errors that occurred while uploading.
  *         items:
  *           type: object
  *           properties:
@@ -925,7 +926,7 @@ const PortfolioService = {
    *           transactions:
    *             type: array
    *             items:
-   *               $ref: '#/definitions/Transaction'
+   *               $ref: '#/definitions/Transactions'
    *
    */
   add: (req, res, next) => {
