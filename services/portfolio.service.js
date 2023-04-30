@@ -1171,8 +1171,9 @@ const PortfolioService = {
    *       name: id
    *       required: true
    *       description: ID of the Portfolio.
-   *       type: string
-   *       example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
+   *       schema:
+   *         type: string
+   *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
    *     responses:
    *       '200':
    *         description: A summary of the portfolio.
