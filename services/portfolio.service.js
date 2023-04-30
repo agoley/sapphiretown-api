@@ -1173,7 +1173,7 @@ const PortfolioService = {
    *       description: ID of the Portfolio.
    *       schema:
    *         type: string
-   *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
+   *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def" 
    *     responses:
    *       '200':
    *         description: A summary of the portfolio.
@@ -1201,6 +1201,7 @@ const PortfolioService = {
         );
         res.send([]);
       } else {
+        console.log(data)
         const portfolios = data.Items.map((item) => ({
           ...item,
           transactions: JSON.parse(item.transactions),
