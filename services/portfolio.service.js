@@ -1161,7 +1161,7 @@ const PortfolioService = {
     docClient.scan(params, onScan);
   },
 
-  /*
+  /**
    * @swagger
    * /api/v2/portfolios/:id/summary:
    *   get:
