@@ -1166,19 +1166,19 @@ const PortfolioService = {
    * /api/v2/portfolios/:id/summary:
    *   get:
    *     summary: Get a summary of a portfolio.
-   *   parameters:
+   *     parameters:
    *     - in: path
    *       name: id
    *       required: true
    *       description: ID of the Portfolio.
    *       type: string
-   *    responses:
-   *      '200':
-   *        description: A summary of the portfolio.
-   *        content:
-   *          application/json:
-   *            schema:
-   *              $ref: '#/definitions/Summary'
+   *     responses:
+   *       '200':
+   *         description: A summary of the portfolio.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/definitions/Summary'
    */
 
   summary: (req, res, next) => {
