@@ -889,7 +889,7 @@ const PortfolioService = {
    * @swagger
    * /api/v3/portfolios:
    *  post:
-   *    summary: Creates a new portfolio.
+   *    summary: Creates a new portfolio. 
    *    consumes:
    *      - application/json
    *    parameters:
@@ -900,9 +900,13 @@ const PortfolioService = {
    *         required:
    *            - userId
    *         properties:
-   *           range:
-   *             userId: string
-   *             description: "Id of the user to link this portfolio too"
+   *           userId: 
+   *             type: string
+   *             description: "Id of the user to link this portfolio to"
+   *           transactions:
+   *             type: array
+   *             description: The transactions for this portfolio.
+   * 
    *
    */
   add: (req, res, next) => {
