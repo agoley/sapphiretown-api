@@ -1163,7 +1163,7 @@ const PortfolioService = {
 
   /**
    * @swagger
-   * /api/v2/portfolios/:id/summary:
+   * /api/v2/portfolios/{id}/summary:
    *   get:
    *     summary: Get a summary of a portfolio.
    *     parameters:
