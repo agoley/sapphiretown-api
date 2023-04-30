@@ -1184,6 +1184,7 @@ const PortfolioService = {
    */
 
   summary: (req, res, next) => {
+    console.log(req)
     var params = {
       TableName: "Portfolio",
       FilterExpression: "(id = :id)",
