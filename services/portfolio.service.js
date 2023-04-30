@@ -926,7 +926,7 @@ const PortfolioService = {
    *           transactions:
    *             type: array
    *             items:
-   *               $ref: '#/definitions/Transactions'
+   *               $ref: '#/definitions/Transaction'
    *
    */
   add: (req, res, next) => {
