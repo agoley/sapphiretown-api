@@ -469,7 +469,7 @@ const uploadTransactionsFromCSV = (req, form) => {
 
 /**
  * @swagger
- * /api/v3/portfolios/:id/transactions:
+ * /api/v3/portfolios/{id}/transactions:
  *  post:
  *    summary: Uploads a csv or excel file of transactions.
  *    consumes:
