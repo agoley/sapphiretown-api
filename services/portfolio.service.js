@@ -504,13 +504,13 @@ const getPortfolioByUserId = (id) => {
  *           raw:
  *             type: string
  *           percent:
- *             type: string     
+ *             type: string
  *       regularMarketPreviousClose:
  *         type: string
  *       regularMarketPrice:
  *         type: string
  *       netBalance:
- *         type: string 
+ *         type: string
  */
 
 /**
@@ -1160,25 +1160,27 @@ const PortfolioService = {
     };
     docClient.scan(params, onScan);
   },
+
   /*
-  * @swagger
-  * /api/v2/portfolios/:id/summary:
-  *   get:
-  *     summary: Get a summary of a portfolio.
-  *   parameters:
-  *     - in: path
-  *       name: id
-  *       required: true
-  *       description: ID of the Portfolio.
-  *       type: string
-  *    responses:
-  *      '200':
-  *        description: A summary of the portfolio.
-  *        content:
-  *          application/json:
-  *            schema:
-  *              $ref: '#/definitions/Summary'
-  */
+   * @swagger
+   * /api/v2/portfolios/:id/summary:
+   *   get:
+   *     summary: Get a summary of a portfolio.
+   *   parameters:
+   *     - in: path
+   *       name: id
+   *       required: true
+   *       description: ID of the Portfolio.
+   *       type: string
+   *    responses:
+   *      '200':
+   *        description: A summary of the portfolio.
+   *        content:
+   *          application/json:
+   *            schema:
+   *              $ref: '#/definitions/Summary'
+   */
+
   summary: (req, res, next) => {
     var params = {
       TableName: "Portfolio",
