@@ -347,7 +347,7 @@ const getPortfolioByUserId = (id) => {
  *     type: object
  *     properties:
  *       date:
- *         type: Date
+ *         type: string
  *       high:
  *         type: number
  *         description: High price for this interval
