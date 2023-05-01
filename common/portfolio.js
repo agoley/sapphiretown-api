@@ -1641,7 +1641,6 @@ class Portfolio {
         MarketsService.getMarketsLL()
           .then((data) => {
             if (!data || data.err) {
-              console.log(data);
               return;
             }
             if (
