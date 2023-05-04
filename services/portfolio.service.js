@@ -460,6 +460,19 @@ const getPortfolioByUserId = (id) => {
  *        symbol:
  *          type: string
  *          description: Symbol for the holding.
+ *   Portfolio:
+ *     type: object
+ *     properties:
+ *       id: 
+ *         type: string
+ *       user_id: 
+ *         type: string
+ *       createTime: 
+ *         type: string
+ *       transactions: 
+ *         type: array
+ *         items: 
+ *           $ref: '#/definitions/Transaction'
  *   UploadResponse:
  *     type: object
  *     properties:
@@ -965,7 +978,13 @@ const PortfolioService = {
    *             type: array
    *             items:
    *               $ref: '#/definitions/Transaction'
-   *
+   *    responses:
+   *      '200':
+   *        description: The newly created portfolio.
+   *        content:
+   *          application/json:
+   *            schema:
+   *              $ref: '#/definitions/Portfolio'
    */
   add: (req, res, next) => {
     if (!req.body.userId) {
@@ -997,8 +1016,10 @@ const PortfolioService = {
         if (err) {
           console.log("Error", err);
         } else {
-          res.send(data);
-          return next();
+          getPortfolioById(portfolio.id).then((data) => {
+            res.send(data.Items[0]);
+            next();
+          });
         }
       });
     }
