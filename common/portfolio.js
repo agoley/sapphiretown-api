@@ -136,9 +136,9 @@ class Portfolio {
             t.owned = +t.quantity;
           }
 
-          if (+t.quantity > +quantity) {
+          if (+t.quantity > +copy.quantity) {
             // set the owned shares.
-            t.owned = +t.quantity - +quantity;
+            t.owned = +t.quantity - +copy.quantity;
             copy.quantity = 0;
           } else {
             // set the owned shares to 0 and decrement quantity.

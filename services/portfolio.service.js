@@ -492,7 +492,7 @@ const getPortfolioByUserId = (id) => {
  *     properties:
  *       name:
  *         type: string
- *         descriptions: Symbol for the holding
+ *         description: Symbol for the holding
  *       value:
  *         type: number
  *         description: Percentage change for the time period
