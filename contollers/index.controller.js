@@ -51,6 +51,7 @@ function IndexController(server, isEnterprise) {
   PortfolioController.action(server);
   PortfolioController.comparison(server);
   PortfolioController.upload(server);
+  PortfolioController.bulkAdd(server);
 
   // crypto endpoints 
   CryptoController.quote(server);

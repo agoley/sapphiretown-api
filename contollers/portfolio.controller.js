@@ -102,6 +102,15 @@ const PortfolioController = {
       _portfolio.upload(req, res, next);
     });
   },
+  bulkAdd: (server) => {
+    server.post(
+      "/api/v4/portfolios/:id/transactions",
+      ...middleware,
+      (req, res, next) => {
+        _portfolio.bulkAdd(req, res, next);
+      }
+    );
+  },
 };
 
 module.exports = PortfolioController;

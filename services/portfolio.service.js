@@ -14,6 +14,12 @@ AWS.config.update({
 var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
 
+const ASSET_CLASSES = {
+  STOCK: "stock",
+  CRYPTO: "crypto",
+  CASH: "cash",
+};
+
 const dateRegexList = [
   /[a-zA-Z]*Date[a-zA-Z]*/im,
   /date.of.transaction/im,
@@ -64,6 +70,82 @@ let isNumeric = (str) => {
     !isNaN(parseFloat(str))
   ); // ...and ensure strings of whitespace fail
 };
+
+/**
+ * @swagger
+ * /api/v4/portfolios/{id}/transactions:
+ *   get:
+ *     summary: Bulk uploads transactions
+ *     parameters:
+ *     - in: path
+ *       name: id
+ *       required: true
+ *       description: ID of the Portfolio.
+ *       schema:
+ *         type: string
+ *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
+ *     - in: body
+ *       name: transactions
+ *       type: array
+ *       items:
+ *         $ref: '#/definitions/Transaction'
+ *     responses:
+ *       '200':
+ *         description: Portfolio after updating
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/definitions/Portfolio'
+ */
+const bulkAddTransactions = async (id, transactions) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let data = await PortfolioService.getPortfolioById(id);
+      const portfolios = data.Items.map((item) => {
+        return {
+          ...item,
+          transactions: JSON.parse(item.transactions),
+        };
+      });
+
+      if (!portfolios.length) {
+        reject({
+          error: {
+            message: "Failed to retrieve portfolio",
+          },
+        });
+      }
+
+      let portfolio = new Portfolio(
+        portfolios[0].id,
+        portfolios[0].transactions
+      );
+
+      transactions.forEach(async (transaction) => {
+        if (
+          transaction.type &&
+          transaction.date &&
+          transaction.symbol &&
+          +transaction.quantity &&
+          transaction.symbol &&
+          transaction.price
+        ) {
+          transaction.owned = transaction.quantity;
+          if (!transaction.class) {
+            transaction.class = ASSET_CLASSES.STOCK;
+          }
+          await portfolio.addTransaction(transaction);
+        }
+      });
+      let res = await PortfolioService.save(portfolio);
+      resolve(true);
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
+
 const uploadTransactionsFromCSV = (req, form) => {
   return new Promise((resolve, reject) => {
     form.parse(req, async (err, fields, files) => {
@@ -460,18 +542,21 @@ const getPortfolioByUserId = (id) => {
  *        symbol:
  *          type: string
  *          description: Symbol for the holding.
+ *        class:
+ *          type: string
+ *          enum: [stock, crypto, cash]
  *   Portfolio:
  *     type: object
  *     properties:
- *       id: 
+ *       id:
  *         type: string
- *       user_id: 
+ *       user_id:
  *         type: string
- *       createTime: 
+ *       createTime:
  *         type: string
- *       transactions: 
+ *       transactions:
  *         type: array
- *         items: 
+ *         items:
  *           $ref: '#/definitions/Transaction'
  *   UploadResponse:
  *     type: object
@@ -1266,7 +1351,6 @@ const PortfolioService = {
    *             schema:
    *               $ref: '#/definitions/Summary'
    */
-
   summary: (req, res, next) => {
     if (!req.params.id) {
       res.send({
@@ -1430,6 +1514,47 @@ const PortfolioService = {
         res.write(JSON.stringify(err));
         res.end();
       });
+  },
+  bulkAdd: async (req, res, next) => {
+    if (
+      !req.params.id ||
+      !req.body.transactions ||
+      !req.body.transactions.length
+    ) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      res.end();
+    } else {
+      bulkAddTransactions(req.params.id, req.body.transactions)
+        .then((data) => {
+          if (data && !data.error) {
+            getPortfolioById(req.params.id)
+              .then((data) => {
+                res.send(data.Items[0]);
+              })
+              .catch((err) => {
+                res.send({
+                  error: {
+                    message: "Failed to get portfolio after adding",
+                  },
+                });
+                res.end();
+              });
+          }
+        })
+        .catch((err) => {
+          res.send({
+            error: {
+              message: "Failed to add all transactions",
+              systemError: err,
+            },
+          });
+          res.end();
+        });
+    }
   },
   save: save,
   getPortfolioById: getPortfolioById,

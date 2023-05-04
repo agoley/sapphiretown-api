@@ -96,6 +96,7 @@ class Portfolio {
   findIndexOfOldestShares = (symbol) => {
     const doesTransactionStillHaveOwnedShares = (transaction) => {
       return (
+        transaction &&
         transaction.type !== "SALE" &&
         (transaction.owned === undefined || parseInt(transaction.owned, 10) > 0)
       );
@@ -126,7 +127,7 @@ class Portfolio {
 
     if (copy.type === "SALE") {
       while (+copy.quantity > 0) {
-        let indexOfOldestShares = this.findIndexOfOldestShares(symbol);
+        let indexOfOldestShares = this.findIndexOfOldestShares(copy.symbol);
 
         if (indexOfOldestShares >= 0) {
           // Subtract the sold shares from the owned shares.
@@ -147,6 +148,9 @@ class Portfolio {
           transaction.history = transaction.history
             ? [...transaction.history, t]
             : [t];
+        } else {
+          transaction.owned = 0;
+          copy.quantity = 0
         }
       }
     }
