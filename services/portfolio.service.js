@@ -609,24 +609,6 @@ const getPortfolioByUserId = (id) => {
  *         type: string
  *       netBalance:
  *         type: string
- *   User:
- *     type: object
- *     properties:
- *       id:
- *         type: string
- *       active_portfolio:
- *         type: string
- *         description: ID of this users active portfolio.
- *       created:
- *         type: string
- *       email: 
- *         type: string
- *       plan_name:
- *         type: string
- *       theme:
- *         type: string
- *       username: 
- *         type: string
  */
 
 /**
