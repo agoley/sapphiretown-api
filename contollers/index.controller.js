@@ -18,6 +18,7 @@ function IndexController(server, isEnterprise) {
   
   // query endpoints
   QueryController.query(server);
+  QueryController.symbol(server);
   QueryController.insights(server);
   QueryController.summary(server);
 
