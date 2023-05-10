@@ -36,6 +36,7 @@ function IndexController(server, isEnterprise) {
   UserController.update_password(server);
   if (!isEnterprise) UserController.subscribe(server);
   if (!isEnterprise) UserController.unsubscribe(server);
+  UserController.find(server);
 
   // portfolio endpoints
   PortfolioController.get(server);
