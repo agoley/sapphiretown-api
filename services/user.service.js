@@ -216,7 +216,7 @@ const UserService = {
   /**
  * @swagger
  * /api/v4/users/{identifier}:
- *  post:
+ *  get:
  *    summary: Retrieves a user by identifier, which can be an id, username, or email.
  *    consumes:
  *      - application/json
