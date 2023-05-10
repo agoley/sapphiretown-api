@@ -37,6 +37,64 @@ const getQuote = (symbols) => {
 };
 
 const StockService = {
+  /**
+   * @swagger
+   * /api/v2/stock/{symbol}:
+   *  get:
+   *    summary: Queries for market data for symbol.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: symbol
+   *       description: Symbol of the desired equity to query for.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *    responses:
+   *      '200':
+   *        description: Market data for the symbol.
+   */
+  symbol: (req, res, next, count) => {
+    if (!req.params.symbol) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      if (quoteCache.get(JSON.stringify(req.body.symbol))) {
+        res.send(quoteCache.get(JSON.stringify(req.body.symbol)));
+        return next();
+      }
+
+      getQuote(req.body.symbols)
+        .then((data) => {
+          if (data.err) {
+            console.error(data.err);
+            res.send(data);
+            return next();
+          }
+          quoteCache.save(JSON.stringify(req.body.symbols), data);
+          res.send(data);
+          return next();
+        })
+        .catch((err) => {
+          count = count ? count + 1 : 1;
+          if (count < 5) {
+            // Wait 1s and retry.
+            setTimeout(() => {
+              StockService.query(req, res, next, count);
+            }, 1000);
+          } else {
+            res.send(data);
+            return next();
+          }
+        });
+    }
+  },
   quote: (req, res, next, count) => {
     if (quoteCache.get(JSON.stringify(req.body.symbol))) {
       res.send(quoteCache.get(JSON.stringify(req.body.symbol)));

@@ -14,6 +14,11 @@ const StockController = {
       _stock.quote(req, res, next);
     });
   },
+  symbol: (server) => {
+    server.get("/api/v2/stock/:symbol", ...middleware, (req, res, next) => {
+      _stock.symbol(req, res, next);
+    });
+  },
 };
 
 module.exports = StockController;

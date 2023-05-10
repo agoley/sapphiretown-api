@@ -18,7 +18,6 @@ function IndexController(server, isEnterprise) {
   
   // query endpoints
   QueryController.query(server);
-  QueryController.symbol(server);
   QueryController.insights(server);
   QueryController.summary(server);
 
@@ -61,6 +60,7 @@ function IndexController(server, isEnterprise) {
 
   // stock endpoints
   StockController.quote(server);
+  StockController.symbol(server);
 }
 
 module.exports = IndexController;

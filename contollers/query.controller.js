@@ -14,11 +14,6 @@ const QueryController = {
       _query.query(req, res, next);
     });
   },
-  symbol: (server) => {
-    server.get("/api/v2/query/:symbol", ...middleware, (req, res, next) => {
-      _query.symbol(req, res, next);
-    });
-  },
   insights: (server) => {
     server.post("/api/v1/insights", ...middleware, (req, res, next) => {
       _query.insights(req, res, next);
