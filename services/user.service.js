@@ -212,6 +212,71 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+
+  /**
+ * @swagger
+ * /api/v4/users/{identifier}:
+ *  post:
+ *    summary: Retrieves a user by identifier, which can be an id, username, or email.
+ *    consumes:
+ *      - application/json
+ *    parameters:
+ *     - in: path
+ *       name: identifier
+ *       description: ID, username, or email of the user you want to find.
+ *       required: true
+ *       schema:
+ *         type: string
+ *         example: "2e650950-75a1-11eb-bd85-09531521011f"
+ *    responses:
+ *      '200':
+ *        description: The retrieved user.
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/User'
+ *
+ */
+  find: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      FilterExpression:
+        "(username = :identifier or email = :identifier or id = :identifier)",
+      ExpressionAttributeValues: {
+        ":identifier": req.params.identifier,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          delete user.password;
+          delete user.stripe_customer_id;
+          delete user.stripe_payment_method_id;
+          delete user.stripe_subscription_id;
+
+          res.json(user);
+        } else {
+          res.send({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
   auth: (req, res, next) => {
     var params = {
       TableName: "User",
@@ -757,7 +822,7 @@ const UserService = {
             subscription = await stripe.subscriptions.create({
               customer: customer.id,
               items: [{ price: process.env.STRIPE_ENTERPRISE_PRICE_ID }],
-              trial_end: trialEndDate.getTime()/1000, // Calc 1mo
+              trial_end: trialEndDate.getTime() / 1000, // Calc 1mo
             });
           } else {
             subscription = await stripe.subscriptions.create({

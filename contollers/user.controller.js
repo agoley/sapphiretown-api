@@ -14,6 +14,11 @@ const UserController = {
       _user.get(req, res, next);
     });
   },
+  find: (server) => {
+    server.get("/api/v4/users/:identifier", ...middleware, (req, res, next) => {
+      _user.find(req, res, next);
+    });
+  },
   auth: (server) => {
     server.post("/api/v1/users/auth", ...middleware, (req, res, next) => {
       _user.auth(req, res, next);
@@ -40,19 +45,31 @@ const UserController = {
     });
   },
   update_password: (server) => {
-    server.post("/api/v2/users/:id/password", ...middleware, (req, res, next) => {
-      _user.update_password(req, res, next);
-    });
+    server.post(
+      "/api/v2/users/:id/password",
+      ...middleware,
+      (req, res, next) => {
+        _user.update_password(req, res, next);
+      }
+    );
   },
   subscribe: (server) => {
-    server.post("/api/v2/users/:id/subscribe", ...middleware, (req, res, next) => {
-      _user.subscribe(req, res, next);
-    });
+    server.post(
+      "/api/v2/users/:id/subscribe",
+      ...middleware,
+      (req, res, next) => {
+        _user.subscribe(req, res, next);
+      }
+    );
   },
   unsubscribe: (server) => {
-    server.post("/api/v2/users/:id/unsubscribe", ...middleware, (req, res, next) => {
-      _user.unsubscribe(req, res, next);
-    });
+    server.post(
+      "/api/v2/users/:id/unsubscribe",
+      ...middleware,
+      (req, res, next) => {
+        _user.unsubscribe(req, res, next);
+      }
+    );
   },
 };
 
