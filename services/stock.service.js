@@ -65,19 +65,20 @@ const StockService = {
       });
       return next();
     } else {
-      if (quoteCache.get(JSON.stringify(req.body.symbol))) {
-        res.send(quoteCache.get(JSON.stringify(req.body.symbol)));
+      if (quoteCache.get(JSON.stringify(req.params.symbol))) {
+        res.send(quoteCache.get(JSON.stringify(req.params.symbol)));
         return next();
       }
 
-      getQuote(req.body.symbols)
+      getQuote([req.params.symbol])
         .then((data) => {
+          console.log(data);
           if (data.err) {
             console.error(data.err);
             res.send(data);
             return next();
           }
-          quoteCache.save(JSON.stringify(req.body.symbols), data);
+          quoteCache.save(JSON.stringify(req.params.symbol), data);
           res.send(data);
           return next();
         })
