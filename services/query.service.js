@@ -91,6 +91,60 @@ const getSummary = (symbol) => {
 };
 
 const QueryService = {
+  /**
+   * @swagger
+   * /api/v2/query/{symbol}:
+   *  get:
+   *    summary: Queries for market data for symbol.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: symbol
+   *       description: Symbol of the desired equity to query for.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *    responses:
+   *      '200':
+   *        description: Market data for the symbol.
+   */
+  symbol: (req, res, next, count) => {
+    if (!req.params.symbol) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      if (queryCache.get(req.params.symbol)) {
+        res.send(queryCache.get(req.params.symbol));
+      }
+
+      getQuery(req.params.symbol)
+        .then((data) => {
+          if (data.err) {
+            console.error(data.err);
+            res.send(data);
+          }
+          queryCache.save(req.params.symbol, data);
+          res.send(data);
+        })
+        .catch((err) => {
+          count = count ? count + 1 : 1;
+          if (count < 5) {
+            // Wait 1s and retry.
+            setTimeout(() => {
+              QueryService.query(req, res, next, count);
+            }, 1000);
+          } else {
+            res.send(err);
+          }
+        });
+    }
+  },
   query: (req, res, next, count) => {
     if (queryCache.get(req.body.symbol)) {
       res.send(queryCache.get(req.body.symbol));
