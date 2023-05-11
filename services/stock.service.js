@@ -39,25 +39,25 @@ const getQuote = (symbols) => {
 const StockService = {
   /**
    * @swagger
-   * /api/v2/stock/{symbol}:
+   * /api/v2/stock/{symbols}:
    *  get:
    *    summary: Queries for market data for symbol.
    *    consumes:
    *      - application/json
    *    parameters:
    *     - in: path
-   *       name: symbol
-   *       description: Symbol of the desired equity to query for.
+   *       name: symbols
+   *       description: Symbols of the desired equities to query for.
    *       required: true
    *       schema:
    *         type: string
-   *         example: "AAPL"
+   *         example: "AAPL,MSFT"
    *    responses:
    *      '200':
-   *        description: Market data for the symbol.
+   *        description: Market data for the symbols.
    */
   symbol: (req, res, next, count) => {
-    if (!req.params.symbol) {
+    if (!req.params.symbols) {
       res.send({
         error: {
           message: "Invalid params",
@@ -65,20 +65,19 @@ const StockService = {
       });
       return next();
     } else {
-      if (quoteCache.get(JSON.stringify(req.params.symbol))) {
-        res.send(quoteCache.get(JSON.stringify(req.params.symbol)));
+      if (quoteCache.get(JSON.stringify(req.params.symbols))) {
+        res.send(quoteCache.get(JSON.stringify(req.params.symbols)));
         return next();
       }
 
-      getQuote([req.params.symbol])
+      getQuote(req.params.symbols.split(","))
         .then((data) => {
-          console.log(data);
           if (data.err) {
             console.error(data.err);
             res.send(data);
             return next();
           }
-          quoteCache.save(JSON.stringify(req.params.symbol), data);
+          quoteCache.save(JSON.stringify(req.params.symbols), data);
           res.send(data);
           return next();
         })

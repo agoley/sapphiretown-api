@@ -15,7 +15,7 @@ const StockController = {
     });
   },
   symbol: (server) => {
-    server.get("/api/v2/stock/:symbol", ...middleware, (req, res, next) => {
+    server.get("/api/v2/stock/:symbols", ...middleware, (req, res, next) => {
       _stock.symbol(req, res, next);
     });
   },
