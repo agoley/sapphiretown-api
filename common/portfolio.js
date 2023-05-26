@@ -3,6 +3,7 @@ const StockService = require("../services/stock.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
+import { async } from "rxjs/internal/scheduler/async";
 const Cache = require("../common/cache");
 
 const ASSET_CLASSES = {
@@ -150,7 +151,7 @@ class Portfolio {
             : [t];
         } else {
           transaction.owned = 0;
-          copy.quantity = 0
+          copy.quantity = 0;
         }
       }
     }
@@ -196,11 +197,35 @@ class Portfolio {
     });
   }
 
-  calcSummary() {
+  async getRealizedGainOrLoss(today) {
+    let gain = 0;
+
+    if (!this.transactions) {
+      return gain;
+    }
+
+    for (const transaction of this.transactions) {
+      if (transaction.type === "SALE") {
+        // Get the holding for this symbol.
+        const h = await this.getHolding(transaction.symbol, transaction.class);
+
+        // Get sale proceeds - (cost basis * quantity sold).
+        const g =
+          +transaction.price * +transaction.quantity -
+          +h.costBasis * +transaction.quantity;
+        gain += g;
+      }
+    }
+
+    return gain;
+  }
+
+  async calcSummary() {
     const symbols = [];
     let startingPriceOnDay = 0;
     let currentPriceOnDay = 0;
     let cashBalance = 0;
+    let realizedGainOrLoss = 0;
 
     // Gather requests for stock quotes.
     this.holdings.forEach((h) => {
@@ -232,6 +257,7 @@ class Portfolio {
         regularMarketPreviousClose: 0,
         regularMarketPrice: 0,
         netBalance: 0,
+        realizedGainOrLoss: 0,
       });
     }
 
@@ -242,10 +268,10 @@ class Portfolio {
       }, 0);
     allTimeStart = allTimeStart.toFixed(2);
 
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if (symbols.length) {
-        StockService.getQuote(symbols).then((data) => {
-          data.quoteResponse.result.forEach((quote) => {
+        StockService.getQuote(symbols).then(async (data) => {
+          data.quoteResponse.result.forEach(async (quote) => {
             const holding = this.holdings.find(
               (h) =>
                 h.symbol === quote.symbol || h.symbol === quote.fromCurrency
@@ -263,6 +289,8 @@ class Portfolio {
           const percent = (diff / startingPriceOnDay) * 100;
           const net = currentPriceOnDay + cashBalance;
 
+          const realizedGainOrLoss = await this.getRealizedGainOrLoss(false);
+
           const summary = {
             portfolio_name: portfolio_name,
             principal: allTimeStart,
@@ -278,6 +306,7 @@ class Portfolio {
             regularMarketPreviousClose: startingPriceOnDay,
             regularMarketPrice: currentPriceOnDay,
             netBalance: net,
+            realizedGainOrLoss: realizedGainOrLoss,
           };
 
           resolve(summary);
@@ -313,6 +342,54 @@ class Portfolio {
 
   get summary() {
     return this.calcSummary();
+  }
+
+  async getHolding(symbol, type) {
+    if (!this.transactions || this.transactions.length === 0) {
+      return undefined;
+    }
+
+    let sharesForSymbol;
+    if (type) {
+      sharesForSymbol = this.transactions.filter(
+        (p) => p.symbol === symbol && +p.owned > 0 && p.class === type
+      );
+    } else {
+      sharesForSymbol = this.transactions.filter(
+        (p) => p.symbol === symbol && p.owned > 0
+      );
+    }
+
+    const cb =
+      sharesForSymbol
+        .map((t) => t.price * t.quantity)
+        .reduce((a, b) => +a + +b, 0) /
+      sharesForSymbol.map((t) => t.quantity).reduce((a, b) => +a + +b, 0);
+
+    let holding = {
+      symbol: symbol,
+      quantity: sharesForSymbol.map((t) => +t.owned).reduce((a, b) => a + b, 0),
+      costBasis: cb,
+      class: type,
+    };
+
+    let market = await StockService.getQuote([symbol]);
+
+    if (!market || !market.quoteResponse || !market.quoteResponse.result[0]) {
+      holding.gainOrLoss = undefined;
+      return holding;
+    }
+
+    let quote = market.quoteResponse.result[0];
+
+    let gOrL = (
+      (quote.regularMarketPrice.toFixed(2) - holding.costBasis.toFixed(2)) *
+      holding.quantity
+    ).toFixed(2);
+
+    holding.gainOrLoss = gOrL;
+
+    return holding;
   }
 
   /**
@@ -1136,6 +1213,7 @@ class Portfolio {
         );
 
       let responses = await Promise.allSettled(chartQueries);
+      
       responses = responses
         .filter((res) => res.status === "fulfilled")
         .map((res) => res.value);

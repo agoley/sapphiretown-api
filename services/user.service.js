@@ -822,7 +822,7 @@ const UserService = {
             subscription = await stripe.subscriptions.create({
               customer: customer.id,
               items: [{ price: process.env.STRIPE_ENTERPRISE_PRICE_ID }],
-              // trial_end: trialEndDate.getTime() / 1000, // Calc 1mo
+              trial_end: trialEndDate.getTime() / 1000, // Calc 1mo
             });
           } else {
             subscription = await stripe.subscriptions.create({

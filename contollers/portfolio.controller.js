@@ -41,6 +41,15 @@ const PortfolioController = {
       }
     );
   },
+  holding: (server) => {
+    server.get(
+      "/api/v2/portfolios/:id/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        _portfolio.holding(req, res, next);
+      }
+    );
+  },
   update: (server) => {
     server.post("/api/v3/portfolios/:id", ...middleware, (req, res, next) => {
       _portfolio.update(req, res, next);

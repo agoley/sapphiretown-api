@@ -609,6 +609,19 @@ const getPortfolioByUserId = (id) => {
  *         type: string
  *       netBalance:
  *         type: string
+ *       realizedGainOrLoss:
+ *         type: string
+ *   Holding:
+ *     type: object
+ *     properties:
+ *       symbol:
+ *         type: string
+ *       quantity:
+ *         type: number
+ *       costBasis: 
+ *         type: number
+ *       gainOrLoss:
+ *         type: string
  */
 
 /**
@@ -1394,6 +1407,78 @@ const PortfolioService = {
       docClient.scan(params, onScan);
     }
   },
+
+  /**
+   * @swagger
+   * /api/v2/portfolios/{id}/{symbol}:
+   *   get:
+   *     summary: Get a holding in a portfolio.
+   *     parameters:
+   *     - in: path
+   *       name: id
+   *       required: true
+   *       description: ID of the Portfolio.
+   *       schema:
+   *         type: string
+   *         example: "271ef7f0-7f22-11ed-8d69-f9f6d36c4def"
+   *     - in: path
+   *       name: symbol
+   *       required: true
+   *       description: Symbol of the holding to retrieve.
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *     responses:
+   *       '200':
+   *         description: Holding details.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/definitions/Holding'
+   */
+  holding: async (req, res, next) => {
+    if (!req.params.id || !req.params.symbol) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      var params = {
+        TableName: "Portfolio",
+        FilterExpression: "(id = :id)",
+        ExpressionAttributeValues: {
+          ":id": req.params.id,
+        },
+      };
+
+      const onScan = async (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send([]);
+        } else {
+          const portfolios = data.Items.map((item) => ({
+            ...item,
+            transactions: JSON.parse(item.transactions),
+          }));
+          const portfolio = new Portfolio(
+            portfolios[0].id,
+            portfolios[0].transactions,
+            portfolios[0].portfolio_name
+          );
+          let holding = await portfolio.getHolding(req.params.symbol);
+          res.send(holding);
+          return next();
+        }
+      };
+      docClient.scan(params, onScan);
+    }
+  },
+
   breakdown: (req, res, next) => {
     if (!req.params.id) {
       res.send({
