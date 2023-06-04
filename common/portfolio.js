@@ -1089,7 +1089,7 @@ class Portfolio {
         paddedChart.push(action);
       } else {
         if (lastKnownQuote) {
-          paddedChart.push({ date: action.date, ...lastKnownQuote });
+          paddedChart.push({ date: action.date, ...lastKnownQuote, volume: 0 });
         }
       }
     });
