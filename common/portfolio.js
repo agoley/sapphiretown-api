@@ -1073,6 +1073,31 @@ class Portfolio {
     });
   }
 
+  async mapHistory(history, historyHoldingMap) {
+    let lastKnownQuote;
+    const paddedChart = [];
+
+    history.chart.forEach((action) => {
+      if (action.open) {
+        lastKnownQuote = {
+          high: action.high,
+          low: action.low,
+          open: action.open,
+          close: action.close,
+          volume: action.volume,
+        };
+        paddedChart.push(action);
+      } else {
+        if (lastKnownQuote) {
+          paddedChart.push({ date: action.date, ...lastKnownQuote });
+        }
+      }
+    });
+
+    historyHoldingMap[history.holding.symbol] = paddedChart;
+    return Promise.resolve();
+  }
+
   async getHoldingChart(timeMachine) {
     let holdingHistoryArr = [];
 
@@ -1213,7 +1238,7 @@ class Portfolio {
         );
 
       let responses = await Promise.allSettled(chartQueries);
-      
+
       responses = responses
         .filter((res) => res.status === "fulfilled")
         .map((res) => res.value);
@@ -1234,11 +1259,11 @@ class Portfolio {
 
       const holdingHistoryMap = {};
 
-      histories
+      const mapHistoryCalls = histories
         .filter((h) => h.holding)
-        .forEach((history) => {
-          holdingHistoryMap[history.holding.symbol] = history.chart;
-        });
+        .map((h) => this.mapHistory(h, holdingHistoryMap));
+
+      await Promise.allSettled(mapHistoryCalls);
 
       // Maps timestamps to a snapshot of the portfolio at that time
       const timeSnapshotMap = {};
