@@ -621,7 +621,13 @@ const getPortfolioByUserId = (id) => {
  *       costBasis: 
  *         type: number
  *       gainOrLoss:
- *         type: string
+ *         type: object
+ *         properties:
+ *           raw: 
+ *             type: string
+ *           percent:
+ *             type: string
+ *       
  */
 
 /**

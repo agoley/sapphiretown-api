@@ -382,12 +382,15 @@ class Portfolio {
 
     let quote = market.quoteResponse.result[0];
 
-    let gOrL = (
-      (quote.regularMarketPrice.toFixed(2) - holding.costBasis.toFixed(2)) *
-      holding.quantity
-    ).toFixed(2);
-
-    holding.gainOrLoss = gOrL;
+    let gOrL =
+      (quote.regularMarketPrice - holding.costBasis) * holding.quantity;
+    holding.gainOrLoss = {
+      raw: gOrL,
+      percent:
+        ((quote.regularMarketPrice - holding.costBasis) /
+          Math.abs(holding.costBasis)) *
+        100,
+    };
 
     return holding;
   }
