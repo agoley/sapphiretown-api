@@ -624,9 +624,9 @@ const getPortfolioByUserId = (id) => {
  *         type: object
  *         properties:
  *           raw: 
- *             type: string
+ *             type: number
  *           percent:
- *             type: string
+ *             type: number
  *       
  */
 
