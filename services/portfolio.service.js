@@ -618,16 +618,16 @@ const getPortfolioByUserId = (id) => {
  *         type: string
  *       quantity:
  *         type: number
- *       costBasis: 
+ *       costBasis:
  *         type: number
  *       gainOrLoss:
  *         type: object
  *         properties:
- *           raw: 
+ *           raw:
  *             type: number
  *           percent:
  *             type: number
- *       
+ *
  */
 
 /**
@@ -810,6 +810,9 @@ const getMovers = (id, range, interval) => {
  *             type: string
  *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
  *             example: "5m"
+ *           benchmark:
+ *             type: boolean
+ *             description: If true will process action as a benchmark portfolio, which ignores transaction history, and includes the original quote.
  *    responses:
  *      '200':
  *        description: A list of symbols and its holdings percentage movement in the provided range.
@@ -819,7 +822,7 @@ const getMovers = (id, range, interval) => {
  *              $ref: '#/definitions/Movers'
  *
  */
-const getPriceAction = (id, range, interval) => {
+const getPriceAction = (id, range, interval, benchmarkFlag) => {
   return new Promise((resolve, reject) => {
     if (!id || !range || !interval) {
       reject("Invalid params");
@@ -835,7 +838,7 @@ const getPriceAction = (id, range, interval) => {
           JSON.parse(data.Items[0].transactions)
         );
         portfolio
-          .calcPriceActionParallel(range, interval, true)
+          .calcPriceActionParallel(range, interval, true, benchmarkFlag)
           .then((pa) => {
             resolve(pa);
           })
@@ -1535,7 +1538,12 @@ const PortfolioService = {
       });
       return next();
     } else {
-      getPriceAction(req.params.id, req.body.range, req.body.interval)
+      getPriceAction(
+        req.params.id,
+        req.body.range,
+        req.body.interval,
+        req.body.benchmark
+      )
         .then((pa) => {
           res.send(pa);
           return next();
