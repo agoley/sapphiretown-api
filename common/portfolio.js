@@ -182,7 +182,9 @@ class Portfolio {
     // Gather requests for stock quotes.
     this.holdings.forEach((h) => {
       if (h.class === ASSET_CLASSES.CRYPTO) {
-        symbols.push(`${h.symbol + CRYPTO_POSTFIX}`);
+        symbols.push(
+          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+        );
       } else if (h.class === ASSET_CLASSES.STOCK) {
         symbols.push(h.symbol);
       }
@@ -246,7 +248,9 @@ class Portfolio {
     // Gather requests for stock quotes.
     this.holdings.forEach((h) => {
       if (h.class === ASSET_CLASSES.CRYPTO) {
-        symbols.push(`${h.symbol + CRYPTO_POSTFIX}`);
+        symbols.push(
+          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+        );
       } else if (h.class === ASSET_CLASSES.STOCK) {
         symbols.push(h.symbol);
       } else if (h.class === ASSET_CLASSES.CASH) {
@@ -492,7 +496,11 @@ class Portfolio {
     this.holdings.forEach((h, i) => {
       switch (h.class) {
         case ASSET_CLASSES.CRYPTO:
-          calls.push(QueryService.getSummary(`${h.symbol + CRYPTO_POSTFIX}`));
+          calls.push(
+            QueryService.getSummary(
+              h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+            )
+          );
           break;
         case ASSET_CLASSES.CASH:
           break; // Do nothing.
@@ -539,7 +547,9 @@ class Portfolio {
     // Gather requests for stock quotes.
     this.holdings.forEach((h) => {
       if (h.class === ASSET_CLASSES.CRYPTO) {
-        symbols.push(`${h.symbol + CRYPTO_POSTFIX}`);
+        symbols.push(
+          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+        );
       } else if (h.class === ASSET_CLASSES.STOCK) {
         symbols.push(h.symbol);
       } else if (h.class === ASSET_CLASSES.CASH) {
@@ -595,7 +605,9 @@ class Portfolio {
       // Gather requests for stock quotes.
       this.holdings.forEach((h) => {
         if (h.class === ASSET_CLASSES.CRYPTO) {
-          symbols.push(`${h.symbol + CRYPTO_POSTFIX}`);
+          symbols.push(
+            h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+          );
         } else if (h.class === ASSET_CLASSES.STOCK) {
           symbols.push(h.symbol);
         }
@@ -623,7 +635,7 @@ class Portfolio {
         if (h.class === ASSET_CLASSES.CRYPTO) {
           calls.push(
             ChartService.getChartLL(
-              `${h.symbol + CRYPTO_POSTFIX}`,
+              h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX,
               interval,
               range
             )
@@ -717,7 +729,8 @@ class Portfolio {
     let holding = this.holdings.find((h) => {
       if (h.class === ASSET_CLASSES.CRYPTO) {
         return (
-          h.symbol + CRYPTO_POSTFIX === response.chart.result[0].meta.symbol
+          (h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX) ===
+          response.chart.result[0].meta.symbol
         );
       }
       return h.symbol === response.chart.result[0].meta.symbol;
@@ -987,7 +1000,9 @@ class Portfolio {
           ChartService.getChartLL(
             h.class === ASSET_CLASSES.STOCK
               ? h.symbol
-              : `${h.symbol + CRYPTO_POSTFIX}`,
+              : h.symbol.includes("-USD")
+              ? h.symbol
+              : h.symbol + CRYPTO_POSTFIX,
             interval,
             range
           )
@@ -1446,7 +1461,9 @@ class Portfolio {
       // Gather requests for stock quotes.
       this.holdings.forEach((h) => {
         if (h.class === ASSET_CLASSES.CRYPTO) {
-          symbols.push(`${h.symbol + CRYPTO_POSTFIX}`);
+          symbols.push(
+            h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+          );
         } else if (h.class === ASSET_CLASSES.STOCK) {
           symbols.push(h.symbol);
         }
