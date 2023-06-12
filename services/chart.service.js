@@ -209,7 +209,47 @@ const ChartService = {
         }
       });
   },
+  /**
+   * @swagger
+   * /api/v2/chartLL:
+   *  post:
+   *    summary: Gets price action for an equity.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: body
+   *       schema:
+   *         type: object
+   *         required:
+   *            - range
+   *         properties:
+   *           range:
+   *             type: string
+   *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `max` `ytd`"
+   *             example: "1d"
+   *           interval:
+   *             type: string
+   *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+   *             example: "5m"
+   *           symbol:
+   *             type: string
+   *             description: Symbol to retrieve action for.
+   *             example: "AAPL"
+   *    responses:
+   *      '200':
+   *        description: Price action for the symbol.
+   *
+   */
   chartLL: (req, res, next, count) => {
+    if (!req.body.symbol || !req.body.range || !req.body.interval) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    }
+
     const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
 
     if (!req.body.bypass && chartCacheLL.get(cacheKey)) {
