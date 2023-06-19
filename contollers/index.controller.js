@@ -61,7 +61,6 @@ function IndexController(server, isEnterprise) {
 
   // stock endpoints
   StockController.quote(server);
-  StockController.quoteV2(server);
   StockController.symbol(server);
 }
 
