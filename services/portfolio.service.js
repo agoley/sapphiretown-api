@@ -784,7 +784,7 @@ const getMovers = (id, range, interval) => {
  * @swagger
  * /api/v2/portfolio/{id}/action:
  *  post:
- *    summary: Retrieves the price action for the time range in increments of interval.
+ *    summary: Retrieves the price action for the time range in increments of interval. Ignores invalid symbols. Valid symbols are listed on Yahoo Finance.
  *    consumes:
  *      - application/json
  *    parameters:
