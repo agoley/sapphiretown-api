@@ -157,7 +157,7 @@ const Portfolio = require("./common/portfolio");
 
 restifySwaggerJsdoc.createSwaggerPage({
   title: "EZFol.io API documentation", // Page title
-  version: "1.0.0", // Server version
+  version: "2.0.13", // Server version
   server: enterpriseServer, // Restify server instance created with restify.createServer()
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
