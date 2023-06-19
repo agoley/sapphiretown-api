@@ -95,9 +95,59 @@ const StockService = {
         });
     }
   },
+
+    /**
+   * @swagger
+   * /api/v1/stock/quote:
+   *  get:
+   *    summary: Gets a quote for a symbol, containing market data.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: symbol
+   *       description: Symbol of the desired equity.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *    responses:
+   *      '200':
+   *        description: Market quote data for the symbol.
+   */
+  quoteV2: (req, res, next, count) => {
+    if (quoteCache.get(JSON.stringify(req.params.symbol))) {
+      res.send(quoteCache.get(JSON.stringify(req.params.symbol)));
+      return next();
+    }
+
+    getQuote([req.params.symbol])
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        quoteCache.save(JSON.stringify(req.params.symbol), data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            StockService.query(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
   quote: (req, res, next, count) => {
-    if (quoteCache.get(JSON.stringify(req.body.symbol))) {
-      res.send(quoteCache.get(JSON.stringify(req.body.symbol)));
+    if (quoteCache.get(JSON.stringify(req.body.symbols))) {
+      res.send(quoteCache.get(JSON.stringify(req.body.symbols)));
       return next();
     }
 

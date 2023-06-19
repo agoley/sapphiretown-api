@@ -14,6 +14,11 @@ const StockController = {
       _stock.quote(req, res, next);
     });
   },
+  quoteV2: (server, messengers) => {
+    server.get("/api/v2/quote/:symbol", ...middleware, (req, res, next) => {
+      _stock.quoteV2(req, res, next);
+    });
+  },
   symbol: (server) => {
     server.get("/api/v2/stock/:symbols", ...middleware, (req, res, next) => {
       _stock.symbol(req, res, next);
