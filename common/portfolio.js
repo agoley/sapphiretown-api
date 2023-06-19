@@ -853,7 +853,6 @@ class Portfolio {
         }
       }
     });
-
     historyHoldingMap[history.holding.symbol] = paddedChart;
     return Promise.resolve();
   }
@@ -980,15 +979,22 @@ class Portfolio {
   }
 
   async calcPriceActionParallel(range, interval, cashFlag, benchmarkFlag) {
-    if (actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)) {
+    if (
+      actionCache.get(
+        `${this.id}-${range}-${interval}-${cashFlag}-${benchmarkFlag}`
+      )
+    ) {
       return Promise.resolve(
-        actionCache.get(`${this.id}-${range}-${interval}-${cashFlag}`)
+        actionCache.get(
+          `${this.id}-${range}-${interval}-${cashFlag}-${benchmarkFlag}`
+        )
       );
     }
 
     try {
       // Get the portfolios holdings
       let holdings = [...this.holdings];
+      let errors = [];
 
       if (!cashFlag) {
         holdings = holdings.filter((h) => h.class !== ASSET_CLASSES.CASH);
@@ -1010,9 +1016,18 @@ class Portfolio {
 
       let responses = await Promise.allSettled(chartQueries);
 
+      errors = errors.concat(
+        responses
+          .filter((res) => res.status === "fulfilled")
+          .map((res) => res.value)
+          .filter((res) => res.chart.error)
+          .map((res) => res.chart.error)
+      );
+
       responses = responses
         .filter((res) => res.status === "fulfilled")
-        .map((res) => res.value);
+        .map((res) => res.value)
+        .filter((val) => !val.chart.error);
 
       const timeMachineCalls = responses.map((res) =>
         this.getTimeMachine(res, benchmarkFlag)
@@ -1088,8 +1103,8 @@ class Portfolio {
         if (
           count ===
           (benchmarkFlag
-            ? this.holdings.length
-            : this.holdingsAtTime(ts, false).length)
+            ? this.holdings.length - errors.length
+            : this.holdingsAtTime(ts, false).length - errors.length)
         ) {
           // This snapshot represents all holdings in the portfolio
 
