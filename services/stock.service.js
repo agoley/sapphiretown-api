@@ -188,7 +188,7 @@ const StockService = {
   },
     /**
    * @swagger
-   * /api/v2/stock/{symbol}/indicators:
+   * /api/v4/stock/{symbol}/indicators:
    *  get:
    *    summary: Gets indicators for an equity. 
    *    consumes:
