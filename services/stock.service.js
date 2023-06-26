@@ -200,7 +200,7 @@ const StockService = {
    *       required: true
    *       schema:
    *         type: string
-   *         example: "AAPL
+   *         example: "AAPL"
    *    responses:
    *      '200':
    *        description: Indicators for the equity.
