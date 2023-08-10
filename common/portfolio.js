@@ -3,8 +3,8 @@ const StockService = require("../services/stock.service");
 const ChartService = require("../services/chart.service");
 import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
-import { async } from "rxjs/internal/scheduler/async";
 const Cache = require("../common/cache");
+let AWS = require("aws-sdk");
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -16,6 +16,40 @@ const CRYPTO_POSTFIX = "-USD";
 
 const actionCache = new Cache(120000);
 const comparisonCache = new Cache(60000);
+
+AWS.config.update({
+  region: "us-east-1",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
+var docClient = new AWS.DynamoDB.DocumentClient();
+
+const getPortfolioById = (id) => {
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "Portfolio",
+      FilterExpression: "(id = :id)",
+      ExpressionAttributeValues: {
+        ":id": id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        resolve([]);
+      } else {
+        resolve(data);
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
 
 /**
  * Gets the value of the holding at a point in time
@@ -90,6 +124,7 @@ class Portfolio {
     this.updates = new Subject();
     this.watchInterval;
     this.cache = {};
+    this.indicatorsCache = {};
     this.pages = {
       INDEX: "INDEX",
       PERFORMANCE: "PERFORMANCE",
@@ -109,6 +144,30 @@ class Portfolio {
   get realizedGain() {}
 
   get cash() {}
+
+  hydrate = async () => {
+    const data = await getPortfolioById(this.id);
+
+    if (!data.Items) {
+      console.error("failed to hydrate portfolio by ID");
+      return;
+    }
+
+    const result = data.Items.map((item) => {
+      return {
+        ...item,
+        transactions: JSON.parse(item.transactions),
+      };
+    })[0];
+    if (!result.transactions) {
+      console.error("failed to hydrate portfolio by ID");
+      return;
+    } else {
+      this.transactions = result.transactions;
+      this.name = result.name;
+      this.availableRanges = this.getAvailableRanges();
+    }
+  };
 
   findIndexOfOldestShares = (symbol) => {
     const doesTransactionStillHaveOwnedShares = (transaction) => {
@@ -1466,6 +1525,56 @@ class Portfolio {
       this.check.bind(this, wss, page, context),
       5000
     );
+  }
+
+  subscribe(ws) {
+    this.watchInterval = setInterval(this.indicators.bind(this, ws), 5000);
+  }
+
+  indicators(ws) {
+    let symbols = [];
+    this.holdings.forEach((h) => {
+      if (h.class === ASSET_CLASSES.CRYPTO) {
+        symbols.push(
+          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+        );
+      } else if (h.class === ASSET_CLASSES.STOCK) {
+        symbols.push(h.symbol);
+      }
+    });
+
+    symbols.forEach((s) => {
+      StockService.getIndicators(s).then((indicators) => {
+        if (this.indicatorsCache[s]) {
+          if (indicators.at21DayHigh !== this.indicatorsCache[s].at21DayHigh) {
+            ws.send(
+              JSON.stringify({
+                symbol: s,
+                type: "21d High",
+                data: indicators,
+              })
+            );
+          }
+          if (indicators.at55DayHigh !== this.indicatorsCache[s].at55DayHigh) {
+            ws.send(
+              JSON.stringify({
+                symbol: s,
+                type: "55d High",
+                data: indicators,
+              })
+            );
+          }
+        }
+        this.indicatorsCache[s] = indicators;
+        ws.send(
+          JSON.stringify({
+            symbol: s,
+            type: "55d High",
+            data: indicators,
+          })
+        );
+      });
+    });
   }
 
   // Check for page relevant changes, and send updates through wss.

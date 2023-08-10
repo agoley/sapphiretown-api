@@ -8,7 +8,7 @@ var fs = require("fs");
 var formidable = require("formidable");
 const csv = require("fast-csv");
 
-// TODO abastract mailer/transporter
+// TODO abstract mailer/transporter
 var nodemailer = require("nodemailer");
 
 let AWS = require("aws-sdk");
@@ -117,34 +117,56 @@ var transporter = nodemailer.createTransport({
   },
 });
 
-wss.on("connection", (ws) => {
-  ws.on("message", (message) => {
-    const data = JSON.parse(message);
-    if (data.user) {
-      // Check for subscription.
-      reducer.handle(data, ws);
+/**
+ * @swagger
+ * /ws/v1/portfolio:
+ *   get:
+ *     summary: Portfolio insights
+ *   parameters:
+ *     - in: query
+ *       name: id
+ *       required: true
+ *       description: ID of the Portfolio to get insights.
+ *       type: string
+ */
+wss.on("connection", async (ws, req) => {
+  if (req.url.startsWith("/ws/v1/portfolio")) {
+    let url = new URL(`${req.headers.origin}${req.url}`);
+    let portfolio = new Portfolio(url.searchParams.get("id"));
+    await portfolio.hydrate();
 
-      var mailOptions = {
-        from: "hello@ezfol.io",
-        to: "hello@ezfol.io",
-        subject: `${data.user.username} (${data.user.email}) spotted 👀`,
-        html: `${data.user.username} (${data.user.email}) just visited`,
-      };
-
-      if (
-        data?.user.username !== "alex" &&
-        data?.user.username !== "production" &&
-        data?.user.username !== "demo" &&
-        data?.user.username !== "test1"
-      ) {
-        transporter.sendMail(mailOptions, function (error, info) {
-          if (error) {
-            console.log(error);
-          }
-        });
-      }
+    if (portfolio.transactions) {
+      portfolio.subscribe(ws);
     }
-  });
+  } else {
+    ws.on("message", (message) => {
+      const data = JSON.parse(message);
+      if (data.user) {
+        // Check for subscription.
+        reducer.handle(data, ws);
+
+        var mailOptions = {
+          from: "hello@ezfol.io",
+          to: "hello@ezfol.io",
+          subject: `${data.user.username} (${data.user.email}) spotted 👀`,
+          html: `${data.user.username} (${data.user.email}) just visited`,
+        };
+
+        if (
+          data?.user.username !== "alex" &&
+          data?.user.username !== "production" &&
+          data?.user.username !== "demo" &&
+          data?.user.username !== "test1"
+        ) {
+          transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+              console.log(error);
+            }
+          });
+        }
+      }
+    });
+  }
 });
 
 // APPLY CONTROLLERS
@@ -530,7 +552,7 @@ http
       "http://www.ezfol.io",
       "http://ezfol.io",
       "https://aqueous-beyond-14838.herokuapp.com",
-      "http://aqueous-beyond-14838.herokuapp.com"
+      "http://aqueous-beyond-14838.herokuapp.com",
     ];
 
     if (
@@ -547,7 +569,6 @@ http
       res.end();
       return;
     }
-
 
     if (/^\/api\/v3\/portfolios\/(.+)\/transactions$/.test(req.url)) {
       var form = new formidable.IncomingForm();
