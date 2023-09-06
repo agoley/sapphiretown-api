@@ -136,8 +136,14 @@ wss.on("connection", async (ws, req) => {
     await portfolio.hydrate();
 
     if (portfolio.transactions) {
+      console.log("subscribing")
       portfolio.subscribe(ws);
     }
+
+    ws.on("close", () => {
+      console.log("unsubscribe")
+      portfolio.unsubscribe();
+    })
   } else {
     ws.on("message", (message) => {
       const data = JSON.parse(message);

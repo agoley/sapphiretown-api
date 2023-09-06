@@ -34,7 +34,7 @@ const PortfolioController = {
   },
   summary: (server) => {
     server.get(
-      "/api/v2/portfolios/:id/summary",
+      "/api/v2/portfolio/:id/summary",
       ...middleware,
       (req, res, next) => {
         _portfolio.summary(req, res, next);

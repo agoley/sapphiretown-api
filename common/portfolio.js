@@ -5,6 +5,7 @@ import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
 const Cache = require("../common/cache");
 let AWS = require("aws-sdk");
+const WebSocket = require('ws');
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -16,6 +17,7 @@ const CRYPTO_POSTFIX = "-USD";
 
 const actionCache = new Cache(120000);
 const comparisonCache = new Cache(60000);
+const summaryCache = new Cache(60000);
 
 AWS.config.update({
   region: "us-east-1",
@@ -123,6 +125,7 @@ class Portfolio {
     this.transactions = transactions;
     this.updates = new Subject();
     this.watchInterval;
+    this.indicatorsInterval;
     this.cache = {};
     this.indicatorsCache = {};
     this.pages = {
@@ -132,6 +135,7 @@ class Portfolio {
     };
     this.portfolio_name = portfolio_name;
     this.availableRanges = this.getAvailableRanges();
+    this._holdings = this.calcHoldings();
   }
 
   get holdings() {
@@ -298,6 +302,27 @@ class Portfolio {
   }
 
   async calcSummary() {
+    if (summaryCache.get("summary")) {
+      return Promise.resolve(summaryCache.get("summary"));
+    }
+
+    const blank = {
+      portfolio_name: this.name,
+      principal: 0,
+      change: {
+        raw: 0,
+        percent: 0,
+      },
+      allTimeChange: {
+        raw: 0,
+        percent: 0,
+      },
+      regularMarketPreviousClose: 0,
+      regularMarketPrice: 0,
+      netBalance: 0,
+      realizedGainOrLoss: 0,
+    };
+
     const symbols = [];
     let startingPriceOnDay = 0;
     let currentPriceOnDay = 0;
@@ -322,22 +347,8 @@ class Portfolio {
       : "Unnamed Portfolio";
 
     if (!this.holdings.length) {
-      return Promise.resolve({
-        portfolio_name: portfolio_name,
-        principal: 0,
-        change: {
-          raw: 0,
-          percent: 0,
-        },
-        allTimeChange: {
-          raw: 0,
-          percent: 0,
-        },
-        regularMarketPreviousClose: 0,
-        regularMarketPrice: 0,
-        netBalance: 0,
-        realizedGainOrLoss: 0,
-      });
+      summaryCache.save(`summary`, blank);
+      return Promise.resolve(blank);
     }
 
     let allTimeStart = this.transactions
@@ -349,68 +360,61 @@ class Portfolio {
 
     return new Promise(async (resolve, reject) => {
       if (symbols.length) {
-        StockService.getQuote(symbols).then(async (data) => {
-          data.quoteResponse.result.forEach(async (quote) => {
-            const holding = this.holdings.find(
-              (h) =>
-                h.symbol === quote.symbol || h.symbol === quote.fromCurrency
-            );
+        StockService.getQuote(symbols)
+          .then(async (data) => {
+            data.quoteResponse.result.forEach(async (quote) => {
+              const holding = this.holdings.find(
+                (h) =>
+                  h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+              );
 
-            if (quote.regularMarketPrice) {
-              startingPriceOnDay +=
-                holding.shares * quote.regularMarketPreviousClose;
+              if (quote.regularMarketPrice) {
+                startingPriceOnDay +=
+                  holding.shares * quote.regularMarketPreviousClose;
 
-              currentPriceOnDay += holding.shares * quote.regularMarketPrice;
-            }
+                currentPriceOnDay += holding.shares * quote.regularMarketPrice;
+              }
+            });
+
+            const diff = currentPriceOnDay - startingPriceOnDay;
+            const percent = (diff / startingPriceOnDay) * 100;
+            const net = currentPriceOnDay + cashBalance;
+
+            const realizedGainOrLoss = await this.getRealizedGainOrLoss(false);
+
+            const summary = {
+              portfolio_name: portfolio_name,
+              principal: allTimeStart,
+              change: {
+                raw: diff,
+                percent: percent,
+              },
+              allTimeChange: {
+                raw: currentPriceOnDay - allTimeStart,
+                percent:
+                  ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
+              },
+              regularMarketPreviousClose: startingPriceOnDay,
+              regularMarketPrice: currentPriceOnDay,
+              netBalance: net,
+              realizedGainOrLoss: realizedGainOrLoss,
+            };
+
+            summaryCache.save(`summary`, summary);
+
+            resolve(summary);
+          })
+          .catch((err) => {
+            console.log(err);
           });
-
-          const diff = currentPriceOnDay - startingPriceOnDay;
-          const percent = (diff / startingPriceOnDay) * 100;
-          const net = currentPriceOnDay + cashBalance;
-
-          const realizedGainOrLoss = await this.getRealizedGainOrLoss(false);
-
-          const summary = {
-            portfolio_name: portfolio_name,
-            principal: allTimeStart,
-            change: {
-              raw: diff,
-              percent: percent,
-            },
-            allTimeChange: {
-              raw: currentPriceOnDay - allTimeStart,
-              percent:
-                ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
-            },
-            regularMarketPreviousClose: startingPriceOnDay,
-            regularMarketPrice: currentPriceOnDay,
-            netBalance: net,
-            realizedGainOrLoss: realizedGainOrLoss,
-          };
-
-          resolve(summary);
-        });
       } else {
         const portfolio_name = this.portfolio_name
           ? this.portfolio_name
           : "Unnamed Portfolio";
-        const summary = {
-          portfolio_name: portfolio_name,
-          principal: 0,
-          change: {
-            raw: 0,
-            percent: 0,
-          },
-          allTimeChange: {
-            raw: 0,
-            percent: 0,
-          },
-          regularMarketPreviousClose: 0,
-          regularMarketPrice: 0,
-          netBalance: 0,
-        };
 
-        resolve(summary);
+        summaryCache.save(`summary`, blank);
+
+        resolve(blank);
       }
     });
   }
@@ -1173,7 +1177,7 @@ class Portfolio {
       });
 
       actionCache.save(
-        `${this.id}-${range}-${interval}-${cashFlag}`,
+        `${this.id}-${range}-${interval}-${cashFlag}-${benchmarkFlag}`,
         snapshots
       );
       return Promise.resolve(snapshots);
@@ -1528,10 +1532,23 @@ class Portfolio {
   }
 
   subscribe(ws) {
-    this.watchInterval = setInterval(this.indicators.bind(this, ws), 5000);
+    clearInterval(this.indicatorsInterval);
+    // this is bottle necking the messenger somehow
+    this.indicatorsInterval = setInterval(
+      this.indicators.bind(this, ws),
+      10000
+    );
+  }
+
+  unsubscribe(ws) {
+    clearInterval(this.indicatorsInterval);
   }
 
   indicators(ws) {
+    clearInterval(this.indicatorsInterval);
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
     let symbols = [];
     this.holdings.forEach((h) => {
       if (h.class === ASSET_CLASSES.CRYPTO) {
@@ -1542,6 +1559,8 @@ class Portfolio {
         symbols.push(h.symbol);
       }
     });
+
+    let count = 0;
 
     symbols.forEach((s) => {
       StockService.getIndicators(s).then((indicators) => {
@@ -1566,13 +1585,14 @@ class Portfolio {
           }
         }
         this.indicatorsCache[s] = indicators;
-        ws.send(
-          JSON.stringify({
-            symbol: s,
-            type: "55d High",
-            data: indicators,
-          })
-        );
+
+        if (count++ === symbols.length - 1) {
+          // Done with all holdings, reset the interval
+          this.indicatorsInterval = setInterval(
+            this.indicators.bind(this, ws),
+            10000
+          );
+        }
       });
     });
   }

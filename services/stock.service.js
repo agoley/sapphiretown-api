@@ -7,11 +7,15 @@ const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
 
 const quoteCache = new Cache(5000);
-const indicatorCache = new Cache(5000);
+const indicatorCache = new Cache(null, true);
 
 const messengers = require("../common/messenger");
 
 const getQuote = (symbols) => {
+  if (!symbols.length) {
+    return Promise.reject({ error: { message: "Invalid params" } });
+  }
+
   var uni = unirest(
     "GET",
     "https://" + _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY + "/v6/finance/quote"
@@ -69,28 +73,31 @@ const getIndicators = (symbol, specification) => {
           if (!currPrice) {
             resolve({
               error: {
-                message: "Failed to calculate indicators",
+                message:
+                  "Failed to calculate indicators (can not find current price)",
               },
             });
           }
           const highs = v.data?.chart?.result[0]?.indicators.quote[0]?.high;
-          if (!highs && highs.length >= 55) {
+          if (!highs || highs.length || highs.length <= 21) {
             resolve({
               error: {
-                message: "Failed to calculate indicators",
+                message: `Failed to calculate indicators, can not find history for (${symbol})`,
               },
             });
           }
 
-          const twentyOneDayHigh = Math.max(...highs.slice(highs.length - 21));
-          const fiftyFiveDayHigh = Math.max(...highs.slice(highs.length - 55));
+          const twentyOneDayHigh = Math.max(...highs?.slice(highs.length - 21));
+          const fiftyFiveDayHigh = Math.max(...highs?.slice(highs.length - 55));
 
-          resolve({
+          const i = {
             indicators: {
               at21DayHigh: currPrice >= twentyOneDayHigh,
               at55DayHigh: currPrice >= fiftyFiveDayHigh,
-            }
-          });
+            },
+          };
+
+          resolve(i);
         }
       },
     });
@@ -186,11 +193,11 @@ const StockService = {
         }
       });
   },
-    /**
+  /**
    * @swagger
    * /api/v4/stock/{symbol}/indicators:
    *  get:
-   *    summary: Gets indicators for an equity. 
+   *    summary: Gets indicators for an equity.
    *    consumes:
    *      - application/json
    *    parameters:
@@ -206,11 +213,6 @@ const StockService = {
    *        description: Indicators for the equity.
    */
   indicators: (req, res, next, count) => {
-    if (quoteCache.get(JSON.stringify(req.params.symbol))) {
-      res.send(indicatorCache.get(JSON.stringify(req.params.symbol)));
-      return next();
-    }
-
     getIndicators(req.params.symbol)
       .then((data) => {
         if (data.err) {
@@ -218,7 +220,6 @@ const StockService = {
           res.send(data);
           return next();
         }
-        indicatorCache.save(JSON.stringify(req.params.symbol), data);
         res.send(data);
         return next();
       })

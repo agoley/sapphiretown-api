@@ -1,7 +1,8 @@
 class Cache {
-  constructor(timeout) {
+  constructor(timeout, isForever) {
     this.local = {};
     this.timeout = timeout || 1000 * 60 * 5;
+    this.isForever = isForever;
   }
 
   save(key, value) {
@@ -27,6 +28,9 @@ class Cache {
   }
 
   isReadyToUpdate(timestamp) {
+    if (this.isForever) {
+      return false
+    }
     var d = new Date().getTime() - timestamp;
     if (d > this.timeout) {
       // The cached value is over 5 minutes old.
