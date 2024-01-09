@@ -24,12 +24,14 @@
   "dependencies": {
     "aws-sdk": "^2.695.0",
     "bcrypt": "^5.0.0",
+    "cheerio": "^1.0.0-rc.12",
     "csv-stringify": "^6.3.0",
     "esm": "^3.2.25",
     "fast-csv": "^4.3.6",
     "formidable": "^2.1.1",
     "jsonwebtoken": "^8.5.1",
     "nodemailer": "^6.4.10",
+    "openid-client": "^5.6.4",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
     "restify": "^8.4.0",
@@ -41,6 +43,8 @@
     "swagger-restify": "^1.0.1",
     "unirest": "^0.6.0",
     "uuid": "^8.1.0",
-    "ws": "^7.4.5"
+    "web-push": "^3.6.7",
+    "ws": "^7.4.5",
+    "xml-js": "^1.6.11"
   }
 }

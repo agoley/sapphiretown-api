@@ -14,6 +14,7 @@ const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
 const dayCache = new Cache(5000);
 const chartCache = new Cache(5000);
 const chartCacheLL = new Cache(5000);
+const chartCacheLLV2 = new Cache(5000);
 
 const getChartLL = (symbol, interval, range) => {
   var uni = unirest(
@@ -30,6 +31,98 @@ const getChartLL = (symbol, interval, range) => {
   };
   if (interval) {
     params.interval = interval;
+  }
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
+
+const getChartLLV3 = (symbol, interval, range, comparisons) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v8/finance/chart/" +
+      symbol
+  );
+
+  let params = {
+    range: range,
+    events: "div,split",
+  };
+
+  if (interval) {
+    params.interval = interval;
+  }
+  if (comparisons) {
+    params.comparisons = comparisons.join(",");
+  }
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
+
+const getChartLLV4 = (
+  symbol,
+  period1,
+  period2,
+  range,
+  interval,
+  comparisons
+) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v8/finance/chart/" +
+      symbol
+  );
+
+  let params = {
+    // range: range,
+    interval: interval,
+    events: "div,split",
+  };
+
+  if (period1) {
+    params.period1 = period1;
+  }
+
+  if (period2) {
+    params.period2 = period2;
+  }
+  if (comparisons) {
+    params.comparisons = comparisons.join(",");
   }
 
   uni.query(params);
@@ -282,7 +375,175 @@ const ChartService = {
         }
       });
   },
+  chartLLV3: (req, res, next, count) => {
+    if (!req.body.symbol || !req.body.range || !req.body.interval) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    }
+
+    const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
+
+    if (!req.body.bypass && chartCacheLLV2.get(cacheKey)) {
+      res.send(chartCacheLLV2.get(cacheKey));
+      return next();
+    }
+    /**
+     * @swagger
+     * /api/v3/chartLL:
+     *  post:
+     *    summary: Gets price action for an equity.
+     *    consumes:
+     *      - application/json
+     *    parameters:
+     *     - in: body
+     *       schema:
+     *         type: object
+     *         required:
+     *            - range
+     *         properties:
+     *           range:
+     *             type: string
+     *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `max` `ytd`"
+     *             example: "1d"
+     *           interval:
+     *             type: string
+     *             description: "`1m` `5m` `15m` `1d` `1wk` `1mo`"
+     *             example: "5m"
+     *           symbol:
+     *             type: string
+     *             description: Symbol to retrieve action for.
+     *             example: "AAPL"
+     *           comparisons:
+     *             type: array
+     *             description: Symbols to get comparison chart data
+     *             example: "MSFT,AMZN"
+     *    responses:
+     *      '200':
+     *        description: Price action for the symbol.
+     *
+     */
+    getChartLLV3(
+      req.body.symbol,
+      req.body.interval,
+      req.body.range,
+      req.body.comparisons
+    )
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        } else {
+          chartCacheLLV2.save(cacheKey, data);
+          res.send(data);
+          return next();
+        }
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            ChartService.chartLLV3(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  chartLLV4: (req, res, next, count) => {
+    if (!req.body.symbol || !req.body.range || !req.body.interval || !req.body.period1 || !req.body.period2) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    }
+
+    const cacheKey = JSON.stringify(req.body).replace(/\s+/g, "");
+
+    if (!req.body.bypass && chartCacheLLV2.get(cacheKey)) {
+      res.send(chartCacheLLV2.get(cacheKey));
+      return next();
+    }
+    /**
+     * @swagger
+     * /api/v4/chartLL:
+     *  post:
+     *    summary: Gets price action for an equity.
+     *    consumes:
+     *      - application/json
+     *    parameters:
+     *     - in: body
+     *       schema:
+     *         type: object
+     *         required:
+     *            - range
+     *         properties:
+     *           range:
+     *             type: string
+     *             description: "`1d` `5d` `1mo` `3mo` `6mo` `1y` `5y` `10y` `max` `ytd`"
+     *             example: "1d"
+     *           period1:
+     *             type: date
+     *             description: start date
+     *           period2:
+     *             type: date
+     *             description: end date
+     *           symbol:
+     *             type: string
+     *             description: Symbol to retrieve action for.
+     *             example: "AAPL"
+     *           comparisons:
+     *             type: array
+     *             description: Symbols to get comparison chart data
+     *             example: "MSFT,AMZN"
+     *    responses:
+     *      '200':
+     *        description: Price action for the symbol.
+     *
+     */
+    getChartLLV4(
+      req.body.symbol,
+      req.body.period1,
+      req.body.period2,
+      req.body.range,
+      req.body.interval,
+      req.body.comparisons
+    )
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        } else {
+          chartCacheLLV2.save(cacheKey, data);
+          res.send(data);
+          return next();
+        }
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            ChartService.chartLLV4(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
   getChartLL: getChartLL,
+  getChartLLV3: getChartLLV3,
+  getChartLLV4: getChartLLV4,
 };
 
 module.exports = ChartService;

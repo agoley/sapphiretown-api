@@ -5,7 +5,7 @@ import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
 const Cache = require("../common/cache");
 let AWS = require("aws-sdk");
-const WebSocket = require('ws');
+const WebSocket = require("ws");
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -15,9 +15,9 @@ const ASSET_CLASSES = {
 
 const CRYPTO_POSTFIX = "-USD";
 
-const actionCache = new Cache(120000);
-const comparisonCache = new Cache(60000);
-const summaryCache = new Cache(60000);
+const actionCache = new Cache(9000);
+const summaryCache = new Cache(9000);
+const comparisonCache = new Cache(9000);
 
 AWS.config.update({
   region: "us-east-1",
@@ -290,11 +290,13 @@ class Portfolio {
         // Get the holding for this symbol.
         const h = await this.getHolding(transaction.symbol, transaction.class);
 
-        // Get sale proceeds - (cost basis * quantity sold).
-        const g =
-          +transaction.price * +transaction.quantity -
-          +h.costBasis * +transaction.quantity;
-        gain += g;
+        if (h) {
+          // Get sale proceeds - (cost basis * quantity sold).
+          const g =
+            +transaction.price * +transaction.quantity -
+            +h.costBasis * +transaction.quantity;
+          gain += g;
+        }
       }
     }
 
@@ -302,121 +304,131 @@ class Portfolio {
   }
 
   async calcSummary() {
-    if (summaryCache.get("summary")) {
-      return Promise.resolve(summaryCache.get("summary"));
-    }
-
-    const blank = {
-      portfolio_name: this.name,
-      principal: 0,
-      change: {
-        raw: 0,
-        percent: 0,
-      },
-      allTimeChange: {
-        raw: 0,
-        percent: 0,
-      },
-      regularMarketPreviousClose: 0,
-      regularMarketPrice: 0,
-      netBalance: 0,
-      realizedGainOrLoss: 0,
-    };
-
-    const symbols = [];
-    let startingPriceOnDay = 0;
-    let currentPriceOnDay = 0;
-    let cashBalance = 0;
-    let realizedGainOrLoss = 0;
-
-    // Gather requests for stock quotes.
-    this.holdings.forEach((h) => {
-      if (h.class === ASSET_CLASSES.CRYPTO) {
-        symbols.push(
-          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
-        );
-      } else if (h.class === ASSET_CLASSES.STOCK) {
-        symbols.push(h.symbol);
-      } else if (h.class === ASSET_CLASSES.CASH) {
-        cashBalance += +h.shares;
+    try {
+      if (summaryCache.get(`summary-${this.id}`)) {
+        return Promise.resolve(summaryCache.get(`summary-${this.id}`));
       }
-    });
 
-    const portfolio_name = this.portfolio_name
-      ? this.portfolio_name
-      : "Unnamed Portfolio";
+      const blank = {
+        portfolio_name: this.name,
+        principal: 0,
+        change: {
+          raw: 0,
+          percent: 0,
+        },
+        allTimeChange: {
+          raw: 0,
+          percent: 0,
+        },
+        regularMarketPreviousClose: 0,
+        regularMarketPrice: 0,
+        netBalance: 0,
+        realizedGainOrLoss: 0,
+      };
 
-    if (!this.holdings.length) {
-      summaryCache.save(`summary`, blank);
-      return Promise.resolve(blank);
-    }
+      const symbols = [];
+      let startingPriceOnDay = 0;
+      let currentPriceOnDay = 0;
+      let cashBalance = 0;
+      let realizedGainOrLoss = 0;
 
-    let allTimeStart = this.transactions
-      .filter((t) => t.class !== "cash")
-      .reduce((prev, curr) => {
-        return prev + curr.price * curr.quantity;
-      }, 0);
-    allTimeStart = allTimeStart.toFixed(2);
+      // Gather requests for stock quotes.
+      this.holdings.forEach((h) => {
+        if (h.class === ASSET_CLASSES.CRYPTO) {
+          symbols.push(
+            h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+          );
+        } else if (h.class === ASSET_CLASSES.STOCK) {
+          symbols.push(h.symbol);
+        } else if (h.class === ASSET_CLASSES.CASH) {
+          cashBalance += +h.shares;
+        }
+      });
 
-    return new Promise(async (resolve, reject) => {
-      if (symbols.length) {
-        StockService.getQuote(symbols)
-          .then(async (data) => {
-            data.quoteResponse.result.forEach(async (quote) => {
-              const holding = this.holdings.find(
-                (h) =>
-                  h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+      const portfolio_name = this.portfolio_name
+        ? this.portfolio_name
+        : "Unnamed Portfolio";
+
+      if (!this.holdings.length) {
+        summaryCache.save(`summary-${this.id}`, blank);
+        return Promise.resolve(blank);
+      }
+
+      let allTimeStart = this.transactions
+        .filter((t) => t.class !== "cash")
+        .reduce((prev, curr) => {
+          return prev + curr.price * curr.quantity;
+        }, 0);
+      allTimeStart = allTimeStart.toFixed(2);
+
+      return new Promise(async (resolve, reject) => {
+        if (symbols.length) {
+          StockService.getQuote(symbols)
+            .then(async (data) => {
+              data.quoteResponse.result.forEach(async (quote) => {
+                const holding = this.holdings.find(
+                  (h) =>
+                    h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+                );
+
+                if (quote.regularMarketPrice) {
+                  startingPriceOnDay +=
+                    holding.shares * quote.regularMarketPreviousClose;
+
+                  currentPriceOnDay +=
+                    holding.shares * quote.regularMarketPrice;
+                }
+              });
+
+              const diff = currentPriceOnDay - startingPriceOnDay;
+              const percent = (diff / startingPriceOnDay) * 100;
+              const net = currentPriceOnDay + cashBalance;
+
+              const realizedGainOrLoss = await this.getRealizedGainOrLoss(
+                false
               );
 
-              if (quote.regularMarketPrice) {
-                startingPriceOnDay +=
-                  holding.shares * quote.regularMarketPreviousClose;
+              const summary = {
+                portfolio_name: portfolio_name,
+                principal: allTimeStart,
+                change: {
+                  raw: diff,
+                  percent: percent,
+                },
+                allTimeChange: {
+                  raw: currentPriceOnDay - allTimeStart,
+                  percent:
+                    ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
+                },
+                regularMarketPreviousClose: startingPriceOnDay,
+                regularMarketPrice: currentPriceOnDay,
+                netBalance: net,
+                realizedGainOrLoss: realizedGainOrLoss,
+              };
 
-                currentPriceOnDay += holding.shares * quote.regularMarketPrice;
-              }
+              summaryCache.save(`summary-${this.id}`, summary);
+
+              resolve(summary);
+            })
+            .catch((err) => {
+              console.log(err);
             });
+        } else {
+          const portfolio_name = this.portfolio_name
+            ? this.portfolio_name
+            : "Unnamed Portfolio";
 
-            const diff = currentPriceOnDay - startingPriceOnDay;
-            const percent = (diff / startingPriceOnDay) * 100;
-            const net = currentPriceOnDay + cashBalance;
+          summaryCache.save(`summary-${this.id}`, blank);
 
-            const realizedGainOrLoss = await this.getRealizedGainOrLoss(false);
-
-            const summary = {
-              portfolio_name: portfolio_name,
-              principal: allTimeStart,
-              change: {
-                raw: diff,
-                percent: percent,
-              },
-              allTimeChange: {
-                raw: currentPriceOnDay - allTimeStart,
-                percent:
-                  ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
-              },
-              regularMarketPreviousClose: startingPriceOnDay,
-              regularMarketPrice: currentPriceOnDay,
-              netBalance: net,
-              realizedGainOrLoss: realizedGainOrLoss,
-            };
-
-            summaryCache.save(`summary`, summary);
-
-            resolve(summary);
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      } else {
-        const portfolio_name = this.portfolio_name
-          ? this.portfolio_name
-          : "Unnamed Portfolio";
-
-        summaryCache.save(`summary`, blank);
-
-        resolve(blank);
-      }
-    });
+          resolve(blank);
+        }
+      });
+    } catch (err) {
+      return Promise.resolve({
+        color: "red",
+        message: "There was an error calculating the portfolio summary.",
+      });
+    }
   }
 
   get change() {
@@ -425,6 +437,92 @@ class Portfolio {
 
   get summary() {
     return this.calcSummary();
+  }
+
+  async removeTransaction(transaction) {
+    // Find the transaction to remove.
+    const index = this.transactions.findIndex(
+      (t) =>
+        t.symbol === transaction.symbol &&
+        t.date === transaction.date &&
+        t.quantity === transaction.quantity &&
+        t.price === transaction.price
+    );
+
+    if (index < 0) {
+      return;
+    }
+
+    const t = this.transactions[index];
+
+    if (t.type === "PURCHASE") {
+      // PURCHASE PATH
+
+      if (t.quantity !== t.owned) {
+        // Shares have been deducted from the purchase.
+        // Redistribute the deduction to other transactions.
+        let diff = parseFloat(t.quantity) - parseFloat(t.owned);
+
+        let pointerIndex = index;
+        while (diff > 0 && pointerIndex >= 0) {
+          let y = this.transactions[--pointerIndex];
+          if (!y) {
+            break;
+          }
+          if (
+            y.type === "PURCHASE" &&
+            y.symbol === t.symbol &&
+            parseFloat(y.owned) > 0
+          ) {
+            // Y is a transactions with shares available to redistribute the deduction.
+
+            if (parseFloat(y.owned) >= diff) {
+              // Y can absorb the whole diff.
+
+              y.owned = parseFloat(y.owned) - diff;
+              diff = 0;
+            } else {
+              // Y can't absorb the whole diff. Remove owned from diff and continue.
+
+              y.owned = 0;
+              diff = diff - parseFloat(y.owned);
+            }
+          }
+        }
+      }
+    } else {
+      // SALE PATH
+      // Redistribute the shares to other transactions.
+      let diff = parseFloat(t.quantity);
+
+      let pointerIndex = index;
+      while (diff > 0 && pointerIndex >= 0) {
+        let y = this.transactions[--pointerIndex];
+        if (
+          y &&
+          (!y.type || y.type === "PURCHASE") &&
+          y.symbol === t.symbol &&
+          parseFloat(y.owned) < parseFloat(y.quantity)
+        ) {
+          // Y is a transaction with shares to absorb.
+          let space = parseFloat(y.quantity) - parseFloat(y.owned);
+
+          if (space >= diff) {
+            // Y can absorb the whole diff.
+
+            y.owned = parseFloat(y.owned) + diff;
+            diff = 0;
+          } else {
+            // Y can't absorb the whole diff. Add from diff and continue.
+
+            y.owned = y.quantity;
+            diff = diff - space;
+          }
+        }
+      }
+    }
+    //  Remove transaction
+    this.transactions.splice(index, 1);
   }
 
   async getHolding(symbol, type) {
@@ -449,33 +547,45 @@ class Portfolio {
         .reduce((a, b) => +a + +b, 0) /
       sharesForSymbol.map((t) => t.quantity).reduce((a, b) => +a + +b, 0);
 
-    let holding = {
+    let h = this.holdings.find((y) => y.symbol === symbol);
+
+    if (!h) {
+      return;
+    }
+
+    let summary = {
       symbol: symbol,
       quantity: sharesForSymbol.map((t) => +t.owned).reduce((a, b) => a + b, 0),
       costBasis: cb,
       class: type,
     };
 
-    let market = await StockService.getQuote([symbol]);
+    let typedSymbol =
+      h.class === "crypto"
+        ? summary.symbol.includes("-USD")
+          ? summary.symbol
+          : summary.symbol + CRYPTO_POSTFIX
+        : summary.symbol;
+
+    let market = await StockService.getQuote([typedSymbol]);
 
     if (!market || !market.quoteResponse || !market.quoteResponse.result[0]) {
-      holding.gainOrLoss = undefined;
-      return holding;
+      summary.gainOrLoss = undefined;
+      return summary;
     }
 
     let quote = market.quoteResponse.result[0];
-
     let gOrL =
-      (quote.regularMarketPrice - holding.costBasis) * holding.quantity;
-    holding.gainOrLoss = {
+      (quote.regularMarketPrice - summary.costBasis) * summary.quantity;
+    summary.gainOrLoss = {
       raw: gOrL,
       percent:
-        ((quote.regularMarketPrice - holding.costBasis) /
-          Math.abs(holding.costBasis)) *
+        ((quote.regularMarketPrice - summary.costBasis) /
+          Math.abs(summary.costBasis)) *
         100,
     };
 
-    return holding;
+    return summary;
   }
 
   /**
@@ -487,6 +597,7 @@ class Portfolio {
     }
 
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
+
     let holdings = uniqueAssets
       .map((ua) => {
         return {
@@ -828,7 +939,8 @@ class Portfolio {
     // Transactions for symbol in this portfolio, these could be of type purchase or sale.
     let transactions = this.transactions
       .filter((t) => t.symbol === holding.symbol)
-      .map((t) => ({ ...t, date: new Date(t.date).getTime() }));
+      .map((t) => ({ ...t, date: new Date(t.date).getTime() }))
+      .sort((a, b) => a.date - b.date);
 
     // Map of the holdings quantity at different times during range.
     const holdingTimeMachineArr = [];
@@ -865,7 +977,10 @@ class Portfolio {
       if (transaction.type === "SALE") {
         // This is a sale remove to the current holding quantity
 
-        quantity -= parseFloat(transaction.quantity);
+        quantity -= Math.abs(parseFloat(transaction.quantity));
+        if (quantity < 0) {
+          quantity = 0;
+        }
       }
 
       if (transaction.date >= firstTimestamp) {
@@ -901,7 +1016,7 @@ class Portfolio {
     const paddedChart = [];
 
     history.chart.forEach((action) => {
-      if (action.open) {
+      if (action.open || action.open == 0) {
         lastKnownQuote = {
           high: action.high,
           low: action.low,
@@ -960,6 +1075,7 @@ class Portfolio {
 
   getSnapshotMap(symbol, holdingHistoryMap, timeSnapshotMap, benchmarkFlag) {
     // the historical data for this portfolio
+
     const action = holdingHistoryMap[symbol];
 
     action.forEach((candle) => {
@@ -977,7 +1093,7 @@ class Portfolio {
         snapshot.volume += candle.volume;
         snapshot.breakout.push({
           symbol: symbol,
-          candle: benchmarkFlag ? candle.quote : candle,
+          candle: candle,
         });
       } else {
         // No snapshot exists at this timestamp
@@ -993,7 +1109,7 @@ class Portfolio {
           breakout: [
             {
               symbol: symbol,
-              candle: benchmarkFlag ? candle.quote : candle,
+              candle: candle,
             },
           ],
         };
@@ -1002,7 +1118,15 @@ class Portfolio {
     });
   }
 
-  async adjustTimestamp(snapshot, ts, i, key, timestamps, timeSnapshotMap) {
+  async adjustTimestamp(
+    snapshot,
+    ts,
+    i,
+    key,
+    timestamps,
+    timeSnapshotMap,
+    interval
+  ) {
     if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
       // Snapshot doesn't include a value for the current symbol
 
@@ -1023,7 +1147,35 @@ class Portfolio {
           (bo) => bo.symbol === key
         ).candle;
 
-        if (candle.low > 0) {
+        // Calculate the length of time used to determine if a candle is within a reasonable amount of time to adjust into a timestamp.
+
+        let intervalMS = 100_000;
+
+        if (interval === "5m") {
+          intervalMS = intervalMS * 5;
+        }
+
+        if (interval === "15m") {
+          intervalMS = intervalMS * 60 * 24 * 3;
+        }
+
+        if (interval === "1d") {
+          intervalMS = intervalMS * 60 * 24 * 3;
+        }
+
+        if (interval === "1wk") {
+          intervalMS = intervalMS * 60 * 24 * 7;
+        }
+
+        if (interval === "1mo") {
+          intervalMS = intervalMS * 60 * 24 * 31;
+        }
+
+        if (
+          candle.low > 0 &&
+          candle.date > ts - intervalMS &&
+          candle.date < ts + intervalMS
+        ) {
           // This candle holds value
 
           // Use the most recent candle to update the current snapshot values
@@ -1065,17 +1217,16 @@ class Portfolio {
 
       const chartQueries = holdings
         .filter((h) => h.class !== ASSET_CLASSES.CASH)
-        .map((h) =>
-          ChartService.getChartLL(
+        .map((h) => {
+          const symbol =
             h.class === ASSET_CLASSES.STOCK
               ? h.symbol
               : h.symbol.includes("-USD")
               ? h.symbol
-              : h.symbol + CRYPTO_POSTFIX,
-            interval,
-            range
-          )
-        );
+              : h.symbol + CRYPTO_POSTFIX;
+
+          return ChartService.getChartLL(symbol, interval, range);
+        });
 
       let responses = await Promise.allSettled(chartQueries);
 
@@ -1083,14 +1234,15 @@ class Portfolio {
         responses
           .filter((res) => res.status === "fulfilled")
           .map((res) => res.value)
+          .filter((res) => res.chart)
           .filter((res) => res.chart.error)
           .map((res) => res.chart.error)
       );
 
       responses = responses
-        .filter((res) => res.status === "fulfilled")
+        .filter((res) => res.status === "fulfilled" && res.value)
         .map((res) => res.value)
-        .filter((val) => !val.chart.error);
+        .filter((val) => val.chart && !val.chart.error);
 
       const timeMachineCalls = responses.map((res) =>
         this.getTimeMachine(res, benchmarkFlag)
@@ -1147,7 +1299,15 @@ class Portfolio {
         let snapshot = timeSnapshotMap[ts];
 
         let adjustTimestampCalls = symbolsArr.map((s) =>
-          this.adjustTimestamp(snapshot, ts, i, s, timestamps, timeSnapshotMap)
+          this.adjustTimestamp(
+            snapshot,
+            ts,
+            i,
+            s,
+            timestamps,
+            timeSnapshotMap,
+            interval
+          )
         );
 
         await Promise.allSettled(adjustTimestampCalls);
@@ -1159,8 +1319,8 @@ class Portfolio {
       // Iterate over all timestamps in the range
       timestamps.forEach((ts) => {
         // count indicating how many holdings are represented at this time
-        let count = timeSnapshotMap[ts].breakout.filter(
-          (bo) => bo.candle.open
+        let count = [...timeSnapshotMap[ts].breakout].filter(
+          (bo) => bo.candle && bo.candle.open
         ).length;
 
         if (
@@ -1323,13 +1483,11 @@ class Portfolio {
   //   return Promise.resolve(response);
   // }
 
-  async buildCompChart(comparisonChartArr, quotes, comp, charts) {
-    // Get the previous close to use as the original number for percentage calculations.
-    let original = quotes.quoteResponse.result.find(
-      (resp) => resp.symbol === comp
-    ).regularMarketPreviousClose;
-
+  async buildCompChart(comparisonChartArr, quotes, comp, charts, range) {
     let market = charts.find((res) => res.chart.result[0].meta.symbol === comp);
+
+    // Get the previous close to use as the original number for percentage calculations.
+    let original = market.chart.result[0].meta.chartPreviousClose;
 
     let percentageTimeline =
       market.chart.result[0].indicators.quote[0].close.map((p, index) => {
@@ -1352,117 +1510,129 @@ class Portfolio {
     });
   }
 
-  async calcComparisonParallel(comparisons, range, interval) {
+  async calcComparisonParallel(comparisons, range, interval, benchmark) {
     if (
       comparisonCache.get(
-        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+        `${this.id}-${JSON.stringify(
+          comparisons
+        )}-${range}-${interval}-${benchmark}`
       )
     ) {
       return Promise.resolve(
         comparisonCache.get(
-          `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+          `${this.id}-${JSON.stringify(
+            comparisons
+          )}-${range}-${interval}-${benchmark}`
         )
       );
     }
 
-    // Gather the chart queries for comparisons to batch the requests.
-    const queries = [];
-    comparisons.forEach((symbol) => {
-      queries.push(ChartService.getChartLL(symbol, interval, range));
-    });
+    try {
+      // Gather the chart queries for comparisons to batch the requests.
+      const queries = [];
+      comparisons.forEach((symbol) => {
+        queries.push(ChartService.getChartLL(symbol, interval, range));
+      });
 
-    // Get charts for each comp.
-    let charts = await Promise.allSettled(queries);
-    charts = charts
-      .filter((res) => res.status === "fulfilled")
-      .map((res) => res.value);
+      // Get charts for each comp.
+      let charts = await Promise.allSettled(queries);
+      charts = charts
+        .filter((res) => res.status === "fulfilled")
+        .map((res) => res.value);
 
-    // Get quotes for each comp.
-    let quotes = await StockService.getQuote(comparisons);
+      // Get quotes for each comp.
+      let quotes = await StockService.getQuote(comparisons);
 
-    if (!quotes) {
-      console.log("failure to get quotes");
-      if (!portfolioChart.length) {
+      if (!quotes) {
+        if (!portfolioChart.length) {
+          return Promise.resolve([]);
+        }
+      }
+
+      let comparisonChartArr = [];
+
+      let compChartCalls = comparisons.map((comp) =>
+        this.buildCompChart(comparisonChartArr, quotes, comp, charts, range)
+      );
+
+      await Promise.all(compChartCalls);
+
+      const portfolioChart = await this.calcPriceActionParallel(
+        range,
+        interval,
+        false,
+        true
+      );
+
+      if (!portfolioChart || !portfolioChart.length) {
         return Promise.resolve([]);
       }
-    }
 
-    let comparisonChartArr = [];
+      let original = portfolioChart[0].close;
 
-    let compChartCalls = comparisons.map((comp) =>
-      this.buildCompChart(comparisonChartArr, quotes, comp, charts)
-    );
+      let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
+        let curr = ((p.close - original) / p.close) * 100;
 
-    await Promise.all(compChartCalls);
-
-    const portfolioChart = await this.calcPriceActionParallel(
-      range,
-      interval,
-      false
-    );
-
-    if (!portfolioChart || !portfolioChart.length) {
-      return Promise.resolve([]);
-    }
-
-    let original = portfolioChart[0].open;
-
-    let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
-      let curr = ((p.close - original) / p.close) * 100;
-
-      if (curr === Infinity || curr === -Infinity) {
-        const last = portfolioChart[index - 1];
-        curr = ((last.close - original) / last.close) * 100;
-      }
-      return curr;
-    });
-
-    let portfolioComparisonTimeline = {
-      name: this.portfolio_name || "portfolio",
-      chart: {
-        x: portfolioChart
-          .filter(
-            (index) => index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
-          )
-          .map((index) => index.date),
-        y: portfolioPercentageTimeline,
-      },
-    };
-
-    if (!portfolioComparisonTimeline.chart.x.length) {
-      return Promise.resolve({
-        Error: {
-          message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
-        },
+        if (curr === Infinity || curr === -Infinity) {
+          const last = portfolioChart[index - 1];
+          curr = ((last.close - original) / last.close) * 100;
+        }
+        return curr;
       });
-    }
 
-    let response = { [portfolioComparisonTimeline.name]: [] };
-    comparisons.forEach((comp) => {
-      response[comp] = [];
-    });
+      let portfolioComparisonTimeline = {
+        name: this.portfolio_name || "portfolio",
+        chart: {
+          x: portfolioChart
+            .filter(
+              (index) =>
+                index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
+            )
+            .map((index) => index.date),
+          y: portfolioPercentageTimeline,
+        },
+      };
 
-    portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
-      comparisonChartArr.forEach((comparison) => {
-        const closestMatchingIndex = comparison.chart.x.findIndex(
-          (t) => t >= timestamp
-        );
-        response[comparison.name].push({
-          value: comparison.chart.y[closestMatchingIndex],
+      if (!portfolioComparisonTimeline.chart.x.length) {
+        return Promise.resolve({
+          Error: {
+            message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
+          },
+        });
+      }
+
+      let response = { [portfolioComparisonTimeline.name]: [] };
+      comparisons.forEach((comp) => {
+        response[comp] = [];
+      });
+
+      portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
+        comparisonChartArr.forEach((comparison) => {
+          const closestMatchingIndex = comparison.chart.x.findIndex(
+            (t) => t >= timestamp
+          );
+          response[comparison.name].push({
+            value: comparison.chart.y[closestMatchingIndex],
+            date: timestamp,
+          });
+        });
+        response[portfolioComparisonTimeline.name].push({
+          value: portfolioComparisonTimeline.chart.y[index],
           date: timestamp,
         });
       });
-      response[portfolioComparisonTimeline.name].push({
-        value: portfolioComparisonTimeline.chart.y[index],
-        date: timestamp,
-      });
-    });
 
-    comparisonCache.save(
-      `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
-      response
-    );
-    return Promise.resolve(response);
+      comparisonCache.save(
+        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
+        response
+      );
+      return Promise.resolve(response);
+    } catch (err) {
+      return Promise.resolve({
+        message:
+          "something went wrong calculating the comparison, try again later. If errors persist, contact us.",
+      });
+    }
   }
 
   getAvailableRanges() {

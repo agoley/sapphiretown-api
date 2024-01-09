@@ -11,7 +11,11 @@ let middleware = [
 const MailController = {
   mail: (server) => {
     server.post("/api/v1/mail", ...middleware, (req, res, next) => {
-      _mail.mail(req, res, next);
+      try {
+        _mail.mail(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/mail error: " + err);
+      }
     });
   },
 };

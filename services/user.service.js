@@ -33,7 +33,235 @@ const genAPIKey = () => {
     .join("");
 };
 
-// TODO: abstract a lot of the db accesses to observables.
+const getUserById = (id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :id)",
+    ExpressionAttributeValues: {
+      ":id": id,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          delete user.password;
+          delete user.stripe_customer_id;
+          delete user.stripe_payment_method_id;
+          delete user.stripe_subscription_id;
+
+          user.watchlist = JSON.parse(user.watchlist);
+          user.preferences = JSON.parse(user.preferences);
+
+          resolve(user);
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const updateUser = (user) => {
+  // Check for username or email conflicts.
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(not id = :id and (email = :email))",
+      ExpressionAttributeValues: {
+        ":email": user.email,
+        ":id": user.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject(err);
+      } else {
+        if (data["Items"].length > 0) {
+          // A user already exists with the email.
+          reject({
+            error: "email must be unique",
+            message: "There is already an account with that email.",
+          });
+        } else {
+          // There is no conflict.
+
+          var params = {
+            TableName: "User",
+            Key: {
+              id: user.id,
+            },
+            UpdateExpression:
+              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences",
+            ExpressionAttributeValues: {
+              ":email": user.email,
+              ":theme": user.theme || "light-theme",
+              ":active_portfolio": user.active_portfolio || "",
+              ":preferences": JSON.stringify(user.preferences),
+            },
+            ReturnValues: "ALL_NEW",
+          };
+
+          docClient.update(params, (err, data) => {
+            if (err) {
+              console.error(
+                "Unable to update item. Error JSON:",
+                JSON.stringify(err, null, 2)
+              );
+              reject({ error: err });
+            } else {
+              if (data["Attributes"].password) {
+                delete data["Attributes"].password;
+              }
+              resolve(data);
+            }
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getPushSubscriptionByUserId = (user_id) => {
+  var params = {
+    TableName: "PushSubscription",
+    FilterExpression: "(user_id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding subscription.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          resolve(data["Items"][0]);
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find subscription.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getPaymentMethodsByUserId = (user_id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise(async (resolve, reject) => {
+    const onScan = async (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          if (data["Items"][0].stripe_customer_id) {
+            let methods = await stripe.paymentMethods.list({
+              customer: data["Items"][0].stripe_customer_id,
+            });
+            resolve(methods);
+          } else {
+            resolve(null);
+          }
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getChargesByUserId = (user_id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise(async (resolve, reject) => {
+    const onScan = async (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          if (data["Items"][0].stripe_customer_id) {
+            let methods = await stripe.charges.list({
+              customer: data["Items"][0].stripe_customer_id,
+            });
+            resolve(methods);
+          } else {
+            resolve(null);
+          }
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
 
 const UserService = {
   reset: (req, res, next) => {
@@ -71,7 +299,7 @@ const UserService = {
                 JSON.stringify(err, null, 2)
               );
               res.send({
-                color: "red",
+                color: "#f51068",
                 message: "There was en error resetting your password.",
               });
             } else {
@@ -97,7 +325,7 @@ const UserService = {
                       JSON.stringify(err, null, 2)
                     );
                     res.send({
-                      color: "red",
+                      color: "#f51068",
                       message: "There was an error updating your password.",
                     });
                   } else {
@@ -111,7 +339,7 @@ const UserService = {
                 });
               } else {
                 res.send({
-                  color: "red",
+                  color: "#f51068",
                   message: "Unable to find account.",
                 });
               }
@@ -120,7 +348,7 @@ const UserService = {
           docClient.scan(params, onUserLookupScan);
         } else {
           res.send({
-            color: "red",
+            color: "#f51068",
             message:
               "Invalid token: Token may have expired. Try requesting a reset again.",
           });
@@ -178,7 +406,7 @@ const UserService = {
                 to: user.email,
                 subject: "Reset your password",
                 html:
-                  "<p>We recieved a request to reset your password. Use the link below to complete the process." +
+                  "<p>We received a request to reset your password. Use the link below to complete the process." +
                   " This link will expire in 24 hours.</p>" +
                   "<a href='https://www.ezfol.io/reset?token=" +
                   reset.token +
@@ -213,30 +441,133 @@ const UserService = {
     docClient.scan(params, onScan);
   },
 
+  magicLink: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(email = :email)",
+      ExpressionAttributeValues: {
+        ":email": req.body.email,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send({
+          color: "red",
+          message: "There was an error getting a magic link.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          const magicLink = {
+            token: uuidv1(),
+            user_id: user.id,
+            expdate: Math.floor(new Date().getTime()) + 86400,
+          };
+
+          var createParams = {
+            TableName: "MagicLink",
+            Item: {
+              token: { S: magicLink.token },
+              user_id: { S: magicLink.user_id },
+              expdate: { N: magicLink.expdate.toString() },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+              res.send({});
+            } else {
+              if (req.body.passwordReset) {
+                var mailOptions = {
+                  from: "ezfolio.contact@gmail.com",
+                  to: user.email,
+                  subject: "Your EZFol.io Magic Link",
+                  html:
+                    "<p>We received a request for a magic link. Use the link below to reset your password." +
+                    " This link will expire in 24 hours. Make sure to open it in the same browser you're logged in with.</p>" +
+                    "<a href='https://ezfol.io/profile/security?magicLink=" +
+                    magicLink.token +
+                    "'>Magic Link for " +
+                    user.email +
+                    "</a>" +
+                    "<p>Thank you for being a valued user of EZFol.io.</p>" +
+                    "<p>Sincerely,</p>" +
+                    "<p> - Alex (Founder)",
+                };
+              } else {
+                var mailOptions = {
+                  from: "ezfolio.contact@gmail.com",
+                  to: user.email,
+                  subject: "Your EZFol.io Magic Link",
+                  html:
+                    "<p>We received a request for a magic link. Use the link below to skip the login." +
+                    " This link will expire in 24 hours.</p>" +
+                    "<a href='https://ezfol.io/?magicLink=" +
+                    magicLink.token +
+                    "'>Magic Link for " +
+                    user.email +
+                    "</a>" +
+                    "<p>Thank you for being a valued user of EZFol.io.</p>" +
+                    "<p>Sincerely,</p>" +
+                    "<p> - Alex (Founder)",
+                };
+              }
+
+              transporter.sendMail(mailOptions, function (error, info) {
+                if (error) {
+                  console.log(error);
+                  return next();
+                } else {
+                  res.send({});
+                }
+              });
+
+              res.send({});
+            }
+          });
+        } else {
+          res.send({
+            color: "red",
+            message: "Unable to find account with email.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+
   /**
- * @swagger
- * /api/v4/users/{identifier}:
- *  get:
- *    summary: Retrieves a user by identifier, which can be an id, username, or email.
- *    consumes:
- *      - application/json
- *    parameters:
- *     - in: path
- *       name: identifier
- *       description: ID, username, or email of the user you want to find.
- *       required: true
- *       schema:
- *         type: string
- *         example: "2e650950-75a1-11eb-bd85-09531521011f"
- *    responses:
- *      '200':
- *        description: The retrieved user.
- *        content:
- *          application/json:
- *            schema:
- *              $ref: '#/definitions/User'
- *
- */
+   * @swagger
+   * /api/v4/users/{identifier}:
+   *  get:
+   *    summary: Retrieves a user by identifier, which can be an id, username, or email.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: identifier
+   *       description: ID, username, or email of the user you want to find.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "2e650950-75a1-11eb-bd85-09531521011f"
+   *    responses:
+   *      '200':
+   *        description: The retrieved user.
+   *        content:
+   *          application/json:
+   *            schema:
+   *              $ref: '#/definitions/User'
+   *
+   */
   find: (req, res, next) => {
     var params = {
       TableName: "User",
@@ -323,6 +654,130 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+  authenticate: (req, res, next) => {
+    if (req.body.email) {
+      var params = {
+        TableName: "User",
+        FilterExpression: "(email = :email)",
+        ExpressionAttributeValues: {
+          ":email": req.body.email,
+        },
+      };
+
+      const onScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send({
+            color: "red",
+            message: "There was an error signing in.",
+          });
+        } else {
+          if (data["Items"].length > 0) {
+            var user = data["Items"][0];
+
+            // A user was found with the provided email
+
+            bcrypt.compare(
+              req.body.password,
+              user.password,
+              (err, doesMatch) => {
+                if (doesMatch) {
+                  //log him in
+                  delete user.password;
+                  res.json(user);
+                } else {
+                  //go away
+                  res.send({
+                    color: "red",
+                    message: "Incorrect Password.",
+                  });
+                }
+              }
+            );
+          } else {
+            res.send({
+              color: "red",
+              message: "Unable to find account with username or email.",
+            });
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    } else if (req.body.magicLink) {
+      params = {
+        TableName: "MagicLink",
+        FilterExpression: "(#token = :token)",
+        ExpressionAttributeNames: { "#token": "token" },
+        ExpressionAttributeValues: {
+          ":token": req.body.magicLink,
+        },
+      };
+
+      const onScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+        } else {
+          if (
+            data["Items"].length > 0 &&
+            data["Items"][0].expdate > new Date().getTime()
+          ) {
+            const magicLink = data["Items"][0];
+
+            var userLookupParams = {
+              TableName: "User",
+              FilterExpression: "(id = :user_id)",
+              ExpressionAttributeValues: {
+                ":user_id": magicLink.user_id,
+              },
+            };
+
+            const onUserLookupScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+                res.send({
+                  color: "#f51068",
+                  message: "There was en error signing.",
+                });
+              } else {
+                if (data["Items"].length > 0) {
+                  var user = data["Items"][0];
+                  delete user.password;
+                  res.send(user);
+                } else {
+                  res.send({
+                    color: "#f51068",
+                    message: "Unable to find account.",
+                  });
+                }
+              }
+            };
+            docClient.scan(userLookupParams, onUserLookupScan);
+          } else {
+            res.send({
+              color: "#f51068",
+              message:
+                "Invalid token: Token may have expired. Try requesting a link again.",
+            });
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    } else {
+      res.send({
+        color: "#f51068",
+        message: "Failed to authenticate.",
+      });
+    }
+  },
   /**
    * @swagger
    * /api/v1/users:
@@ -355,9 +810,8 @@ const UserService = {
     // Check for username or email conflicts.
     var params = {
       TableName: "User",
-      FilterExpression: "(username = :username or email = :email)",
+      FilterExpression: "(email = :email)",
       ExpressionAttributeValues: {
-        ":username": req.body.username,
         ":email": req.body.email,
       },
     };
@@ -373,22 +827,14 @@ const UserService = {
           // There is a conflict.
           var user = data["Items"][0];
 
-          if (req.body.username === user.username) {
-            // A user already exists with the username.
-            res.send({
-              message: "There is already an account with that username.",
-            });
-          } else {
-            // A user already exists with the email.
-            res.send({
-              message: "There is already an account with that email.",
-            });
-          }
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
         } else {
           // There is no conflict.
           const usr = {
             id: uuidv1(),
-            username: req.body.username,
             email: req.body.email,
             password: bcrypt.hashSync(req.body.password, 10),
             created: new Date().toString(),
@@ -398,7 +844,6 @@ const UserService = {
             TableName: "User",
             Item: {
               id: { S: usr.id },
-              username: { S: usr.username },
               email: { S: usr.email },
               password: { S: usr.password },
               created: { S: usr.created },
@@ -419,14 +864,132 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+  createV3: (req, res, next) => {
+    // Check for username or email conflicts.
+    var params = {
+      TableName: "User",
+      FilterExpression: "(email = :email)",
+      ExpressionAttributeValues: {
+        ":email": req.body.email,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
+        } else {
+          // There is no conflict.
+
+          if (req.body.password) {
+            const usr = {
+              id: uuidv1(),
+              email: req.body.email,
+              password: bcrypt.hashSync(req.body.password, 10),
+              created: new Date().toString(),
+            };
+
+            var createParams = {
+              TableName: "User",
+              Item: {
+                id: { S: usr.id },
+                email: { S: usr.email },
+                password: { S: usr.password },
+                created: { S: usr.created },
+              },
+            };
+
+            // Call DynamoDB to add the item to the table
+            ddb.putItem(createParams, (err, data) => {
+              if (err) {
+                console.log("Error", err);
+              } else {
+                delete usr.password;
+                res.send(usr);
+              }
+            });
+          } else if (req.body.sso_ip) {
+            // Check for username or email conflicts.
+            var params = {
+              TableName: "User",
+              FilterExpression: "(email = :email)",
+              ExpressionAttributeValues: {
+                ":email": req.body.email,
+              },
+            };
+
+            const onScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+              } else {
+                if (data["Items"].length > 0) {
+                  // There is a conflict.
+                  var user = data["Items"][0];
+
+                  // A user already exists with the email.
+                  res.send({
+                    message: "There is already an account with that email.",
+                  });
+                } else {
+                  // There is no conflict.
+                  const usr = {
+                    id: uuidv1(),
+                    email: req.body.email,
+                    sso_ip: req.body.sso_ip,
+                    created: new Date().toString(),
+                  };
+
+                  var createParams = {
+                    TableName: "User",
+                    Item: {
+                      id: { S: usr.id },
+                      email: { S: usr.email },
+                      sso_ip: { S: usr.sso_ip },
+                      created: { S: usr.created },
+                    },
+                  };
+
+                  // Call DynamoDB to add the item to the table
+                  ddb.putItem(createParams, (err, data) => {
+                    if (err) {
+                      console.log("Error", err);
+                    } else {
+                      if (usr.password) {
+                        delete usr.password;
+                      }
+                      res.send(usr);
+                    }
+                  });
+                }
+              }
+            };
+            docClient.scan(params, onScan);
+          }
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
   update: (req, res, next) => {
     // Check for username or email conflicts.
     var params = {
       TableName: "User",
-      FilterExpression:
-        "(not id = :id and (username = :username or email = :email))",
+      FilterExpression: "(not id = :id and (email = :email))",
       ExpressionAttributeValues: {
-        ":username": req.body.username,
         ":email": req.body.email,
         ":id": req.body.id,
       },
@@ -443,17 +1006,10 @@ const UserService = {
           // There is a conflict.
           var user = data["Items"][0];
 
-          if (req.body.username === user.username) {
-            // A user already exists with the username.
-            res.send({
-              message: "There is already an account with that username.",
-            });
-          } else {
-            // A user already exists with the email.
-            res.send({
-              message: "There is already an account with that email.",
-            });
-          }
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
         } else {
           var user = data["Items"][0];
           // There is no conflict.
@@ -464,15 +1020,15 @@ const UserService = {
               id: req.body.id,
             },
             UpdateExpression:
-              "set username = :username, email=:email, theme=:theme, active_portfolio=:active_portfolio",
+              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences",
             ExpressionAttributeValues: {
-              ":username": req.body.username,
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
               ":active_portfolio":
                 req.body.active_portfolio || user?.active_portfolio || "",
+              ":preferences": JSON.stringify(req.body.preferences),
             },
-            ReturnValues: "UPDATED_NEW",
+            ReturnValues: "ALL_NEW",
           };
 
           docClient.update(params, function (err, data) {
@@ -487,6 +1043,9 @@ const UserService = {
                 "UpdateItem succeeded:",
                 JSON.stringify(data, null, 2)
               );
+              if (data["Attributes"].password) {
+                delete data["Attributes"].password;
+              }
               res.send(data);
             }
           });
@@ -495,12 +1054,63 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+  update_watchlist: (req, res, next) => {
+    // Check for username or email conflicts.
+    var params = {
+      TableName: "User",
+      FilterExpression: "(id = :id)",
+      ExpressionAttributeValues: {
+        ":id": req.params.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        var user = data["Items"][0];
+        // There is no conflict.
+
+        var params = {
+          TableName: "User",
+          Key: {
+            id: req.params.id,
+          },
+          UpdateExpression: "set watchlist = :watchlist",
+          ExpressionAttributeValues: {
+            ":watchlist": JSON.stringify(req.body.watchlist),
+          },
+          ReturnValues: "ALL_NEW",
+        };
+
+        docClient.update(params, function (err, data) {
+          if (err) {
+            console.error(
+              "Unable to update item. Error JSON:",
+              JSON.stringify(err, null, 2)
+            );
+            res.send(err);
+          } else {
+            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+            if (data["Attributes"].password) {
+              delete data["Attributes"].password;
+            }
+            res.send(data);
+          }
+        });
+      }
+    };
+    docClient.scan(params, onScan);
+  },
   update_password: (req, res, next) => {
     var params = {
       TableName: "User",
-      FilterExpression: "(username = :username or email = :username)",
+      FilterExpression: "(email = :email)",
       ExpressionAttributeValues: {
-        ":username": req.body.identifier,
+        ":email": req.body.email,
       },
     };
 
@@ -518,43 +1128,112 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          bcrypt.compare(req.body.password, user.password, (err, doesMatch) => {
-            if (doesMatch) {
-              var params = {
-                TableName: "User",
-                Key: {
-                  id: req.params.id,
-                },
-                UpdateExpression: "set password = :password",
-                ExpressionAttributeValues: {
-                  ":password": bcrypt.hashSync(req.body.newPassword, 10),
-                },
-                ReturnValues: "UPDATED_NEW",
-              };
+          if (req.body.password) {
+            bcrypt.compare(
+              req.body.password,
+              user.password,
+              (err, doesMatch) => {
+                if (doesMatch) {
+                  var params = {
+                    TableName: "User",
+                    Key: {
+                      id: req.params.id,
+                    },
+                    UpdateExpression: "set password = :password",
+                    ExpressionAttributeValues: {
+                      ":password": bcrypt.hashSync(req.body.newPassword, 10),
+                    },
+                    ReturnValues: "UPDATED_NEW",
+                  };
 
-              docClient.update(params, function (err, data) {
-                if (err) {
-                  console.error(
-                    "Unable to update item. Error JSON:",
-                    JSON.stringify(err, null, 2)
-                  );
-                  res.send(err);
+                  docClient.update(params, function (err, data) {
+                    if (err) {
+                      console.error(
+                        "Unable to update item. Error JSON:",
+                        JSON.stringify(err, null, 2)
+                      );
+                      res.send(err);
+                    } else {
+                      console.log(
+                        "UpdateItem succeeded:",
+                        JSON.stringify(data, null, 2)
+                      );
+                      res.send(data);
+                    }
+                  });
                 } else {
-                  console.log(
-                    "UpdateItem succeeded:",
-                    JSON.stringify(data, null, 2)
-                  );
-                  res.send(data);
+                  //go away
+                  res.send({
+                    color: "red",
+                    message: "Incorrect Password.",
+                  });
                 }
-              });
-            } else {
-              //go away
-              res.send({
-                color: "red",
-                message: "Incorrect Password.",
-              });
-            }
-          });
+              }
+            );
+          } else if (req.body.magicLink) {
+            let params = {
+              TableName: "MagicLink",
+              FilterExpression: "(#token = :token)",
+              ExpressionAttributeNames: { "#token": "token" },
+              ExpressionAttributeValues: {
+                ":token": req.body.magicLink,
+              },
+            };
+
+            const onScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+              } else {
+                if (
+                  data["Items"].length > 0 &&
+                  data["Items"][0].expdate > new Date().getTime()
+                ) {
+                  let params = {
+                    TableName: "User",
+                    Key: {
+                      id: req.params.id,
+                    },
+                    UpdateExpression: "set password = :password",
+                    ExpressionAttributeValues: {
+                      ":password": bcrypt.hashSync(req.body.newPassword, 10),
+                    },
+                    ReturnValues: "UPDATED_NEW",
+                  };
+
+                  docClient.update(params, function (err, data) {
+                    if (err) {
+                      console.error(
+                        "Unable to update item. Error JSON:",
+                        JSON.stringify(err, null, 2)
+                      );
+                      res.send(err);
+                    } else {
+                      console.log(
+                        "UpdateItem succeeded:",
+                        JSON.stringify(data, null, 2)
+                      );
+                      res.send(data);
+                    }
+                  });
+                } else {
+                  res.send({
+                    color: "#f51068",
+                    message:
+                      "Invalid token: Token may have expired. Try requesting a link again.",
+                  });
+                }
+              }
+            };
+            docClient.scan(params, onScan);
+          } else {
+            res.send({
+              color: "red",
+              message: "Invalid options.",
+            });
+          }
         } else {
           res.send({
             color: "red",
@@ -698,80 +1377,92 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          // 2. If the user has a payment method already, detach it.
-          if (user.stripe_payment_method_id) {
-            try {
-              await stripe.paymentMethods.detach(user.stripe_payment_method_id);
-            } catch (err) {
-              // Possilbe that the stripe customer was deleted.
-            }
-          }
-
-          // 3. Create the stripe payment methood.
           let paymentMethod;
-          try {
-            paymentMethod = await stripe.paymentMethods.create({
-              type: "card",
-              card: {
-                number: req.body.payment.number,
-                exp_month: req.body.payment.exp_month,
-                exp_year: req.body.payment.exp_year,
-                cvc: req.body.payment.cvc,
-              },
-              billing_details: {
-                address: {
-                  city: req.body.personal.city,
-                  country: req.body.personal.country,
-                  line1: req.body.personal.line1,
-                  line2: req.body.personal.line2,
-                  postal_code: req.body.personal.postal_code,
-                  state: req.body.personal.state,
+          if (!req.body.payment.paymentMethod) {
+            // 2. If the user has a payment method already, detach it.
+            if (user.stripe_payment_method_id) {
+              try {
+                await stripe.paymentMethods.detach(
+                  user.stripe_payment_method_id
+                );
+              } catch (err) {
+                // Possible that the stripe customer was deleted.
+              }
+            }
+
+            // 3. Create the stripe payment method.
+            try {
+              paymentMethod = await stripe.paymentMethods.create({
+                type: "card",
+                card: {
+                  number: req.body.payment.number,
+                  exp_month: req.body.payment.exp_month,
+                  exp_year: req.body.payment.exp_year,
+                  cvc: req.body.payment.cvc,
                 },
-                email: user.email,
-                name: req.body.personal.name,
-              },
-            });
-          } catch (err) {
-            console.log(err);
-            res.send({
-              color: "red",
-              message:
-                err?.raw?.message ||
-                "There was an error creating payment method.",
-            });
+                billing_details: {
+                  address: {
+                    city: req.body.personal.city,
+                    country: req.body.personal.country,
+                    line1: req.body.personal.line1,
+                    line2: req.body.personal.line2,
+                    postal_code: req.body.personal.postal_code,
+                    state: req.body.personal.state,
+                  },
+                  email: user.email,
+                  name: req.body.personal.name,
+                },
+              });
+            } catch (err) {
+              console.log(err);
+              res.send({
+                color: "red",
+                message:
+                  err?.raw?.message ||
+                  "There was an error creating payment method.",
+              });
+            }
+          } else {
+            paymentMethod = req.body.payment.paymentMethod;
           }
 
           let customer;
           if (user.stripe_customer_id) {
             // 3. If the user has a customer already attach the new payment method.
-            try {
-              paymentMethod = await stripe.paymentMethods.attach(
-                paymentMethod.id,
-                { customer: user.stripe_customer_id }
-              );
-              customer = await stripe.customers.update(
-                user.stripe_customer_id,
-                {
+            if (!req.body.payment.paymentMethod) {
+              try {
+                paymentMethod = await stripe.paymentMethods.attach(
+                  paymentMethod.id,
+                  { customer: user.stripe_customer_id }
+                );
+                customer = await stripe.customers.update(
+                  user.stripe_customer_id,
+                  {
+                    invoice_settings: {
+                      default_payment_method: paymentMethod.id,
+                    },
+                    email: user.email,
+                    name: user.id,
+                  }
+                );
+                console.log("attached payment method to existing customer");
+              } catch (err) {
+                // 4. Create the stripe customer.
+                customer = await stripe.customers.create({
+                  description: "EZFol.io Pro User",
+                  email: user.email,
+                  name: user.id,
+                  payment_method: paymentMethod.id,
                   invoice_settings: {
                     default_payment_method: paymentMethod.id,
                   },
-                  email: user.email,
-                  name: user.id,
-                }
+                });
+                console.log("created customer");
+              }
+            } else {
+              customer = await stripe.customers.retrieve(
+                user.stripe_customer_id
               );
-              console.log("attached payment method to existing customer");
-            } catch (err) {
-              // 4. Create the stripe customer.
-              customer = await stripe.customers.create({
-                description: "EZFol.io Pro User",
-                email: user.email,
-                name: user.id,
-                payment_method: paymentMethod.id,
-                invoice_settings: {
-                  default_payment_method: paymentMethod.id,
-                },
-              });
-              console.log("created customer");
             }
           } else {
             // 4. Create the stripe customer.
@@ -927,6 +1618,203 @@ const UserService = {
     };
     docClient.scan(getUserByIdParams, onSubscribeUserScan);
   },
+  notificationsSubscribe: (req, res, next) => {
+    // Check for conflicts.
+    var params = {
+      TableName: "PushSubscription",
+      FilterExpression: "(user_id = :user_id)",
+      ExpressionAttributeValues: {
+        ":user_id": req.params.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          // A subscription already exists for this user.
+          res.send({
+            message: "There is already a subscription with that user.",
+          });
+        } else {
+          // There is no conflict.
+          const sub = {
+            user_id: req.params.id,
+            push_subscription: JSON.stringify(req.body),
+          };
+
+          var createParams = {
+            TableName: "PushSubscription",
+            Item: {
+              user_id: { S: sub.user_id },
+              push_subscription: { S: sub.push_subscription },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+            } else {
+              res.send(sub);
+            }
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  notificationsUnsubscribe: (req, res, next) => {
+    if (!req.params.id) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      var params = {
+        Key: {
+          user_id: {
+            S: req.params.id,
+          },
+        },
+        TableName: "PushSubscription",
+      };
+
+      // Call DynamoDB to add the item to the table
+      ddb.deleteItem(params, (err, data) => {
+        if (err) {
+          console.log("Error", err);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+    }
+  },
+  getPushSubscription: (req, res, next) => {
+    getPushSubscriptionByUserId(req.params.id)
+      .then((subscription) => {
+        res.send(subscription);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  getPaymentMethods: (req, res, next) => {
+    getPaymentMethodsByUserId(req.params.id)
+      .then((methods) => {
+        res.send(methods);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  getCharges: (req, res, next) => {
+    getChargesByUserId(req.params.id)
+      .then((methods) => {
+        res.send(methods);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  getUpcomingInvoice: async (req, res, next) => {
+    console.log(req.params);
+    try {
+      let invoice = await stripe.subscriptions.retrieve(
+        "sub_1MowQVLkdIwHu7ixeRlqHVzs"
+      );
+      res.send(invoice);
+    } catch (err) {
+      res.send(err);
+    }
+  },
+  updatePaymentMethod: async (req, res, next) => {
+    let paymentMethod;
+
+    try {
+      paymentMethod = await stripe.paymentMethods.create({
+        type: "card",
+        card: {
+          number: req.body.card.number,
+          exp_month: req.body.card.exp_month,
+          exp_year: req.body.card.exp_year,
+          cvc: req.body.card.cvc,
+        },
+        billing_details: {
+          address: {
+            city: req.body.billing.city,
+            country: req.body.billing.country,
+            line1: req.body.billing.line1,
+            line2: req.body.billing.line2,
+            postal_code: req.body.billing.postal_code,
+            state: req.body.billing.state,
+          },
+          email: req.body.personal.email,
+          name: req.body.personal.name,
+        },
+      });
+    } catch (err) {
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error creating payment method.",
+      });
+      return;
+    }
+
+    try {
+      await stripe.paymentMethods.attach(paymentMethod.id, {
+        customer: req.body.personal.stripe_customer_id,
+      });
+    } catch (err) {
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error attaching payment method.",
+      });
+      return;
+    }
+
+    try {
+      await stripe.paymentMethods.detach(req.params.id);
+    } catch (err) {
+      // Possible that the stripe customer was deleted.
+    }
+
+    try {
+      customer = await stripe.customers.update(
+        req.body.personal.stripe_customer_id,
+        {
+          invoice_settings: {
+            default_payment_method: paymentMethod.id,
+          },
+          email: req.body.personal.email,
+          name: req.body.personal.username,
+        }
+      );
+      res.send(customer);
+    } catch (err) {
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error changing payment method.",
+      });
+      return;
+    }
+  },
+  getUserById: getUserById,
+  getPushSubscriptionByUserId: getPushSubscriptionByUserId,
+  updateUser: updateUser,
 };
 
 module.exports = UserService;
