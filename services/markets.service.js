@@ -71,6 +71,26 @@ const getMarkets = () => {
   });
 };
 
+const getTrending = (query) => {
+  var uni = unirest("GET", "https://" + _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY + "/v1/finance/trending/US");
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: false,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahoo.load(uni.send());
+    messengers.yahoo.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
+
 const getAutocomplete = (query) => {
   var uni = unirest("GET", "https://" + _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY + "/v6/finance/autocomplete");
 
@@ -181,6 +201,36 @@ const MarketsService = {
           // Wait 1s and retry.
           setTimeout(() => {
             MarketsService.autocomplete(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(err);
+          return next();
+        }
+      });
+  },
+  trending: (req, res, next, count) => {
+    if (marketCache.get("trending")) {
+      res.send(marketCache.get("trending"));
+      return next();
+    }
+
+    getTrending()
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        marketCache.save("trending", data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            MarketsService.trending(req, res, next, count);
           }, 1000);
         } else {
           res.send(err);

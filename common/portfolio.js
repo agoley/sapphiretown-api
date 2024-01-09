@@ -5,7 +5,7 @@ import { forkJoin, Subject } from "rxjs";
 import MarketsService from "../services/markets.service";
 const Cache = require("../common/cache");
 let AWS = require("aws-sdk");
-const WebSocket = require('ws');
+const WebSocket = require("ws");
 
 const ASSET_CLASSES = {
   STOCK: "stock",
@@ -865,8 +865,13 @@ class Portfolio {
       if (transaction.type === "SALE") {
         // This is a sale remove to the current holding quantity
 
-        quantity -= parseFloat(transaction.quantity);
+        quantity -= Math.abs(parseFloat(transaction.quantity));
+        if (quantity < 0) {
+          quantity = 0;
+        }
       }
+
+
 
       if (transaction.date >= firstTimestamp) {
         // This transaction is relevant to the chart range.
@@ -960,6 +965,7 @@ class Portfolio {
 
   getSnapshotMap(symbol, holdingHistoryMap, timeSnapshotMap, benchmarkFlag) {
     // the historical data for this portfolio
+
     const action = holdingHistoryMap[symbol];
 
     action.forEach((candle) => {
@@ -977,7 +983,7 @@ class Portfolio {
         snapshot.volume += candle.volume;
         snapshot.breakout.push({
           symbol: symbol,
-          candle: benchmarkFlag ? candle.quote : candle,
+          candle: candle,
         });
       } else {
         // No snapshot exists at this timestamp
@@ -993,7 +999,7 @@ class Portfolio {
           breakout: [
             {
               symbol: symbol,
-              candle: benchmarkFlag ? candle.quote : candle,
+              candle: candle,
             },
           ],
         };
@@ -1083,14 +1089,15 @@ class Portfolio {
         responses
           .filter((res) => res.status === "fulfilled")
           .map((res) => res.value)
+          .filter((res) => res.chart)
           .filter((res) => res.chart.error)
           .map((res) => res.chart.error)
       );
 
       responses = responses
-        .filter((res) => res.status === "fulfilled")
+        .filter((res) => res.status === "fulfilled" && res.value)
         .map((res) => res.value)
-        .filter((val) => !val.chart.error);
+        .filter((val) => val.chart && !val.chart.error);
 
       const timeMachineCalls = responses.map((res) =>
         this.getTimeMachine(res, benchmarkFlag)
@@ -1160,7 +1167,7 @@ class Portfolio {
       timestamps.forEach((ts) => {
         // count indicating how many holdings are represented at this time
         let count = timeSnapshotMap[ts].breakout.filter(
-          (bo) => bo.candle.open
+          (bo) => bo.candle && bo.candle.open
         ).length;
 
         if (
@@ -1352,117 +1359,129 @@ class Portfolio {
     });
   }
 
-  async calcComparisonParallel(comparisons, range, interval) {
+  async calcComparisonParallel(comparisons, range, interval, benchmark) {
     if (
       comparisonCache.get(
-        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+        `${this.id}-${JSON.stringify(
+          comparisons
+        )}-${range}-${interval}-${benchmark}`
       )
     ) {
       return Promise.resolve(
         comparisonCache.get(
-          `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`
+          `${this.id}-${JSON.stringify(
+            comparisons
+          )}-${range}-${interval}-${benchmark}`
         )
       );
     }
 
-    // Gather the chart queries for comparisons to batch the requests.
-    const queries = [];
-    comparisons.forEach((symbol) => {
-      queries.push(ChartService.getChartLL(symbol, interval, range));
-    });
+    try {
+      // Gather the chart queries for comparisons to batch the requests.
+      const queries = [];
+      comparisons.forEach((symbol) => {
+        queries.push(ChartService.getChartLL(symbol, interval, range));
+      });
 
-    // Get charts for each comp.
-    let charts = await Promise.allSettled(queries);
-    charts = charts
-      .filter((res) => res.status === "fulfilled")
-      .map((res) => res.value);
+      // Get charts for each comp.
+      let charts = await Promise.allSettled(queries);
+      charts = charts
+        .filter((res) => res.status === "fulfilled")
+        .map((res) => res.value);
 
-    // Get quotes for each comp.
-    let quotes = await StockService.getQuote(comparisons);
+      // Get quotes for each comp.
+      let quotes = await StockService.getQuote(comparisons);
 
-    if (!quotes) {
-      console.log("failure to get quotes");
-      if (!portfolioChart.length) {
+      if (!quotes) {
+        if (!portfolioChart.length) {
+          return Promise.resolve([]);
+        }
+      }
+
+      let comparisonChartArr = [];
+
+      let compChartCalls = comparisons.map((comp) =>
+        this.buildCompChart(comparisonChartArr, quotes, comp, charts)
+      );
+
+      await Promise.all(compChartCalls);
+
+      const portfolioChart = await this.calcPriceActionParallel(
+        range,
+        interval,
+        false,
+        benchmark
+      );
+
+      if (!portfolioChart || !portfolioChart.length) {
         return Promise.resolve([]);
       }
-    }
 
-    let comparisonChartArr = [];
+      let original = portfolioChart[0].open;
 
-    let compChartCalls = comparisons.map((comp) =>
-      this.buildCompChart(comparisonChartArr, quotes, comp, charts)
-    );
+      let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
+        let curr = ((p.close - original) / p.close) * 100;
 
-    await Promise.all(compChartCalls);
-
-    const portfolioChart = await this.calcPriceActionParallel(
-      range,
-      interval,
-      false
-    );
-
-    if (!portfolioChart || !portfolioChart.length) {
-      return Promise.resolve([]);
-    }
-
-    let original = portfolioChart[0].open;
-
-    let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
-      let curr = ((p.close - original) / p.close) * 100;
-
-      if (curr === Infinity || curr === -Infinity) {
-        const last = portfolioChart[index - 1];
-        curr = ((last.close - original) / last.close) * 100;
-      }
-      return curr;
-    });
-
-    let portfolioComparisonTimeline = {
-      name: this.portfolio_name || "portfolio",
-      chart: {
-        x: portfolioChart
-          .filter(
-            (index) => index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
-          )
-          .map((index) => index.date),
-        y: portfolioPercentageTimeline,
-      },
-    };
-
-    if (!portfolioComparisonTimeline.chart.x.length) {
-      return Promise.resolve({
-        Error: {
-          message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
-        },
+        if (curr === Infinity || curr === -Infinity) {
+          const last = portfolioChart[index - 1];
+          curr = ((last.close - original) / last.close) * 100;
+        }
+        return curr;
       });
-    }
 
-    let response = { [portfolioComparisonTimeline.name]: [] };
-    comparisons.forEach((comp) => {
-      response[comp] = [];
-    });
+      let portfolioComparisonTimeline = {
+        name: this.portfolio_name || "portfolio",
+        chart: {
+          x: portfolioChart
+            .filter(
+              (index) =>
+                index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
+            )
+            .map((index) => index.date),
+          y: portfolioPercentageTimeline,
+        },
+      };
 
-    portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
-      comparisonChartArr.forEach((comparison) => {
-        const closestMatchingIndex = comparison.chart.x.findIndex(
-          (t) => t >= timestamp
-        );
-        response[comparison.name].push({
-          value: comparison.chart.y[closestMatchingIndex],
+      if (!portfolioComparisonTimeline.chart.x.length) {
+        return Promise.resolve({
+          Error: {
+            message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
+          },
+        });
+      }
+
+      let response = { [portfolioComparisonTimeline.name]: [] };
+      comparisons.forEach((comp) => {
+        response[comp] = [];
+      });
+
+      portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
+        comparisonChartArr.forEach((comparison) => {
+          const closestMatchingIndex = comparison.chart.x.findIndex(
+            (t) => t >= timestamp
+          );
+          response[comparison.name].push({
+            value: comparison.chart.y[closestMatchingIndex],
+            date: timestamp,
+          });
+        });
+        response[portfolioComparisonTimeline.name].push({
+          value: portfolioComparisonTimeline.chart.y[index],
           date: timestamp,
         });
       });
-      response[portfolioComparisonTimeline.name].push({
-        value: portfolioComparisonTimeline.chart.y[index],
-        date: timestamp,
-      });
-    });
 
-    comparisonCache.save(
-      `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
-      response
-    );
-    return Promise.resolve(response);
+      comparisonCache.save(
+        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
+        response
+      );
+      return Promise.resolve(response);
+    } catch (err) {
+      return Promise.resolve({
+        message:
+          "something went wrong calculating the comparison, try again later. If errors persist, contact us.",
+      });
+    }
   }
 
   getAvailableRanges() {

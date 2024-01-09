@@ -214,29 +214,29 @@ const UserService = {
   },
 
   /**
- * @swagger
- * /api/v4/users/{identifier}:
- *  get:
- *    summary: Retrieves a user by identifier, which can be an id, username, or email.
- *    consumes:
- *      - application/json
- *    parameters:
- *     - in: path
- *       name: identifier
- *       description: ID, username, or email of the user you want to find.
- *       required: true
- *       schema:
- *         type: string
- *         example: "2e650950-75a1-11eb-bd85-09531521011f"
- *    responses:
- *      '200':
- *        description: The retrieved user.
- *        content:
- *          application/json:
- *            schema:
- *              $ref: '#/definitions/User'
- *
- */
+   * @swagger
+   * /api/v4/users/{identifier}:
+   *  get:
+   *    summary: Retrieves a user by identifier, which can be an id, username, or email.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: identifier
+   *       description: ID, username, or email of the user you want to find.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "2e650950-75a1-11eb-bd85-09531521011f"
+   *    responses:
+   *      '200':
+   *        description: The retrieved user.
+   *        content:
+   *          application/json:
+   *            schema:
+   *              $ref: '#/definitions/User'
+   *
+   */
   find: (req, res, next) => {
     var params = {
       TableName: "User",
@@ -355,9 +355,8 @@ const UserService = {
     // Check for username or email conflicts.
     var params = {
       TableName: "User",
-      FilterExpression: "(username = :username or email = :email)",
+      FilterExpression: "(email = :email)",
       ExpressionAttributeValues: {
-        ":username": req.body.username,
         ":email": req.body.email,
       },
     };
@@ -373,22 +372,14 @@ const UserService = {
           // There is a conflict.
           var user = data["Items"][0];
 
-          if (req.body.username === user.username) {
-            // A user already exists with the username.
-            res.send({
-              message: "There is already an account with that username.",
-            });
-          } else {
-            // A user already exists with the email.
-            res.send({
-              message: "There is already an account with that email.",
-            });
-          }
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
         } else {
           // There is no conflict.
           const usr = {
             id: uuidv1(),
-            username: req.body.username,
             email: req.body.email,
             password: bcrypt.hashSync(req.body.password, 10),
             created: new Date().toString(),
@@ -398,7 +389,6 @@ const UserService = {
             TableName: "User",
             Item: {
               id: { S: usr.id },
-              username: { S: usr.username },
               email: { S: usr.email },
               password: { S: usr.password },
               created: { S: usr.created },
@@ -419,14 +409,132 @@ const UserService = {
     };
     docClient.scan(params, onScan);
   },
+  createV3: (req, res, next) => {
+    // Check for username or email conflicts.
+    var params = {
+      TableName: "User",
+      FilterExpression: "(email = :email)",
+      ExpressionAttributeValues: {
+        ":email": req.body.email,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
+        } else {
+          // There is no conflict.
+
+          if (req.body.password) {
+            const usr = {
+              id: uuidv1(),
+              email: req.body.email,
+              password: bcrypt.hashSync(req.body.password, 10),
+              created: new Date().toString(),
+            };
+
+            var createParams = {
+              TableName: "User",
+              Item: {
+                id: { S: usr.id },
+                email: { S: usr.email },
+                password: { S: usr.password },
+                created: { S: usr.created },
+              },
+            };
+
+            // Call DynamoDB to add the item to the table
+            ddb.putItem(createParams, (err, data) => {
+              if (err) {
+                console.log("Error", err);
+              } else {
+                delete usr.password;
+                res.send(usr);
+              }
+            });
+          } else if (req.body.sso_ip) {
+            // Check for username or email conflicts.
+            var params = {
+              TableName: "User",
+              FilterExpression: "(email = :email)",
+              ExpressionAttributeValues: {
+                ":email": req.body.email,
+              },
+            };
+
+            const onScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+              } else {
+                if (data["Items"].length > 0) {
+                  // There is a conflict.
+                  var user = data["Items"][0];
+
+                  // A user already exists with the email.
+                  res.send({
+                    message: "There is already an account with that email.",
+                  });
+                } else {
+                  // There is no conflict.
+                  const usr = {
+                    id: uuidv1(),
+                    email: req.body.email,
+                    sso_ip: req.body.sso_ip,
+                    created: new Date().toString(),
+                  };
+
+                  var createParams = {
+                    TableName: "User",
+                    Item: {
+                      id: { S: usr.id },
+                      email: { S: usr.email },
+                      sso_ip: { S: usr.sso_ip },
+                      created: { S: usr.created },
+                    },
+                  };
+
+                  // Call DynamoDB to add the item to the table
+                  ddb.putItem(createParams, (err, data) => {
+                    if (err) {
+                      console.log("Error", err);
+                    } else {
+                      if (usr.password) {
+                        delete usr.password;
+                      }
+                      res.send(usr);
+                    }
+                  });
+                }
+              }
+            };
+            docClient.scan(params, onScan);
+          }
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
   update: (req, res, next) => {
     // Check for username or email conflicts.
     var params = {
       TableName: "User",
-      FilterExpression:
-        "(not id = :id and (username = :username or email = :email))",
+      FilterExpression: "(not id = :id and (email = :email))",
       ExpressionAttributeValues: {
-        ":username": req.body.username,
         ":email": req.body.email,
         ":id": req.body.id,
       },
@@ -443,17 +551,10 @@ const UserService = {
           // There is a conflict.
           var user = data["Items"][0];
 
-          if (req.body.username === user.username) {
-            // A user already exists with the username.
-            res.send({
-              message: "There is already an account with that username.",
-            });
-          } else {
-            // A user already exists with the email.
-            res.send({
-              message: "There is already an account with that email.",
-            });
-          }
+          // A user already exists with the email.
+          res.send({
+            message: "There is already an account with that email.",
+          });
         } else {
           var user = data["Items"][0];
           // There is no conflict.
@@ -464,15 +565,15 @@ const UserService = {
               id: req.body.id,
             },
             UpdateExpression:
-              "set username = :username, email=:email, theme=:theme, active_portfolio=:active_portfolio",
+              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences",
             ExpressionAttributeValues: {
-              ":username": req.body.username,
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
               ":active_portfolio":
                 req.body.active_portfolio || user?.active_portfolio || "",
+              ":preferences": JSON.stringify(req.body.preferences),
             },
-            ReturnValues: "UPDATED_NEW",
+            ReturnValues: "ALL_NEW",
           };
 
           docClient.update(params, function (err, data) {
@@ -487,10 +588,64 @@ const UserService = {
                 "UpdateItem succeeded:",
                 JSON.stringify(data, null, 2)
               );
+              if (data["Attributes"].password) {
+                delete data["Attributes"].password;
+              }
               res.send(data);
             }
           });
         }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  update_watchlist: (req, res, next) => {
+    // Check for username or email conflicts.
+    var params = {
+      TableName: "User",
+      FilterExpression: "(id = :id)",
+      ExpressionAttributeValues: {
+        ":id": req.params.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        var user = data["Items"][0];
+        // There is no conflict.
+
+        var params = {
+          TableName: "User",
+          Key: {
+            id: req.params.id,
+          },
+          UpdateExpression: "set watchlist = :watchlist",
+          ExpressionAttributeValues: {
+            ":watchlist": JSON.stringify(req.body.watchlist),
+          },
+          ReturnValues: "ALL_NEW",
+        };
+
+        docClient.update(params, function (err, data) {
+          if (err) {
+            console.error(
+              "Unable to update item. Error JSON:",
+              JSON.stringify(err, null, 2)
+            );
+            res.send(err);
+          } else {
+            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+            if (data["Attributes"].password) {
+              delete data["Attributes"].password;
+            }
+            res.send(data);
+          }
+        });
       }
     };
     docClient.scan(params, onScan);

@@ -1,5 +1,6 @@
 var unirest = require("unirest");
 const Cache = require("../common/cache");
+const cheerio = require("cheerio");
 
 const _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY;
@@ -7,9 +8,65 @@ const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
   process.env.X_RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY;
 
 const quoteCache = new Cache(5000);
+const summaryCache = new Cache(5000);
 const indicatorCache = new Cache(null, true);
 
 const messengers = require("../common/messenger");
+
+function scrapeNews(symbol, exchange) {
+  let url = "https://www.google.com/finance/quote/" + symbol;
+  if (exchange) {
+    url += ":" + exchange;
+  }
+
+  let header = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 6.3; Win64; x64)  AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36 Viewer/96.9.4688.89",
+  };
+
+  return new Promise((resolve, reject) => {
+    unirest
+      .get(url)
+      .headers(header)
+      .then((response) => {
+        const $ = cheerio.load(response.body);
+
+        const articles = [...$("div[data-article-source-name]")];
+
+        const result = [];
+
+        articles.forEach((value, index) => {
+          const links = [...$(value).find("a")];
+          let imgs = [...$(value).find("img")];
+          let metas = [...$(value).find("div div a div")];
+
+          let title, publisher, publishedTimeStr;
+          if (metas.length === 0) {
+            metas = [...$(value).find("a div")];
+
+            publisher = $(metas[2]).text();
+            title = $(metas[4]).text();
+            publishedTimeStr = $(metas[5]).text();
+          } else {
+            publisher = $(metas[2]).text();
+            title = $(metas[6]).text();
+            publishedTimeStr = $(metas[4]).text();
+          }
+
+          result.push({
+            articleURL: $(links[0]).attr("href"),
+            imgURL: imgs[0]?.attribs?.src,
+            articleSource: publisher,
+            articlePublishedStr: publishedTimeStr,
+            title: title
+          });
+        });
+
+        resolve(result);
+      });
+  });
+}
+// getData();
 
 const getQuote = (symbols) => {
   if (!symbols.length) {
@@ -28,6 +85,59 @@ const getQuote = (symbols) => {
   uni.headers({
     "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
     useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v.data);
+        }
+      },
+    });
+  });
+};
+
+const getNews = (symbol) => {
+  return new Promise((resolve, reject) => {
+    getQuote([symbol])
+      .then((data) => {
+        let exchange;
+        if (data.quoteResponse.result[0].fullExchangeName === "NasdaqGS") {
+          exchange = "NASDAQ";
+        } else if (data.quoteResponse.result[0].fullExchangeName === "CCC") {
+          exchange = undefined;
+        } else {
+          exchange = data.quoteResponse.result[0].fullExchangeName;
+        }
+
+        scrapeNews(symbol, exchange).then((data) => {
+          resolve(data);
+        });
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+};
+
+const getQuoteSummary = (symbol) => {
+  if (!symbol) {
+    return Promise.reject({ error: { message: "Invalid params" } });
+  }
+
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v11/finance/quoteSummary/" +
+      symbol +
+      "?modules=summaryDetail,defaultKeyStatistics,assetProfile,fundOwnership,majorDirectHolders,majorHoldersBreakdown,cashflowStatementHistory,secFilings,insiderTransactions,price,quoteType,esgScores,sectorTrend,calendarEvents"
+  );
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
   });
 
   return new Promise((resolve, reject) => {
@@ -87,17 +197,29 @@ const getIndicators = (symbol, specification) => {
             });
           }
 
-          const twentyOneDayHigh = Math.max(...highs?.slice(highs.length - 21));
-          const fiftyFiveDayHigh = Math.max(...highs?.slice(highs.length - 55));
+          try {
+            const twentyOneDayHigh = Math.max(
+              ...highs?.slice(highs.length - 21)
+            );
+            const fiftyFiveDayHigh = Math.max(
+              ...highs?.slice(highs.length - 55)
+            );
 
-          const i = {
-            indicators: {
-              at21DayHigh: currPrice >= twentyOneDayHigh,
-              at55DayHigh: currPrice >= fiftyFiveDayHigh,
-            },
-          };
+            const i = {
+              indicators: {
+                at21DayHigh: currPrice >= twentyOneDayHigh,
+                at55DayHigh: currPrice >= fiftyFiveDayHigh,
+              },
+            };
 
-          resolve(i);
+            resolve(i);
+          } catch (err) {
+            resolve({
+              error: {
+                message: `Failed to calculate indicators, can not find history for (${symbol})`,
+              },
+            });
+          }
         }
       },
     });
@@ -185,7 +307,50 @@ const StockService = {
         if (count < 5) {
           // Wait 1s and retry.
           setTimeout(() => {
-            StockService.query(req, res, next, count);
+            StockService.quote(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(err);
+          return next();
+        }
+      });
+  },
+  /**
+   * @swagger
+   * /api/v4/stock/{symbol}/news:
+   *  get:
+   *    summary: Gets news for an equity.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: symbol
+   *       description: Symbol of the desired equity to get news.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *    responses:
+   *      '200':
+   *        description: News for the equity.
+   */
+  news: (req, res, next, count) => {
+    getNews(req.params.symbol)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            StockService.news(req, res, next, count);
           }, 1000);
         } else {
           res.send(data);
@@ -236,6 +401,37 @@ const StockService = {
         }
       });
   },
+  summary: (req, res, next, count) => {
+    if (summaryCache.get(JSON.stringify(req.params.symbol))) {
+      res.send(summaryCache.get(JSON.stringify(req.params.symbol)));
+      return next();
+    }
+
+    getQuoteSummary(req.params.symbol)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        summaryCache.save(JSON.stringify(req.params.symbol), data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 1s and retry.
+          setTimeout(() => {
+            StockService.summary(req, res, next, count);
+          }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  getQuoteSummary: getQuoteSummary,
   getQuote: getQuote,
   getIndicators: getIndicators,
 };

@@ -14,9 +14,19 @@ const StockController = {
       _stock.quote(req, res, next);
     });
   },
+  summary: (server, messengers) => {
+    server.get("/api/v4/stock/:symbol/summary", ...middleware, (req, res, next) => {
+      _stock.summary(req, res, next);
+    });
+  },
   indicators: (server, messengers) => {
     server.get("/api/v4/stock/:symbol/indicators", ...middleware, (req, res, next) => {
       _stock.indicators(req, res, next);
+    });
+  },
+  news: (server, messengers) => {
+    server.get("/api/v5/stock/:symbol/news", ...middleware, (req, res, next) => {
+      _stock.news(req, res, next);
     });
   },
   symbol: (server) => {

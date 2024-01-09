@@ -22,6 +22,11 @@ const MarketsController = {
       _markets.marketsLL(req, res, next);
     });
   },
+  trending: (server) => {
+    server.get("/api/v3/markets/trending", ...middleware, (req, res, next) => {
+      _markets.trending(req, res, next);
+    });
+  },
 };
 
 module.exports = MarketsController;

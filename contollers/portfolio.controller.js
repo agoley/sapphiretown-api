@@ -106,6 +106,11 @@ const PortfolioController = {
       }
     );
   },
+  preview: (server) => {
+    server.post("/api/v3/parser/preview", (req, res, next) => {
+      _portfolio.preview(req, res, next);
+    });
+  },
   upload: (server) => {
     server.post("/api/v3/portfolios/:id/transactions", (req, res, next) => {
       _portfolio.upload(req, res, next);

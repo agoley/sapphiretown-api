@@ -29,6 +29,11 @@ const UserController = {
       _user.create(req, res, next);
     });
   },
+  createV3: (server) => {
+    server.post("/api/v3/users", ...middleware, (req, res, next) => {
+      _user.createV3(req, res, next);
+    });
+  },
   forgot: (server) => {
     server.post("/api/v1/forgot", ...middleware, (req, res, next) => {
       _user.forgot(req, res, next);
@@ -42,6 +47,11 @@ const UserController = {
   update: (server) => {
     server.post("/api/v2/users", ...middleware, (req, res, next) => {
       _user.update(req, res, next);
+    });
+  },
+  update_watchlist: (server) => {
+    server.post("/api/v2/users/:id/watchlist", ...middleware, (req, res, next) => {
+      _user.update_watchlist(req, res, next);
     });
   },
   update_password: (server) => {

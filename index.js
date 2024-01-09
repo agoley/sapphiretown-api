@@ -136,14 +136,12 @@ wss.on("connection", async (ws, req) => {
     await portfolio.hydrate();
 
     if (portfolio.transactions) {
-      console.log("subscribing")
       portfolio.subscribe(ws);
     }
 
     ws.on("close", () => {
-      console.log("unsubscribe")
       portfolio.unsubscribe();
-    })
+    });
   } else {
     ws.on("message", (message) => {
       const data = JSON.parse(message);
@@ -159,10 +157,11 @@ wss.on("connection", async (ws, req) => {
         };
 
         if (
-          data?.user.username !== "alex" &&
-          data?.user.username !== "production" &&
-          data?.user.username !== "demo" &&
-          data?.user.username !== "test1"
+          data &&
+          data.user.username !== "alex" &&
+          data.user.username !== "production" &&
+          data.user.username !== "demo" &&
+          data.user.username !== "test1"
         ) {
           transporter.sendMail(mailOptions, function (error, info) {
             if (error) {

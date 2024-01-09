@@ -24,6 +24,11 @@ const ChartController = {
       _chart.chartLL(req, res, next);
     });
   },
+  chartLLV3: (server) => {
+    server.post("/api/v3/chartLL", ...middleware, (req, res, next) => {
+      _chart.chartLLV3(req, res, next);
+    });
+  },
 };
 
 module.exports = ChartController;
