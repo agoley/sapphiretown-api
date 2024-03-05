@@ -11,55 +11,99 @@ let middleware = [
 const UserController = {
   get: (server) => {
     server.get("/api/v3/users/:id", ...middleware, (req, res, next) => {
-      _user.get(req, res, next);
+      try {
+        _user.get(req, res, next);
+      } catch (err) {
+        console.error("/api/v3/users/:id error: " + err);
+      }
     });
   },
   find: (server) => {
     server.get("/api/v4/users/:identifier", ...middleware, (req, res, next) => {
-      _user.find(req, res, next);
+      try {
+        _user.find(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/users/:identifier error: " + err);
+      }
     });
   },
   auth: (server) => {
     server.post("/api/v1/users/auth", ...middleware, (req, res, next) => {
-      _user.auth(req, res, next);
+      try {
+        _user.auth(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/users/auth error: " + err);
+      }
     });
   },
   create: (server) => {
     server.post("/api/v1/users", ...middleware, (req, res, next) => {
-      _user.create(req, res, next);
+      try {
+        _user.create(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/users error: " + err);
+      }
     });
   },
   createV3: (server) => {
     server.post("/api/v3/users", ...middleware, (req, res, next) => {
-      _user.createV3(req, res, next);
+      try {
+        _user.createV3(req, res, next);
+      } catch (err) {
+        console.error("/api/v3/users error: " + err);
+      }
     });
   },
   forgot: (server) => {
     server.post("/api/v1/forgot", ...middleware, (req, res, next) => {
-      _user.forgot(req, res, next);
+      try {
+        _user.forgot(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/forgot error: " + err);
+      }
     });
   },
   reset: (server) => {
     server.post("/api/v1/reset", ...middleware, (req, res, next) => {
-      _user.reset(req, res, next);
+      try {
+        _user.reset(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/reset error: " + err);
+      }
     });
   },
   update: (server) => {
     server.post("/api/v2/users", ...middleware, (req, res, next) => {
-      _user.update(req, res, next);
+      try {
+        _user.update(req, res, next);
+      } catch (err) {
+        console.error("/api/v2/users error: " + err);
+      }
     });
   },
   update_watchlist: (server) => {
-    server.post("/api/v2/users/:id/watchlist", ...middleware, (req, res, next) => {
-      _user.update_watchlist(req, res, next);
-    });
+    server.post(
+      "/api/v2/users/:id/watchlist",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.update_watchlist(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/:id/watchlist error: " + err);
+        }
+      }
+    );
   },
   update_password: (server) => {
     server.post(
       "/api/v2/users/:id/password",
       ...middleware,
       (req, res, next) => {
-        _user.update_password(req, res, next);
+        try {
+          _user.update_password(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/:id/password error: " + err);
+        }
       }
     );
   },
@@ -68,7 +112,11 @@ const UserController = {
       "/api/v2/users/:id/subscribe",
       ...middleware,
       (req, res, next) => {
-        _user.subscribe(req, res, next);
+        try {
+          _user.subscribe(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/:id/subscribe error: " + err);
+        }
       }
     );
   },
@@ -77,9 +125,53 @@ const UserController = {
       "/api/v2/users/:id/unsubscribe",
       ...middleware,
       (req, res, next) => {
-        _user.unsubscribe(req, res, next);
+        try {
+          _user.unsubscribe(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/:id/unsubscribe error: " + err);
+        }
       }
     );
+  },
+
+  notificationsSubscribe: (server) => {
+    server.post(
+      "/api/v2/users/:id/notifications/subscribe",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.notificationsSubscribe(req, res, next);
+        } catch (err) {
+          console.error(
+            "/api/v2/users/:id/notifications/subscribe error: " + err
+          );
+        }
+      }
+    );
+  },
+  notificationsUnsubscribe: (server) => {
+    server.post(
+      "/api/v2/users/:id/notifications/unsubscribe",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.notificationsUnsubscribe(req, res, next);
+        } catch (err) {
+          console.error(
+            "/api/v2/users/:id/notifications/unsubscribe error: " + err
+          );
+        }
+      }
+    );
+  },
+  pushSubscription: (server) => {
+    server.get("/api/v4/users/:id/push-subscription", ...middleware, (req, res, next) => {
+      try {
+        _user.getPushSubscription(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/users/:id/push-subscription error: " + err);
+      }
+    });
   },
 };
 

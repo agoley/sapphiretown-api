@@ -26,19 +26,6 @@ const IntegrationsService = {
       },
       consumer_secret
     );
-    // const paramsString = Object.entries({
-    //   oauth_consumer_key,
-    //   oauth_timestamp,
-    //   oauth_nonce,
-    //   oauth_signature_method,
-    //   oauth_callback,
-    //   oauth_signature,
-    // })
-    //   .map(([k, v]) => `${k}=${v}`)
-    //   .join("&");
-
-    // const result = `${base_uri}?${paramsString}`;
-    // var uni = unirest("GET", result);
 
     var uni = unirest("GET", base_uri);
     uni.headers({
@@ -166,7 +153,7 @@ const IntegrationsService = {
         oauth_signature_method,
         oauth_token,
         startDate,
-        endDate
+        endDate,
       },
       consumer_secret,
       req.body.token_secret
@@ -180,7 +167,6 @@ const IntegrationsService = {
       .join("&");
 
     const result = `${base_uri}?${paramsString}`;
-
 
     var uni = unirest("GET", result);
 
@@ -200,6 +186,126 @@ const IntegrationsService = {
           )
         );
       } else {
+        res.send(response);
+      }
+      return next();
+    });
+  },
+
+  coinbaseListAccounts: (req, res, next, count) => {
+    var uni = unirest("GET", "https://api.coinbase.com/v2/accounts");
+
+    uni.headers({
+      Authorization: `Bearer ${req.body.token}`,
+    });
+
+    uni.send().then((response) => {
+      if (response.statusCode === 200) {
+        res.send(response.body);
+      } else {
+        res.send(response);
+      }
+      return next();
+    });
+  },
+
+  coinbaseTransaction: (req, res, next, count) => {
+    var uni = unirest(
+      "GET",
+      "https://api.coinbase.com/v2/accounts/" +
+        req.body.accountId +
+        "/transactions/" +
+        req.body.transactionId
+    );
+
+    uni.headers({
+      Authorization: `Bearer ${req.body.token}`,
+      "CB-VERSION": new Date().toISOString().split("T")[0],
+    });
+
+    console.log()
+
+    uni.send().then((response) => {
+      if (response.statusCode === 200) {
+      } else {
+        res.send(response);
+      }
+      return next();
+    });
+  },
+
+  coinbaseTransactions: (req, res, next, count) => {
+    var uni = unirest(
+      "GET",
+      "https://api.coinbase.com/v2/accounts/" +
+        req.body.accountId +
+        "/transactions"
+    );
+
+    uni.headers({
+      Authorization: `Bearer ${req.body.token}`,
+      "CB-VERSION": new Date().toISOString().split("T")[0],
+    });
+
+    uni.send().then((response) => {
+      if (response.statusCode === 200) {
+        res.send(response.body);
+      } else {
+        res.send(response);
+      }
+      return next();
+    });
+  },
+
+  coinbaseAccessToken: (req, res, next, count) => {
+    const grantType = "authorization_code";
+    const code = req.body.code;
+    const clientId =
+      "22697c5cf63e5e9cfb55ae705a5eed8376dd13a5ca43ef36355a1c70af2c557a";
+    const clientSecret =
+      "c59a5c3721122dc6d187527826ead8785d5e20df2f26c8e618f6fedd4fbbc8ac";
+    const redirectUri = "https://mylocal.com/oauth/coinbase";
+
+    var uni = unirest("POST", "https://api.coinbase.com/oauth/token");
+
+    uni
+      .send({
+        grant_type: grantType,
+        code: code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+      })
+      .then((response) => {
+        if (response.statusCode === 200) {
+          res.send(response.body);
+        } else {
+          res.send(response);
+        }
+        return next();
+      });
+  },
+
+  coinbaseResource: (req, res, next, count) => {
+
+    console.log("https://api.coinbase.com" + req.body.resourcePath)
+    var uni = unirest(
+      "GET",
+      "https://api.coinbase.com" + req.body.resourcePath
+    );
+
+    uni.headers({
+      Authorization: `Bearer ${req.body.token}`,
+      "CB-VERSION": new Date().toISOString().split("T")[0],
+    });
+
+    uni.send().then((response) => {
+      if (response.statusCode === 200) {
+        console.log(response.body);
+        res.send(response.body);
+      } else {
+        console.log(response.statusCode);
+        console.log(response.body);
         res.send(response);
       }
       return next();

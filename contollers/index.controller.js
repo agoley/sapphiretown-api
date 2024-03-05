@@ -27,6 +27,7 @@ function IndexController(server, isEnterprise) {
   ChartController.chart(server);
   ChartController.chartLL(server);
   ChartController.chartLLV3(server);
+  ChartController.chartLLV4(server);
 
   // user endpoints
   UserController.get(server);
@@ -41,6 +42,9 @@ function IndexController(server, isEnterprise) {
   if (!isEnterprise) UserController.subscribe(server);
   if (!isEnterprise) UserController.unsubscribe(server);
   UserController.find(server);
+  if (!isEnterprise) UserController.notificationsSubscribe(server);
+  if (!isEnterprise) UserController.notificationsUnsubscribe(server);
+  if (!isEnterprise) UserController.pushSubscription(server);
 
   // portfolio endpoints
   PortfolioController.get(server);
@@ -76,6 +80,11 @@ function IndexController(server, isEnterprise) {
   IntegrationsController.etradeAccessToken(server);
   IntegrationsController.etradeListAccounts(server);
   IntegrationsController.etradeTransactions(server);
+  IntegrationsController.coinbaseListAccounts(server);
+  IntegrationsController.coinbaseTransactions(server);
+  IntegrationsController.coinbaseTransaction(server);
+  IntegrationsController.coinbaseAccessToken(server);
+  IntegrationsController.coinbaseResource(server);
 }
 
 module.exports = IndexController;

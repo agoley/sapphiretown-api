@@ -487,6 +487,7 @@ class Portfolio {
     }
 
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
+
     let holdings = uniqueAssets
       .map((ua) => {
         return {
@@ -828,7 +829,8 @@ class Portfolio {
     // Transactions for symbol in this portfolio, these could be of type purchase or sale.
     let transactions = this.transactions
       .filter((t) => t.symbol === holding.symbol)
-      .map((t) => ({ ...t, date: new Date(t.date).getTime() }));
+      .map((t) => ({ ...t, date: new Date(t.date).getTime() }))
+      .sort((a, b) => a.date - b.date);
 
     // Map of the holdings quantity at different times during range.
     const holdingTimeMachineArr = [];
@@ -870,8 +872,6 @@ class Portfolio {
           quantity = 0;
         }
       }
-
-
 
       if (transaction.date >= firstTimestamp) {
         // This transaction is relevant to the chart range.
@@ -1071,17 +1071,16 @@ class Portfolio {
 
       const chartQueries = holdings
         .filter((h) => h.class !== ASSET_CLASSES.CASH)
-        .map((h) =>
-          ChartService.getChartLL(
+        .map((h) => {
+          const symbol =
             h.class === ASSET_CLASSES.STOCK
               ? h.symbol
               : h.symbol.includes("-USD")
               ? h.symbol
-              : h.symbol + CRYPTO_POSTFIX,
-            interval,
-            range
-          )
-        );
+              : h.symbol + CRYPTO_POSTFIX;
+
+          return ChartService.getChartLL(symbol, interval, range);
+        });
 
       let responses = await Promise.allSettled(chartQueries);
 
@@ -1166,7 +1165,7 @@ class Portfolio {
       // Iterate over all timestamps in the range
       timestamps.forEach((ts) => {
         // count indicating how many holdings are represented at this time
-        let count = timeSnapshotMap[ts].breakout.filter(
+        let count = [...timeSnapshotMap[ts].breakout].filter(
           (bo) => bo.candle && bo.candle.open
         ).length;
 

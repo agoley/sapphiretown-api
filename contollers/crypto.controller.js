@@ -11,13 +11,25 @@ let middleware = [
 const CryptoController = {
   quote: (server) => {
     server.post("/api/v1/crypto/qoute", ...middleware, (req, res, next) => {
-      _crypto.qoute(req, res, next);
+      try {
+        _crypto.qoute(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/crypto/qoute error: " + err);
+      }
     });
   },
   autocomplete: (server) => {
-    server.post("/api/v1/crypto/autocomplete", ...middleware, (req, res, next) => {
-      _crypto.autocomplete(req, res, next);
-    });
+    server.post(
+      "/api/v1/crypto/autocomplete",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _crypto.autocomplete(req, res, next);
+        } catch (err) {
+          console.error("/api/v1/crypto/autocomplete error: " + err);
+        }
+      }
+    );
   },
 };
 

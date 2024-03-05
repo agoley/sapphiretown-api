@@ -910,6 +910,34 @@ const getPortfolioById = (id) => {
   });
 };
 
+const getPortfolioByUser = (id) => {
+  var params = {
+    TableName: "Portfolio",
+    FilterExpression: "(user_id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": id,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const onScan = (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (data["Items"].length > 0) {
+          resolve(
+            new Portfolio(
+              data.Items[0].id,
+              JSON.parse(data.Items[0].transactions)
+            )
+          );
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
 /**
  * @swagger
  * /api/v2/portfolio/breakdown/{id}:
@@ -1914,6 +1942,7 @@ const PortfolioService = {
   },
   save: save,
   getPortfolioById: getPortfolioById,
+  getPortfolioByUser: getPortfolioByUser
 };
 
 module.exports = PortfolioService;

@@ -33,7 +33,155 @@ const genAPIKey = () => {
     .join("");
 };
 
-// TODO: abstract a lot of the db accesses to observables.
+const getUserById = (id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :id)",
+    ExpressionAttributeValues: {
+      ":id": id,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          delete user.password;
+          delete user.stripe_customer_id;
+          delete user.stripe_payment_method_id;
+          delete user.stripe_subscription_id;
+
+          user.watchlist = JSON.parse(user.watchlist);
+          user.preferences = JSON.parse(user.preferences);
+
+          resolve(user);
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const updateUser = (user) => {
+  // Check for username or email conflicts.
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(not id = :id and (email = :email))",
+      ExpressionAttributeValues: {
+        ":email": user.email,
+        ":id": user.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject(err);
+      } else {
+        if (data["Items"].length > 0) {
+          // A user already exists with the email.
+          reject({
+            error: "email must be unique",
+            message: "There is already an account with that email.",
+          });
+        } else {
+          // There is no conflict.
+
+          var params = {
+            TableName: "User",
+            Key: {
+              id: user.id,
+            },
+            UpdateExpression:
+              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences",
+            ExpressionAttributeValues: {
+              ":email": user.email,
+              ":theme": user.theme || "light-theme",
+              ":active_portfolio": user.active_portfolio || "",
+              ":preferences": JSON.stringify(user.preferences),
+            },
+            ReturnValues: "ALL_NEW",
+          };
+
+          docClient.update(params, (err, data) => {
+            if (err) {
+              console.error(
+                "Unable to update item. Error JSON:",
+                JSON.stringify(err, null, 2)
+              );
+              reject({ error: err });
+            } else {
+              console.log(
+                "UpdateItem succeeded:",
+                JSON.stringify(data, null, 2)
+              );
+              if (data["Attributes"].password) {
+                delete data["Attributes"].password;
+              }
+              resolve(data);
+            }
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getPushSubscriptionByUserId = (user_id) => {
+  var params = {
+    TableName: "PushSubscription",
+    FilterExpression: "(user_id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding subscription.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          resolve(data["Items"][0]);
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find subscription.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
 
 const UserService = {
   reset: (req, res, next) => {
@@ -71,7 +219,7 @@ const UserService = {
                 JSON.stringify(err, null, 2)
               );
               res.send({
-                color: "red",
+                color: "#f51068",
                 message: "There was en error resetting your password.",
               });
             } else {
@@ -97,7 +245,7 @@ const UserService = {
                       JSON.stringify(err, null, 2)
                     );
                     res.send({
-                      color: "red",
+                      color: "#f51068",
                       message: "There was an error updating your password.",
                     });
                   } else {
@@ -111,7 +259,7 @@ const UserService = {
                 });
               } else {
                 res.send({
-                  color: "red",
+                  color: "#f51068",
                   message: "Unable to find account.",
                 });
               }
@@ -120,7 +268,7 @@ const UserService = {
           docClient.scan(params, onUserLookupScan);
         } else {
           res.send({
-            color: "red",
+            color: "#f51068",
             message:
               "Invalid token: Token may have expired. Try requesting a reset again.",
           });
@@ -1082,6 +1230,100 @@ const UserService = {
     };
     docClient.scan(getUserByIdParams, onSubscribeUserScan);
   },
+  notificationsSubscribe: (req, res, next) => {
+    // Check for conflicts.
+    var params = {
+      TableName: "PushSubscription",
+      FilterExpression: "(user_id = :user_id)",
+      ExpressionAttributeValues: {
+        ":user_id": req.params.id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+      } else {
+        if (data["Items"].length > 0) {
+          // There is a conflict.
+          var user = data["Items"][0];
+
+          // A subscription already exists for this user.
+          res.send({
+            message: "There is already a subscription with that user.",
+          });
+        } else {
+          // There is no conflict.
+          const sub = {
+            user_id: req.params.id,
+            push_subscription: JSON.stringify(req.body),
+          };
+
+          var createParams = {
+            TableName: "PushSubscription",
+            Item: {
+              user_id: { S: sub.user_id },
+              push_subscription: { S: sub.push_subscription },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+            } else {
+              res.send(sub);
+            }
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+  notificationsUnsubscribe: (req, res, next) => {
+    if (!req.params.id) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      var params = {
+        Key: {
+          user_id: {
+            S: req.params.id,
+          },
+        },
+        TableName: "PushSubscription",
+      };
+
+      // Call DynamoDB to add the item to the table
+      ddb.deleteItem(params, (err, data) => {
+        if (err) {
+          console.log("Error", err);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+    }
+  },
+  getPushSubscription: (req, res, next) => {
+    getPushSubscriptionByUserId(req.params.id)
+      .then((subscription) => {
+        res.send(subscription);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  getUserById: getUserById,
+  getPushSubscriptionByUserId: getPushSubscriptionByUserId,
+  updateUser: updateUser,
 };
 
 module.exports = UserService;
