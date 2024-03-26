@@ -31,13 +31,14 @@ webPush.setVapidDetails(
 // Send notification to the push service. Remove the subscription from the
 // `subscriptions` array if the  push service responds with an error.
 // Subscription has been cancelled or expired.
-export const sendNotification = (subscription, title) => {
+export const sendNotification = (subscription, title, icon) => {
   webPush
     .sendNotification(
       subscription,
       JSON.stringify({
         title: title,
         tag: new Date().getTime(),
+        icon: icon,
       })
     )
     .then(() => {
@@ -73,8 +74,6 @@ const notifications = async () => {
 
         let user = await UserService.getUserById(subscription.user_id);
 
-        console.log(user)
-
         if (
           user.preferences.notifications &&
           user.preferences.notifications.largeChange
@@ -98,10 +97,6 @@ const notifications = async () => {
                   user.preferences.largeChangeLastUpdateTimes[q.symbol]
                 ).setHours(0, 0, 0, 0) === new Date().setHours(0, 0, 0, 0);
 
-              console.log(userAlreadyNotifiedOfChange);
-
-              console.log(q.regularMarketChangePercent);
-
               if (
                 !userAlreadyNotifiedOfChange &&
                 Math.abs(q.regularMarketChangePercent) >= 5
@@ -110,7 +105,10 @@ const notifications = async () => {
                   JSON.parse(subscription.push_subscription),
                   `${q.symbol} | ${q.regularMarketChangePercent.toFixed(
                     2
-                  )}% today`
+                  )}% today`,
+                  q.regularMarketChangePercent > 0
+                    ? "notification-icon-up.png"
+                    : "notification-icon-down.png"
                 );
                 const largeChangeLastUpdateTimes = user.preferences
                   .largeChangeLastUpdateTimes
@@ -160,7 +158,8 @@ const notifications = async () => {
               ) {
                 sendNotification(
                   JSON.parse(subscription.push_subscription),
-                  `${q.symbol} | dividend payout today`
+                  `${q.symbol} | dividend payout today`,
+                  "notification-icon-up.png"
                 );
                 user.preferences.dividendsLastUpdateTime = new Date().getTime();
                 UserService.updateUser(user);
@@ -204,7 +203,8 @@ const notifications = async () => {
               ) {
                 sendNotification(
                   JSON.parse(subscription.push_subscription),
-                  `${q.symbol} | earnings update today`
+                  `${q.symbol} | earnings update today`,
+                  "notification-icon-up.png"
                 );
                 user.preferences.earningsLastUpdateTime = new Date().getTime();
                 UserService.updateUser(user);

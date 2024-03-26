@@ -302,121 +302,131 @@ class Portfolio {
   }
 
   async calcSummary() {
-    if (summaryCache.get("summary")) {
-      return Promise.resolve(summaryCache.get("summary"));
-    }
-
-    const blank = {
-      portfolio_name: this.name,
-      principal: 0,
-      change: {
-        raw: 0,
-        percent: 0,
-      },
-      allTimeChange: {
-        raw: 0,
-        percent: 0,
-      },
-      regularMarketPreviousClose: 0,
-      regularMarketPrice: 0,
-      netBalance: 0,
-      realizedGainOrLoss: 0,
-    };
-
-    const symbols = [];
-    let startingPriceOnDay = 0;
-    let currentPriceOnDay = 0;
-    let cashBalance = 0;
-    let realizedGainOrLoss = 0;
-
-    // Gather requests for stock quotes.
-    this.holdings.forEach((h) => {
-      if (h.class === ASSET_CLASSES.CRYPTO) {
-        symbols.push(
-          h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
-        );
-      } else if (h.class === ASSET_CLASSES.STOCK) {
-        symbols.push(h.symbol);
-      } else if (h.class === ASSET_CLASSES.CASH) {
-        cashBalance += +h.shares;
+    try {
+      if (summaryCache.get("summary")) {
+        return Promise.resolve(summaryCache.get("summary"));
       }
-    });
 
-    const portfolio_name = this.portfolio_name
-      ? this.portfolio_name
-      : "Unnamed Portfolio";
+      const blank = {
+        portfolio_name: this.name,
+        principal: 0,
+        change: {
+          raw: 0,
+          percent: 0,
+        },
+        allTimeChange: {
+          raw: 0,
+          percent: 0,
+        },
+        regularMarketPreviousClose: 0,
+        regularMarketPrice: 0,
+        netBalance: 0,
+        realizedGainOrLoss: 0,
+      };
 
-    if (!this.holdings.length) {
-      summaryCache.save(`summary`, blank);
-      return Promise.resolve(blank);
-    }
+      const symbols = [];
+      let startingPriceOnDay = 0;
+      let currentPriceOnDay = 0;
+      let cashBalance = 0;
+      let realizedGainOrLoss = 0;
 
-    let allTimeStart = this.transactions
-      .filter((t) => t.class !== "cash")
-      .reduce((prev, curr) => {
-        return prev + curr.price * curr.quantity;
-      }, 0);
-    allTimeStart = allTimeStart.toFixed(2);
+      // Gather requests for stock quotes.
+      this.holdings.forEach((h) => {
+        if (h.class === ASSET_CLASSES.CRYPTO) {
+          symbols.push(
+            h.symbol.includes("-USD") ? h.symbol : h.symbol + CRYPTO_POSTFIX
+          );
+        } else if (h.class === ASSET_CLASSES.STOCK) {
+          symbols.push(h.symbol);
+        } else if (h.class === ASSET_CLASSES.CASH) {
+          cashBalance += +h.shares;
+        }
+      });
 
-    return new Promise(async (resolve, reject) => {
-      if (symbols.length) {
-        StockService.getQuote(symbols)
-          .then(async (data) => {
-            data.quoteResponse.result.forEach(async (quote) => {
-              const holding = this.holdings.find(
-                (h) =>
-                  h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+      const portfolio_name = this.portfolio_name
+        ? this.portfolio_name
+        : "Unnamed Portfolio";
+
+      if (!this.holdings.length) {
+        summaryCache.save(`summary`, blank);
+        return Promise.resolve(blank);
+      }
+
+      let allTimeStart = this.transactions
+        .filter((t) => t.class !== "cash")
+        .reduce((prev, curr) => {
+          return prev + curr.price * curr.quantity;
+        }, 0);
+      allTimeStart = allTimeStart.toFixed(2);
+
+      return new Promise(async (resolve, reject) => {
+        if (symbols.length) {
+          StockService.getQuote(symbols)
+            .then(async (data) => {
+              data.quoteResponse.result.forEach(async (quote) => {
+                const holding = this.holdings.find(
+                  (h) =>
+                    h.symbol === quote.symbol || h.symbol === quote.fromCurrency
+                );
+
+                if (quote.regularMarketPrice) {
+                  startingPriceOnDay +=
+                    holding.shares * quote.regularMarketPreviousClose;
+
+                  currentPriceOnDay +=
+                    holding.shares * quote.regularMarketPrice;
+                }
+              });
+
+              const diff = currentPriceOnDay - startingPriceOnDay;
+              const percent = (diff / startingPriceOnDay) * 100;
+              const net = currentPriceOnDay + cashBalance;
+
+              const realizedGainOrLoss = await this.getRealizedGainOrLoss(
+                false
               );
 
-              if (quote.regularMarketPrice) {
-                startingPriceOnDay +=
-                  holding.shares * quote.regularMarketPreviousClose;
+              const summary = {
+                portfolio_name: portfolio_name,
+                principal: allTimeStart,
+                change: {
+                  raw: diff,
+                  percent: percent,
+                },
+                allTimeChange: {
+                  raw: currentPriceOnDay - allTimeStart,
+                  percent:
+                    ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
+                },
+                regularMarketPreviousClose: startingPriceOnDay,
+                regularMarketPrice: currentPriceOnDay,
+                netBalance: net,
+                realizedGainOrLoss: realizedGainOrLoss,
+              };
 
-                currentPriceOnDay += holding.shares * quote.regularMarketPrice;
-              }
+              summaryCache.save(`summary`, summary);
+
+              resolve(summary);
+            })
+            .catch((err) => {
+              console.log(err);
             });
+        } else {
+          const portfolio_name = this.portfolio_name
+            ? this.portfolio_name
+            : "Unnamed Portfolio";
 
-            const diff = currentPriceOnDay - startingPriceOnDay;
-            const percent = (diff / startingPriceOnDay) * 100;
-            const net = currentPriceOnDay + cashBalance;
+          summaryCache.save(`summary`, blank);
 
-            const realizedGainOrLoss = await this.getRealizedGainOrLoss(false);
-
-            const summary = {
-              portfolio_name: portfolio_name,
-              principal: allTimeStart,
-              change: {
-                raw: diff,
-                percent: percent,
-              },
-              allTimeChange: {
-                raw: currentPriceOnDay - allTimeStart,
-                percent:
-                  ((currentPriceOnDay - allTimeStart) / allTimeStart) * 100,
-              },
-              regularMarketPreviousClose: startingPriceOnDay,
-              regularMarketPrice: currentPriceOnDay,
-              netBalance: net,
-              realizedGainOrLoss: realizedGainOrLoss,
-            };
-
-            summaryCache.save(`summary`, summary);
-
-            resolve(summary);
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      } else {
-        const portfolio_name = this.portfolio_name
-          ? this.portfolio_name
-          : "Unnamed Portfolio";
-
-        summaryCache.save(`summary`, blank);
-
-        resolve(blank);
-      }
-    });
+          resolve(blank);
+        }
+      });
+    } catch (err) {
+      return Promise.resolve({
+        color: "red",
+        message: "There was an error calculating the portfolio summary.",
+      });
+    }
   }
 
   get change() {
@@ -425,6 +435,88 @@ class Portfolio {
 
   get summary() {
     return this.calcSummary();
+  }
+
+  async removeTransaction(transaction) {
+    // Find the transaction to remove.
+    const index = this.transactions.findIndex(
+      (t) =>
+        t.symbol === transaction.symbol &&
+        t.date === transaction.date &&
+        t.quantity === transaction.quantity &&
+        t.price === transaction.price
+    );
+
+    if (index < 0) {
+      return;
+    }
+
+    const t = this.transactions[index];
+
+    if (t.type === "PURCHASE") {
+      // PURCHASE PATH
+
+      if (t.quantity !== t.owned) {
+        // Shares have been deducted from the purchase.
+        // Redistribute the deduction to other transactions.
+        let diff = parseFloat(t.quantity) - parseFloat(t.owned);
+
+        let pointerIndex = index;
+        while (diff > 0 && pointerIndex >= 0) {
+          let y = this.transactions[--pointerIndex];
+          if (
+            y.type === "PURCHASE" &&
+            y.symbol === t.symbol &&
+            parseFloat(y.owned) > 0
+          ) {
+            // Y is a transactions with shares available to redistribute the deduction.
+
+            if (parseFloat(y.owned) >= diff) {
+              // Y can absorb the whole diff.
+
+              y.owned = parseFloat(y.owned) - diff;
+              diff = 0;
+            } else {
+              // Y can't absorb the whole diff. Remove owned from diff and continue.
+
+              y.owned = 0;
+              diff = diff - parseFloat(y.owned);
+            }
+          }
+        }
+      }
+    } else {
+      // SALE PATH
+      // Redistribute the shares to other transactions.
+      let diff = parseFloat(t.quantity);
+
+      let pointerIndex = index;
+      while (diff > 0 && pointerIndex >= 0) {
+        let y = this.transactions[--pointerIndex];
+        if (
+          y.type === "PURCHASE" &&
+          y.symbol === t.symbol &&
+          parseFloat(y.owned) < parseFloat(y.quantity)
+        ) {
+          // Y is a transaction with shares to absorb.
+          let space = parseFloat(y.quantity) - parseFloat(y.owned);
+
+          if (space >= diff) {
+            // Y can absorb the whole diff.
+
+            y.owned = parseFloat(y.owned) + diff;
+            diff = 0;
+          } else {
+            // Y can't absorb the whole diff. Add from diff and continue.
+
+            y.owned = y.quantity;
+            diff = diff - space;
+          }
+        }
+      }
+    }
+    //  Remove transaction
+    this.transactions.splice(index, 1);
   }
 
   async getHolding(symbol, type) {
@@ -906,7 +998,7 @@ class Portfolio {
     const paddedChart = [];
 
     history.chart.forEach((action) => {
-      if (action.open) {
+      if (action.open || action.open == 0) {
         lastKnownQuote = {
           high: action.high,
           low: action.low,

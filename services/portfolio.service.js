@@ -1482,6 +1482,94 @@ const PortfolioService = {
       });
     }
   },
+  /**
+   * @swagger
+   * /api/v3/portfolios/{id}/transaction:
+   *  post:
+   *    summary: Removes a transaction from portfolio.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: id
+   *       required: true
+   *       description: ID of the Portfolio.
+   *     - in: body
+   *       name: transaction
+   *       schema:
+   *         type: object
+   *         $ref: '#/definitions/Transaction'
+   *    responses:
+   *      '200':
+   *        description: The new portfolio.
+   *        content:
+   *          application/json:
+   *            schema:
+   *              $ref: '#/definitions/Portfolio'
+   */
+  removeTransaction: (req, res, next) => {
+    if (!req.params.id || !req.body.transaction) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      var params = {
+        TableName: "Portfolio",
+        FilterExpression: "(id = :id)",
+        ExpressionAttributeValues: {
+          ":id": req.params.id,
+        },
+      };
+
+      const onScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send([]);
+        } else {
+          if (data["Items"].length > 0) {
+            const portfolios = data.Items.map((item) => {
+              return {
+                ...item,
+                transactions: JSON.parse(item.transactions),
+              };
+            });
+            const portfolio = new Portfolio(
+              portfolios[0].id,
+              portfolios[0].transactions,
+              portfolios[0].portfolio_name
+            );
+            portfolio.removeTransaction(req.body.transaction).then(() => {
+              PortfolioService.save(portfolio).then(response => {
+                res.send(portfolio);
+                return next();
+              }).catch(err => {
+                res.send({
+                  error: {
+                    message: err,
+                  },
+                });
+                return next();
+              })
+            });
+          } else {
+            res.send({
+              error: {
+                message: "Cannot find portfolio",
+              },
+            });
+            return next();
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    }
+  },
   getById: (req, res, next) => {
     if (!req.params.id) {
       res.send({
@@ -1942,7 +2030,7 @@ const PortfolioService = {
   },
   save: save,
   getPortfolioById: getPortfolioById,
-  getPortfolioByUser: getPortfolioByUser
+  getPortfolioByUser: getPortfolioByUser,
 };
 
 module.exports = PortfolioService;

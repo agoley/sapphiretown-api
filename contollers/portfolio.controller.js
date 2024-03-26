@@ -97,6 +97,15 @@ const PortfolioController = {
       }
     });
   },
+  removeTransaction: (server) => {
+    server.post("/api/v3/portfolios/:id/transaction", ...middleware, (req, res, next) => {
+      try {
+        _portfolio.removeTransaction(req, res, next);
+      } catch (err) {
+        console.error("/api/v3/portfolios/:id/transaction error: " + err);
+      }
+    });
+  },
   upsert: (server) => {
     server.post("/api/v1/portfolios", ...middleware, (req, res, next) => {
       try {

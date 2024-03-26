@@ -131,10 +131,6 @@ const updateUser = (user) => {
               );
               reject({ error: err });
             } else {
-              console.log(
-                "UpdateItem succeeded:",
-                JSON.stringify(data, null, 2)
-              );
               if (data["Attributes"].password) {
                 delete data["Attributes"].password;
               }
@@ -175,6 +171,90 @@ const getPushSubscriptionByUserId = (user_id) => {
           reject({
             color: "red",
             message: "Unable to find subscription.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getPaymentMethodsByUserId = (user_id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise(async (resolve, reject) => {
+    const onScan = async (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          if (data["Items"][0].stripe_customer_id) {
+            let methods = await stripe.paymentMethods.list({
+              customer: data["Items"][0].stripe_customer_id,
+            });
+            resolve(methods);
+          } else {
+            resolve(null);
+          }
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
+const getChargesByUserId = (user_id) => {
+  var params = {
+    TableName: "User",
+    FilterExpression: "(id = :user_id)",
+    ExpressionAttributeValues: {
+      ":user_id": user_id,
+    },
+  };
+
+  return new Promise(async (resolve, reject) => {
+    const onScan = async (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        reject({
+          color: "red",
+          message: "There was an error finding user.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          if (data["Items"][0].stripe_customer_id) {
+            let methods = await stripe.charges.list({
+              customer: data["Items"][0].stripe_customer_id,
+            });
+            resolve(methods);
+          } else {
+            resolve(null);
+          }
+        } else {
+          reject({
+            color: "red",
+            message: "Unable to find user.",
           });
         }
       }
@@ -1001,80 +1081,92 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          // 2. If the user has a payment method already, detach it.
-          if (user.stripe_payment_method_id) {
-            try {
-              await stripe.paymentMethods.detach(user.stripe_payment_method_id);
-            } catch (err) {
-              // Possilbe that the stripe customer was deleted.
-            }
-          }
-
-          // 3. Create the stripe payment methood.
           let paymentMethod;
-          try {
-            paymentMethod = await stripe.paymentMethods.create({
-              type: "card",
-              card: {
-                number: req.body.payment.number,
-                exp_month: req.body.payment.exp_month,
-                exp_year: req.body.payment.exp_year,
-                cvc: req.body.payment.cvc,
-              },
-              billing_details: {
-                address: {
-                  city: req.body.personal.city,
-                  country: req.body.personal.country,
-                  line1: req.body.personal.line1,
-                  line2: req.body.personal.line2,
-                  postal_code: req.body.personal.postal_code,
-                  state: req.body.personal.state,
+          if (!req.body.payment.paymentMethod) {
+            // 2. If the user has a payment method already, detach it.
+            if (user.stripe_payment_method_id) {
+              try {
+                await stripe.paymentMethods.detach(
+                  user.stripe_payment_method_id
+                );
+              } catch (err) {
+                // Possible that the stripe customer was deleted.
+              }
+            }
+
+            // 3. Create the stripe payment method.
+            try {
+              paymentMethod = await stripe.paymentMethods.create({
+                type: "card",
+                card: {
+                  number: req.body.payment.number,
+                  exp_month: req.body.payment.exp_month,
+                  exp_year: req.body.payment.exp_year,
+                  cvc: req.body.payment.cvc,
                 },
-                email: user.email,
-                name: req.body.personal.name,
-              },
-            });
-          } catch (err) {
-            console.log(err);
-            res.send({
-              color: "red",
-              message:
-                err?.raw?.message ||
-                "There was an error creating payment method.",
-            });
+                billing_details: {
+                  address: {
+                    city: req.body.personal.city,
+                    country: req.body.personal.country,
+                    line1: req.body.personal.line1,
+                    line2: req.body.personal.line2,
+                    postal_code: req.body.personal.postal_code,
+                    state: req.body.personal.state,
+                  },
+                  email: user.email,
+                  name: req.body.personal.name,
+                },
+              });
+            } catch (err) {
+              console.log(err);
+              res.send({
+                color: "red",
+                message:
+                  err?.raw?.message ||
+                  "There was an error creating payment method.",
+              });
+            }
+          } else {
+            paymentMethod = req.body.payment.paymentMethod;
           }
 
           let customer;
           if (user.stripe_customer_id) {
             // 3. If the user has a customer already attach the new payment method.
-            try {
-              paymentMethod = await stripe.paymentMethods.attach(
-                paymentMethod.id,
-                { customer: user.stripe_customer_id }
-              );
-              customer = await stripe.customers.update(
-                user.stripe_customer_id,
-                {
+            if (!req.body.payment.paymentMethod) {
+              try {
+                paymentMethod = await stripe.paymentMethods.attach(
+                  paymentMethod.id,
+                  { customer: user.stripe_customer_id }
+                );
+                customer = await stripe.customers.update(
+                  user.stripe_customer_id,
+                  {
+                    invoice_settings: {
+                      default_payment_method: paymentMethod.id,
+                    },
+                    email: user.email,
+                    name: user.id,
+                  }
+                );
+                console.log("attached payment method to existing customer");
+              } catch (err) {
+                // 4. Create the stripe customer.
+                customer = await stripe.customers.create({
+                  description: "EZFol.io Pro User",
+                  email: user.email,
+                  name: user.id,
+                  payment_method: paymentMethod.id,
                   invoice_settings: {
                     default_payment_method: paymentMethod.id,
                   },
-                  email: user.email,
-                  name: user.id,
-                }
+                });
+                console.log("created customer");
+              }
+            } else {
+              customer = await stripe.customers.retrieve(
+                user.stripe_customer_id
               );
-              console.log("attached payment method to existing customer");
-            } catch (err) {
-              // 4. Create the stripe customer.
-              customer = await stripe.customers.create({
-                description: "EZFol.io Pro User",
-                email: user.email,
-                name: user.id,
-                payment_method: paymentMethod.id,
-                invoice_settings: {
-                  default_payment_method: paymentMethod.id,
-                },
-              });
-              console.log("created customer");
             }
           } else {
             // 4. Create the stripe customer.
@@ -1320,6 +1412,84 @@ const UserService = {
       .catch((err) => {
         res.send(err);
       });
+  },
+  getPaymentMethods: (req, res, next) => {
+    getPaymentMethodsByUserId(req.params.id)
+      .then((methods) => {
+        res.send(methods);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  getCharges: (req, res, next) => {
+    getChargesByUserId(req.params.id)
+      .then((methods) => {
+        res.send(methods);
+      })
+      .catch((err) => {
+        res.send(err);
+      });
+  },
+  updatePaymentMethod: async (req, res, next) => {
+    try {
+      await stripe.paymentMethods.detach(req.params.id);
+    } catch (err) {
+      // Possible that the stripe customer was deleted.
+    }
+
+    let paymentMethod;
+
+    try {
+      paymentMethod = await stripe.paymentMethods.create({
+        type: "card",
+        card: {
+          number: req.body.payment.number,
+          exp_month: req.body.payment.exp_month,
+          exp_year: req.body.payment.exp_year,
+          cvc: req.body.payment.cvc,
+        },
+        billing_details: {
+          address: {
+            city: req.body.personal.city,
+            country: req.body.personal.country,
+            line1: req.body.personal.line1,
+            line2: req.body.personal.line2,
+            postal_code: req.body.personal.postal_code,
+            state: req.body.personal.state,
+          },
+          email: req.body.personal.email,
+          name: req.body.personal.name,
+        },
+      });
+    } catch (err) {
+      console.log(err);
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error creating payment method.",
+      });
+    }
+
+    try {
+      customer = await stripe.customers.update(
+        req.body.personal.stripe_customer_id,
+        {
+          invoice_settings: {
+            default_payment_method: paymentMethod.id,
+          },
+          email: req.body.personal.email,
+          name: req.body.personal.username,
+        }
+      );
+      res.send(customer);
+    } catch (err) {
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error changing payment method.",
+      });
+    }
   },
   getUserById: getUserById,
   getPushSubscriptionByUserId: getPushSubscriptionByUserId,

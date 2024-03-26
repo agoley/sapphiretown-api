@@ -165,13 +165,56 @@ const UserController = {
     );
   },
   pushSubscription: (server) => {
-    server.get("/api/v4/users/:id/push-subscription", ...middleware, (req, res, next) => {
+    server.get(
+      "/api/v4/users/:id/push-subscription",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.getPushSubscription(req, res, next);
+        } catch (err) {
+          console.error("/api/v4/users/:id/push-subscription error: " + err);
+        }
+      }
+    );
+  },
+  paymentMethods: (server) => {
+    server.get(
+      "/api/v4/users/:id/payment-methods",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.getPaymentMethods(req, res, next);
+        } catch (err) {
+          console.error("/api/v4/users/:id/payment-methods error: " + err);
+        }
+      }
+    );
+  },
+
+  charges: (server) => {
+    server.get("/api/v4/users/:id/charges", ...middleware, (req, res, next) => {
       try {
-        _user.getPushSubscription(req, res, next);
+        _user.getCharges(req, res, next);
       } catch (err) {
-        console.error("/api/v4/users/:id/push-subscription error: " + err);
+        console.error("/api/v4/users/:id/charges error: " + err);
       }
     });
+  },
+
+  updatePaymentMethod: (server) => {
+    server.post(
+      "/api/v2/payment-methods/:id",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.updatePaymentMethod(req, res, next);
+        } catch (err) {
+          console.error(
+            "/api/v2/payment-methods/:id error: " + err
+          );
+        }
+      }
+    );
   },
 };
 

@@ -45,6 +45,9 @@ function IndexController(server, isEnterprise) {
   if (!isEnterprise) UserController.notificationsSubscribe(server);
   if (!isEnterprise) UserController.notificationsUnsubscribe(server);
   if (!isEnterprise) UserController.pushSubscription(server);
+  if (!isEnterprise) UserController.paymentMethods(server);
+  if (!isEnterprise) UserController.charges(server);
+  if (!isEnterprise) UserController.updatePaymentMethod(server);
 
   // portfolio endpoints
   PortfolioController.get(server);
@@ -63,6 +66,7 @@ function IndexController(server, isEnterprise) {
   PortfolioController.preview(server);
   PortfolioController.bulkAdd(server);
   PortfolioController.holding(server);
+  PortfolioController.removeTransaction(server);
 
   // crypto endpoints
   CryptoController.quote(server);
