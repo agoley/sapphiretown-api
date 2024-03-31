@@ -1431,44 +1431,68 @@ const UserService = {
         res.send(err);
       });
   },
-  updatePaymentMethod: async (req, res, next) => {
+  getUpcomingInvoice: async (req, res, next) => {
+    console.log(req.params);
     try {
-      await stripe.paymentMethods.detach(req.params.id);
+      let invoice = await stripe.subscriptions.retrieve(
+        "sub_1MowQVLkdIwHu7ixeRlqHVzs"
+      );
+      res.send(invoice);
     } catch (err) {
-      // Possible that the stripe customer was deleted.
+      res.send(err);
     }
-
+  },
+  updatePaymentMethod: async (req, res, next) => {
     let paymentMethod;
 
     try {
       paymentMethod = await stripe.paymentMethods.create({
         type: "card",
         card: {
-          number: req.body.payment.number,
-          exp_month: req.body.payment.exp_month,
-          exp_year: req.body.payment.exp_year,
-          cvc: req.body.payment.cvc,
+          number: req.body.card.number,
+          exp_month: req.body.card.exp_month,
+          exp_year: req.body.card.exp_year,
+          cvc: req.body.card.cvc,
         },
         billing_details: {
           address: {
-            city: req.body.personal.city,
-            country: req.body.personal.country,
-            line1: req.body.personal.line1,
-            line2: req.body.personal.line2,
-            postal_code: req.body.personal.postal_code,
-            state: req.body.personal.state,
+            city: req.body.billing.city,
+            country: req.body.billing.country,
+            line1: req.body.billing.line1,
+            line2: req.body.billing.line2,
+            postal_code: req.body.billing.postal_code,
+            state: req.body.billing.state,
           },
           email: req.body.personal.email,
           name: req.body.personal.name,
         },
       });
     } catch (err) {
-      console.log(err);
       res.send({
         color: "red",
         message:
           err?.raw?.message || "There was an error creating payment method.",
       });
+      return;
+    }
+
+    try {
+      await stripe.paymentMethods.attach(paymentMethod.id, {
+        customer: req.body.personal.stripe_customer_id,
+      });
+    } catch (err) {
+      res.send({
+        color: "red",
+        message:
+          err?.raw?.message || "There was an error attaching payment method.",
+      });
+      return;
+    }
+
+    try {
+      await stripe.paymentMethods.detach(req.params.id);
+    } catch (err) {
+      // Possible that the stripe customer was deleted.
     }
 
     try {
@@ -1489,6 +1513,7 @@ const UserService = {
         message:
           err?.raw?.message || "There was an error changing payment method.",
       });
+      return;
     }
   },
   getUserById: getUserById,

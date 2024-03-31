@@ -1421,13 +1421,14 @@ class Portfolio {
   //   return Promise.resolve(response);
   // }
 
-  async buildCompChart(comparisonChartArr, quotes, comp, charts) {
-    // Get the previous close to use as the original number for percentage calculations.
-    let original = quotes.quoteResponse.result.find(
-      (resp) => resp.symbol === comp
-    ).regularMarketPreviousClose;
-
+  async buildCompChart(comparisonChartArr, quotes, comp, charts, range) {
     let market = charts.find((res) => res.chart.result[0].meta.symbol === comp);
+
+    // Get the previous close to use as the original number for percentage calculations.
+    let original = (range = "1d"
+      ? quotes.quoteResponse.result.find((resp) => resp.symbol === comp)
+          .regularMarketPreviousClose
+      : market.chart.result[0].indicators.quote[0].close);
 
     let percentageTimeline =
       market.chart.result[0].indicators.quote[0].close.map((p, index) => {
@@ -1492,7 +1493,7 @@ class Portfolio {
       let comparisonChartArr = [];
 
       let compChartCalls = comparisons.map((comp) =>
-        this.buildCompChart(comparisonChartArr, quotes, comp, charts)
+        this.buildCompChart(comparisonChartArr, quotes, comp, charts, range)
       );
 
       await Promise.all(compChartCalls);

@@ -209,12 +209,20 @@ const UserController = {
         try {
           _user.updatePaymentMethod(req, res, next);
         } catch (err) {
-          console.error(
-            "/api/v2/payment-methods/:id error: " + err
-          );
+          console.error("/api/v2/payment-methods/:id error: " + err);
         }
       }
     );
+  },
+
+  getUpcomingInvoice: (server) => {
+    server.get("/api/v2/invoice/:id", ...middleware, (req, res, next) => {
+      try {
+        _user.getUpcomingInvoice(req, res, next);
+      } catch (err) {
+        console.error("/api/v2/invoice/:id error: " + err);
+      }
+    });
   },
 };
 
