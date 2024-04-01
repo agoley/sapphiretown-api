@@ -1100,7 +1100,15 @@ class Portfolio {
     });
   }
 
-  async adjustTimestamp(snapshot, ts, i, key, timestamps, timeSnapshotMap) {
+  async adjustTimestamp(
+    snapshot,
+    ts,
+    i,
+    key,
+    timestamps,
+    timeSnapshotMap,
+    interval
+  ) {
     if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
       // Snapshot doesn't include a value for the current symbol
 
@@ -1121,7 +1129,33 @@ class Portfolio {
           (bo) => bo.symbol === key
         ).candle;
 
-        if (candle.low > 0) {
+        let intervalMS = 100_000;
+
+        if (interval === "5m") {
+          intervalMS = intervalMS * 5;
+        }
+
+        if (interval === "15m") {
+          intervalMS = intervalMS * 5;
+        }
+
+        if (interval === "1d") {
+          intervalMS = intervalMS * 60 * 24;
+        }
+
+        if (interval === "1wk") {
+          intervalMS = intervalMS * 60 * 24 * 7;
+        }
+
+        if (interval === "1mo") {
+          intervalMS = intervalMS * 60 * 24 * 31;
+        }
+
+        if (
+          candle.low > 0 &&
+          candle.date > ts - intervalMS &&
+          candle.date < ts + intervalMS
+        ) {
           // This candle holds value
 
           // Use the most recent candle to update the current snapshot values
@@ -1245,7 +1279,15 @@ class Portfolio {
         let snapshot = timeSnapshotMap[ts];
 
         let adjustTimestampCalls = symbolsArr.map((s) =>
-          this.adjustTimestamp(snapshot, ts, i, s, timestamps, timeSnapshotMap)
+          this.adjustTimestamp(
+            snapshot,
+            ts,
+            i,
+            s,
+            timestamps,
+            timeSnapshotMap,
+            interval
+          )
         );
 
         await Promise.allSettled(adjustTimestampCalls);
@@ -1425,10 +1467,7 @@ class Portfolio {
     let market = charts.find((res) => res.chart.result[0].meta.symbol === comp);
 
     // Get the previous close to use as the original number for percentage calculations.
-    let original = (range = "1d"
-      ? quotes.quoteResponse.result.find((resp) => resp.symbol === comp)
-          .regularMarketPreviousClose
-      : market.chart.result[0].indicators.quote[0].close);
+    let original = market.chart.result[0].meta.chartPreviousClose;
 
     let percentageTimeline =
       market.chart.result[0].indicators.quote[0].close.map((p, index) => {
@@ -1502,14 +1541,14 @@ class Portfolio {
         range,
         interval,
         false,
-        benchmark
+        true
       );
 
       if (!portfolioChart || !portfolioChart.length) {
         return Promise.resolve([]);
       }
 
-      let original = portfolioChart[0].open;
+      let original = portfolioChart[0].close;
 
       let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
         let curr = ((p.close - original) / p.close) * 100;
