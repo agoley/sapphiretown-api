@@ -1129,6 +1129,8 @@ class Portfolio {
           (bo) => bo.symbol === key
         ).candle;
 
+        // Calculate the length of time used to determine if a candle is within a reasonable amount of time to adjust into a timestamp.
+
         let intervalMS = 100_000;
 
         if (interval === "5m") {
@@ -1136,11 +1138,11 @@ class Portfolio {
         }
 
         if (interval === "15m") {
-          intervalMS = intervalMS * 5;
+          intervalMS = intervalMS * 60 * 24 * 3;
         }
 
         if (interval === "1d") {
-          intervalMS = intervalMS * 60 * 24;
+          intervalMS = intervalMS * 60 * 24 * 3;
         }
 
         if (interval === "1wk") {
