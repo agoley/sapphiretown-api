@@ -15,9 +15,9 @@ const ASSET_CLASSES = {
 
 const CRYPTO_POSTFIX = "-USD";
 
-const actionCache = new Cache(120000);
-const comparisonCache = new Cache(60000);
-const summaryCache = new Cache(60000);
+const actionCache = new Cache(9000);
+const summaryCache = new Cache(9000);
+const comparisonCache = new Cache(9000);
 
 AWS.config.update({
   region: "us-east-1",
@@ -290,11 +290,13 @@ class Portfolio {
         // Get the holding for this symbol.
         const h = await this.getHolding(transaction.symbol, transaction.class);
 
-        // Get sale proceeds - (cost basis * quantity sold).
-        const g =
-          +transaction.price * +transaction.quantity -
-          +h.costBasis * +transaction.quantity;
-        gain += g;
+        if (h) {
+          // Get sale proceeds - (cost basis * quantity sold).
+          const g =
+            +transaction.price * +transaction.quantity -
+            +h.costBasis * +transaction.quantity;
+          gain += g;
+        }
       }
     }
 
@@ -303,8 +305,8 @@ class Portfolio {
 
   async calcSummary() {
     try {
-      if (summaryCache.get("summary")) {
-        return Promise.resolve(summaryCache.get("summary"));
+      if (summaryCache.get(`summary-${this.id}`)) {
+        return Promise.resolve(summaryCache.get(`summary-${this.id}`));
       }
 
       const blank = {
@@ -348,7 +350,7 @@ class Portfolio {
         : "Unnamed Portfolio";
 
       if (!this.holdings.length) {
-        summaryCache.save(`summary`, blank);
+        summaryCache.save(`summary-${this.id}`, blank);
         return Promise.resolve(blank);
       }
 
@@ -404,7 +406,7 @@ class Portfolio {
                 realizedGainOrLoss: realizedGainOrLoss,
               };
 
-              summaryCache.save(`summary`, summary);
+              summaryCache.save(`summary-${this.id}`, summary);
 
               resolve(summary);
             })
@@ -416,7 +418,7 @@ class Portfolio {
             ? this.portfolio_name
             : "Unnamed Portfolio";
 
-          summaryCache.save(`summary`, blank);
+          summaryCache.save(`summary-${this.id}`, blank);
 
           resolve(blank);
         }
@@ -464,6 +466,9 @@ class Portfolio {
         let pointerIndex = index;
         while (diff > 0 && pointerIndex >= 0) {
           let y = this.transactions[--pointerIndex];
+          if (!y) {
+            break;
+          }
           if (
             y.type === "PURCHASE" &&
             y.symbol === t.symbol &&
@@ -494,7 +499,8 @@ class Portfolio {
       while (diff > 0 && pointerIndex >= 0) {
         let y = this.transactions[--pointerIndex];
         if (
-          y.type === "PURCHASE" &&
+          y &&
+          (!y.type || y.type === "PURCHASE") &&
           y.symbol === t.symbol &&
           parseFloat(y.owned) < parseFloat(y.quantity)
         ) {
@@ -541,33 +547,45 @@ class Portfolio {
         .reduce((a, b) => +a + +b, 0) /
       sharesForSymbol.map((t) => t.quantity).reduce((a, b) => +a + +b, 0);
 
-    let holding = {
+    let h = this.holdings.find((y) => y.symbol === symbol);
+
+    if (!h) {
+      return;
+    }
+
+    let summary = {
       symbol: symbol,
       quantity: sharesForSymbol.map((t) => +t.owned).reduce((a, b) => a + b, 0),
       costBasis: cb,
       class: type,
     };
 
-    let market = await StockService.getQuote([symbol]);
+    let typedSymbol =
+      h.class === "crypto"
+        ? summary.symbol.includes("-USD")
+          ? summary.symbol
+          : summary.symbol + CRYPTO_POSTFIX
+        : summary.symbol;
+
+    let market = await StockService.getQuote([typedSymbol]);
 
     if (!market || !market.quoteResponse || !market.quoteResponse.result[0]) {
-      holding.gainOrLoss = undefined;
-      return holding;
+      summary.gainOrLoss = undefined;
+      return summary;
     }
 
     let quote = market.quoteResponse.result[0];
-
     let gOrL =
-      (quote.regularMarketPrice - holding.costBasis) * holding.quantity;
-    holding.gainOrLoss = {
+      (quote.regularMarketPrice - summary.costBasis) * summary.quantity;
+    summary.gainOrLoss = {
       raw: gOrL,
       percent:
-        ((quote.regularMarketPrice - holding.costBasis) /
-          Math.abs(holding.costBasis)) *
+        ((quote.regularMarketPrice - summary.costBasis) /
+          Math.abs(summary.costBasis)) *
         100,
     };
 
-    return holding;
+    return summary;
   }
 
   /**

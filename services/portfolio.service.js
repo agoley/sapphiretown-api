@@ -375,6 +375,12 @@ const previewTransactionsFromCSV = (req, form) => {
             } else {
               resolve({ transactions: transactions, errors: [] });
             }
+          })
+          .on("error", (error) => {
+            reject({
+              data: { error },
+              errors: [{ message: "Unable to parse transactions from file" }],
+            });
           });
       } catch {
         reject({
@@ -1545,17 +1551,19 @@ const PortfolioService = {
               portfolios[0].portfolio_name
             );
             portfolio.removeTransaction(req.body.transaction).then(() => {
-              PortfolioService.save(portfolio).then(response => {
-                res.send(portfolio);
-                return next();
-              }).catch(err => {
-                res.send({
-                  error: {
-                    message: err,
-                  },
+              PortfolioService.save(portfolio)
+                .then((response) => {
+                  res.send(portfolio);
+                  return next();
+                })
+                .catch((err) => {
+                  res.send({
+                    error: {
+                      message: err,
+                    },
+                  });
+                  return next();
                 });
-                return next();
-              })
             });
           } else {
             res.send({

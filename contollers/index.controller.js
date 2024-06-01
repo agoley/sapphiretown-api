@@ -34,7 +34,9 @@ function IndexController(server, isEnterprise) {
   UserController.create(server);
   UserController.createV3(server);
   UserController.auth(server);
+  UserController.authenticate(server);
   if (!isEnterprise) UserController.forgot(server);
+  if (!isEnterprise) UserController.magicLink(server);
   if (!isEnterprise) UserController.reset(server);
   UserController.update(server);
   UserController.update_watchlist(server);

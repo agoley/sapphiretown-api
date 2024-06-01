@@ -223,8 +223,6 @@ const IntegrationsService = {
       "CB-VERSION": new Date().toISOString().split("T")[0],
     });
 
-    console.log()
-
     uni.send().then((response) => {
       if (response.statusCode === 200) {
       } else {
@@ -264,7 +262,7 @@ const IntegrationsService = {
       "22697c5cf63e5e9cfb55ae705a5eed8376dd13a5ca43ef36355a1c70af2c557a";
     const clientSecret =
       "c59a5c3721122dc6d187527826ead8785d5e20df2f26c8e618f6fedd4fbbc8ac";
-    const redirectUri = "https://mylocal.com/oauth/coinbase";
+    const redirectUri = "https://mylocal.com:9000/oauth/coinbase";
 
     var uni = unirest("POST", "https://api.coinbase.com/oauth/token");
 
@@ -287,8 +285,6 @@ const IntegrationsService = {
   },
 
   coinbaseResource: (req, res, next, count) => {
-
-    console.log("https://api.coinbase.com" + req.body.resourcePath)
     var uni = unirest(
       "GET",
       "https://api.coinbase.com" + req.body.resourcePath
@@ -301,11 +297,8 @@ const IntegrationsService = {
 
     uni.send().then((response) => {
       if (response.statusCode === 200) {
-        console.log(response.body);
         res.send(response.body);
       } else {
-        console.log(response.statusCode);
-        console.log(response.body);
         res.send(response);
       }
       return next();

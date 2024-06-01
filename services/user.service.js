@@ -406,7 +406,7 @@ const UserService = {
                 to: user.email,
                 subject: "Reset your password",
                 html:
-                  "<p>We recieved a request to reset your password. Use the link below to complete the process." +
+                  "<p>We received a request to reset your password. Use the link below to complete the process." +
                   " This link will expire in 24 hours.</p>" +
                   "<a href='https://www.ezfol.io/reset?token=" +
                   reset.token +
@@ -434,6 +434,109 @@ const UserService = {
           res.send({
             color: "red",
             message: "Unable to find account with username or email.",
+          });
+        }
+      }
+    };
+    docClient.scan(params, onScan);
+  },
+
+  magicLink: (req, res, next) => {
+    var params = {
+      TableName: "User",
+      FilterExpression: "(email = :email)",
+      ExpressionAttributeValues: {
+        ":email": req.body.email,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        res.send({
+          color: "red",
+          message: "There was an error getting a magic link.",
+        });
+      } else {
+        if (data["Items"].length > 0) {
+          var user = data["Items"][0];
+
+          const magicLink = {
+            token: uuidv1(),
+            user_id: user.id,
+            expdate: Math.floor(new Date().getTime()) + 86400,
+          };
+
+          var createParams = {
+            TableName: "MagicLink",
+            Item: {
+              token: { S: magicLink.token },
+              user_id: { S: magicLink.user_id },
+              expdate: { N: magicLink.expdate.toString() },
+            },
+          };
+
+          // Call DynamoDB to add the item to the table
+          ddb.putItem(createParams, (err, data) => {
+            if (err) {
+              console.log("Error", err);
+              res.send({});
+            } else {
+              if (req.body.passwordReset) {
+                var mailOptions = {
+                  from: "ezfolio.contact@gmail.com",
+                  to: user.email,
+                  subject: "Your EZFol.io Magic Link",
+                  html:
+                    "<p>We received a request for a magic link. Use the link below to reset your password." +
+                    " This link will expire in 24 hours. Make sure to open it in the same browser you're logged in with.</p>" +
+                    "<a href='https://ezfol.io/profile/security?magicLink=" +
+                    magicLink.token +
+                    "'>Magic Link for " +
+                    user.email +
+                    "</a>" +
+                    "<p>Thank you for being a valued user of EZFol.io.</p>" +
+                    "<p>Sincerely,</p>" +
+                    "<p> - Alex (Founder)",
+                };
+              } else {
+                var mailOptions = {
+                  from: "ezfolio.contact@gmail.com",
+                  to: user.email,
+                  subject: "Your EZFol.io Magic Link",
+                  html:
+                    "<p>We received a request for a magic link. Use the link below to skip the login." +
+                    " This link will expire in 24 hours.</p>" +
+                    "<a href='https://ezfol.io/?magicLink=" +
+                    magicLink.token +
+                    "'>Magic Link for " +
+                    user.email +
+                    "</a>" +
+                    "<p>Thank you for being a valued user of EZFol.io.</p>" +
+                    "<p>Sincerely,</p>" +
+                    "<p> - Alex (Founder)",
+                };
+              }
+
+              transporter.sendMail(mailOptions, function (error, info) {
+                if (error) {
+                  console.log(error);
+                  return next();
+                } else {
+                  res.send({});
+                }
+              });
+
+              res.send({});
+            }
+          });
+        } else {
+          res.send({
+            color: "red",
+            message: "Unable to find account with email.",
           });
         }
       }
@@ -550,6 +653,130 @@ const UserService = {
       }
     };
     docClient.scan(params, onScan);
+  },
+  authenticate: (req, res, next) => {
+    if (req.body.email) {
+      var params = {
+        TableName: "User",
+        FilterExpression: "(email = :email)",
+        ExpressionAttributeValues: {
+          ":email": req.body.email,
+        },
+      };
+
+      const onScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send({
+            color: "red",
+            message: "There was an error signing in.",
+          });
+        } else {
+          if (data["Items"].length > 0) {
+            var user = data["Items"][0];
+
+            // A user was found with the provided email
+
+            bcrypt.compare(
+              req.body.password,
+              user.password,
+              (err, doesMatch) => {
+                if (doesMatch) {
+                  //log him in
+                  delete user.password;
+                  res.json(user);
+                } else {
+                  //go away
+                  res.send({
+                    color: "red",
+                    message: "Incorrect Password.",
+                  });
+                }
+              }
+            );
+          } else {
+            res.send({
+              color: "red",
+              message: "Unable to find account with username or email.",
+            });
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    } else if (req.body.magicLink) {
+      params = {
+        TableName: "MagicLink",
+        FilterExpression: "(#token = :token)",
+        ExpressionAttributeNames: { "#token": "token" },
+        ExpressionAttributeValues: {
+          ":token": req.body.magicLink,
+        },
+      };
+
+      const onScan = (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+        } else {
+          if (
+            data["Items"].length > 0 &&
+            data["Items"][0].expdate > new Date().getTime()
+          ) {
+            const magicLink = data["Items"][0];
+
+            var userLookupParams = {
+              TableName: "User",
+              FilterExpression: "(id = :user_id)",
+              ExpressionAttributeValues: {
+                ":user_id": magicLink.user_id,
+              },
+            };
+
+            const onUserLookupScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+                res.send({
+                  color: "#f51068",
+                  message: "There was en error signing.",
+                });
+              } else {
+                if (data["Items"].length > 0) {
+                  var user = data["Items"][0];
+                  delete user.password;
+                  res.send(user);
+                } else {
+                  res.send({
+                    color: "#f51068",
+                    message: "Unable to find account.",
+                  });
+                }
+              }
+            };
+            docClient.scan(userLookupParams, onUserLookupScan);
+          } else {
+            res.send({
+              color: "#f51068",
+              message:
+                "Invalid token: Token may have expired. Try requesting a link again.",
+            });
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    } else {
+      res.send({
+        color: "#f51068",
+        message: "Failed to authenticate.",
+      });
+    }
   },
   /**
    * @swagger
@@ -881,9 +1108,9 @@ const UserService = {
   update_password: (req, res, next) => {
     var params = {
       TableName: "User",
-      FilterExpression: "(username = :username or email = :username)",
+      FilterExpression: "(email = :email)",
       ExpressionAttributeValues: {
-        ":username": req.body.identifier,
+        ":email": req.body.email,
       },
     };
 
@@ -901,43 +1128,112 @@ const UserService = {
         if (data["Items"].length > 0) {
           var user = data["Items"][0];
 
-          bcrypt.compare(req.body.password, user.password, (err, doesMatch) => {
-            if (doesMatch) {
-              var params = {
-                TableName: "User",
-                Key: {
-                  id: req.params.id,
-                },
-                UpdateExpression: "set password = :password",
-                ExpressionAttributeValues: {
-                  ":password": bcrypt.hashSync(req.body.newPassword, 10),
-                },
-                ReturnValues: "UPDATED_NEW",
-              };
+          if (req.body.password) {
+            bcrypt.compare(
+              req.body.password,
+              user.password,
+              (err, doesMatch) => {
+                if (doesMatch) {
+                  var params = {
+                    TableName: "User",
+                    Key: {
+                      id: req.params.id,
+                    },
+                    UpdateExpression: "set password = :password",
+                    ExpressionAttributeValues: {
+                      ":password": bcrypt.hashSync(req.body.newPassword, 10),
+                    },
+                    ReturnValues: "UPDATED_NEW",
+                  };
 
-              docClient.update(params, function (err, data) {
-                if (err) {
-                  console.error(
-                    "Unable to update item. Error JSON:",
-                    JSON.stringify(err, null, 2)
-                  );
-                  res.send(err);
+                  docClient.update(params, function (err, data) {
+                    if (err) {
+                      console.error(
+                        "Unable to update item. Error JSON:",
+                        JSON.stringify(err, null, 2)
+                      );
+                      res.send(err);
+                    } else {
+                      console.log(
+                        "UpdateItem succeeded:",
+                        JSON.stringify(data, null, 2)
+                      );
+                      res.send(data);
+                    }
+                  });
                 } else {
-                  console.log(
-                    "UpdateItem succeeded:",
-                    JSON.stringify(data, null, 2)
-                  );
-                  res.send(data);
+                  //go away
+                  res.send({
+                    color: "red",
+                    message: "Incorrect Password.",
+                  });
                 }
-              });
-            } else {
-              //go away
-              res.send({
-                color: "red",
-                message: "Incorrect Password.",
-              });
-            }
-          });
+              }
+            );
+          } else if (req.body.magicLink) {
+            let params = {
+              TableName: "MagicLink",
+              FilterExpression: "(#token = :token)",
+              ExpressionAttributeNames: { "#token": "token" },
+              ExpressionAttributeValues: {
+                ":token": req.body.magicLink,
+              },
+            };
+
+            const onScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+              } else {
+                if (
+                  data["Items"].length > 0 &&
+                  data["Items"][0].expdate > new Date().getTime()
+                ) {
+                  let params = {
+                    TableName: "User",
+                    Key: {
+                      id: req.params.id,
+                    },
+                    UpdateExpression: "set password = :password",
+                    ExpressionAttributeValues: {
+                      ":password": bcrypt.hashSync(req.body.newPassword, 10),
+                    },
+                    ReturnValues: "UPDATED_NEW",
+                  };
+
+                  docClient.update(params, function (err, data) {
+                    if (err) {
+                      console.error(
+                        "Unable to update item. Error JSON:",
+                        JSON.stringify(err, null, 2)
+                      );
+                      res.send(err);
+                    } else {
+                      console.log(
+                        "UpdateItem succeeded:",
+                        JSON.stringify(data, null, 2)
+                      );
+                      res.send(data);
+                    }
+                  });
+                } else {
+                  res.send({
+                    color: "#f51068",
+                    message:
+                      "Invalid token: Token may have expired. Try requesting a link again.",
+                  });
+                }
+              }
+            };
+            docClient.scan(params, onScan);
+          } else {
+            res.send({
+              color: "red",
+              message: "Invalid options.",
+            });
+          }
         } else {
           res.send({
             color: "red",

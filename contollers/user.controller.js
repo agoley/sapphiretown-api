@@ -36,6 +36,19 @@ const UserController = {
       }
     });
   },
+  authenticate: (server) => {
+    server.post(
+      "/api/v2/users/authenticate",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.authenticate(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/authenticate error: " + err);
+        }
+      }
+    );
+  },
   create: (server) => {
     server.post("/api/v1/users", ...middleware, (req, res, next) => {
       try {
@@ -60,6 +73,15 @@ const UserController = {
         _user.forgot(req, res, next);
       } catch (err) {
         console.error("/api/v1/forgot error: " + err);
+      }
+    });
+  },
+  magicLink: (server) => {
+    server.post("/api/v1/magicLink", ...middleware, (req, res, next) => {
+      try {
+        _user.magicLink(req, res, next);
+      } catch (err) {
+        console.error("/api/v1/magicLink error: " + err);
       }
     });
   },
