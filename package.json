@@ -1,10 +1,10 @@
 {
   "name": "sapphiretown-api",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "",
   "main": "index.js",
   "engines": {
-    "npm": "8.x",
+    "npm": "8.11.0",
     "node": "17.9.1"
   },
   "scripts": {
