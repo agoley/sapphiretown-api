@@ -48,10 +48,8 @@ const enterpriseCors = corsMiddleware({
 });
 
 // APPLY CORS
-restify.CORS.ALLOW_HEADERS.push('authorization');
-server.pre(restify.CORS());
-server.use(restify.fullResponse());
-
+server.pre(cors.preflight);
+server.use(cors.actual);
 // server.use(restify.plugins.queryParser());
 // server.use(
 //   restify.plugins.bodyParser({
