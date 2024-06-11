@@ -62,8 +62,17 @@ const getUserById = (id) => {
           delete user.stripe_payment_method_id;
           delete user.stripe_subscription_id;
 
-          user.watchlist = JSON.parse(user.watchlist);
-          user.preferences = JSON.parse(user.preferences);
+          try {
+            user.watchlist = JSON.parse(user.watchlist);
+          } catch (err) {
+            user.watchlist = null;
+          }
+
+          try {
+            user.preferences = JSON.parse(user.preferences);
+          } catch (err) {
+            user.preferences = null;
+          }
 
           resolve(user);
         } else {

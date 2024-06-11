@@ -75,6 +75,7 @@ const notifications = async () => {
         let user = await UserService.getUserById(subscription.user_id);
 
         if (
+          user.preferences &&
           user.preferences.notifications &&
           user.preferences.notifications.largeChange
         ) {
@@ -126,6 +127,7 @@ const notifications = async () => {
         }
 
         if (
+          user.preferences &&
           user.preferences.notifications &&
           user.preferences.notifications.dividends
         ) {
@@ -171,6 +173,7 @@ const notifications = async () => {
         }
 
         if (
+          user.preferences &&
           user.preferences.notifications &&
           user.preferences.notifications.earnings
         ) {
