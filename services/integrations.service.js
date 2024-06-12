@@ -262,7 +262,7 @@ const IntegrationsService = {
       "22697c5cf63e5e9cfb55ae705a5eed8376dd13a5ca43ef36355a1c70af2c557a";
     const clientSecret =
       "c59a5c3721122dc6d187527826ead8785d5e20df2f26c8e618f6fedd4fbbc8ac";
-    const redirectUri = "https://mylocal.com:9000/oauth/coinbase";
+    const redirectUri = "https://ezfol.io/oauth/coinbase";
 
     var uni = unirest("POST", "https://api.coinbase.com/oauth/token");
 
