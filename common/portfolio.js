@@ -1587,7 +1587,7 @@ class Portfolio {
         range,
         interval,
         false,
-        true
+        benchmark
       );
 
       if (!portfolioChart || !portfolioChart.length) {
