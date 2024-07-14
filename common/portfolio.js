@@ -1328,9 +1328,8 @@ class Portfolio {
           (bo) => bo.candle && bo.candle.open
         ).length;
 
-
         // Flag for if the snapshot is valid
-        let valid = true; 
+        let valid = true;
         if (!benchmarkFlag) {
           // The snapshot is valid if it contains all holdings for the given time.
           this.holdingsAtTime(ts, false)
@@ -1352,7 +1351,6 @@ class Portfolio {
             timeSnapshotMap[ts].breakout.length ===
             this.holdings.length - errors.length;
         }
-
 
         if (valid) {
           // This snapshot represents all holdings in the portfolio
@@ -1597,7 +1595,24 @@ class Portfolio {
       let original = portfolioChart[0].close;
 
       let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
-        let curr = ((p.close - original) / p.close) * 100;
+
+        // Remove cash from the g/l
+        let relevantTransactions = this.transactions.filter(
+          (t) => t.date <= p.date && t.date >= portfolioChart[0].date
+        );
+
+        let cashAdjustment = relevantTransactions
+          .map((t) =>
+            t.type !== "PURCHASE"
+              ? -1 * +t.price * t.quantity
+              : +t.price * t.quantity
+          )
+          .reduce((prev, curr) => 
+            prev + curr
+          , 0) || 0;
+
+
+        let curr = ((p.close - cashAdjustment - original) / p.close ) * 100;
 
         if (curr === Infinity || curr === -Infinity) {
           const last = portfolioChart[index - 1];
