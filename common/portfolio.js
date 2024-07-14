@@ -75,6 +75,7 @@ const getValueAtTime = (
   }
 
   const closestHoldingBeforeOrAtTime = holdingActivityWithinRange
+    .sort((a, b) => a.time - b.time)
     .reverse()
     .find(
       (activity) => activity.time <= response.chart.result[0].timestamp[index]
@@ -959,11 +960,11 @@ class Portfolio {
 
         if (holdingTimeMachineArr.length === 0) {
           // The first transaction for this holding occurs after the start of this chart
-          // Record 0 as the quantity at the start.
+          // Record its quantity at the start
 
           holdingTimeMachineArr.push({
             time: firstTimestamp,
-            quantity: 0,
+            quantity: quantity,
           });
         }
       }
@@ -1127,18 +1128,22 @@ class Portfolio {
     timeSnapshotMap,
     interval
   ) {
-    if (!snapshot.breakout.map((bo) => bo.symbol).includes(key)) {
+    if (
+      this.holdingsAtTime(ts).find((h) => h.symbol === key) &&
+      (!snapshot.breakout.map((bo) => bo.symbol).includes(key) ||
+        snapshot.breakout.find(bo.symbol === key).candle.high == 0)
+    ) {
       // Snapshot doesn't include a value for the current symbol
 
       // Timestamps before the current one, reversed
-      let timestampsToSearch = timestamps
-        .slice(0, i - 2)
-        .reverse()
-        .slice(0, 1);
+      let timestampsToSearch = timestamps.slice(0, i - 2).reverse();
 
       // The most recent snapshot that includes this symbol
-      let recent = timestampsToSearch.find((t) =>
-        timeSnapshotMap[t].breakout.map((bo) => bo.symbol).includes(key)
+      let recent = timestampsToSearch.find(
+        (t) =>
+          timeSnapshotMap[t].breakout.map((bo) => bo.symbol).includes(key) &&
+          timeSnapshotMap[t].breakout.find((bo) => bo.symbol === key).candle
+            .high > 0
       );
 
       if (recent) {
@@ -1323,12 +1328,33 @@ class Portfolio {
           (bo) => bo.candle && bo.candle.open
         ).length;
 
-        if (
-          count ===
-          (benchmarkFlag
-            ? this.holdings.length - errors.length
-            : this.holdingsAtTime(ts, false).length - errors.length)
-        ) {
+
+        // Flag for if the snapshot is valid
+        let valid = true; 
+        if (!benchmarkFlag) {
+          // The snapshot is valid if it contains all holdings for the given time.
+          this.holdingsAtTime(ts, false)
+            .map((h) => h.symbol)
+            .forEach((s) => {
+              if (
+                !timeSnapshotMap[ts].breakout
+                  .map((bo) => bo.symbol)
+                  .includes(s) ||
+                timeSnapshotMap[ts].breakout.find((bo) => bo.symbol === s)
+                  .candle.high === 0
+              ) {
+                valid = false;
+              }
+            });
+        } else {
+          // The snapshot contains all holdings minus any errors
+          valid =
+            timeSnapshotMap[ts].breakout.length ===
+            this.holdings.length - errors.length;
+        }
+
+
+        if (valid) {
           // This snapshot represents all holdings in the portfolio
 
           // Add the snapshot to the array
