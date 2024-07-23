@@ -849,6 +849,27 @@ const UserService = {
             created: new Date().toString(),
           };
 
+          var mailOptions = {
+            from: "ezfolio.contact@gmail.com",
+            to: "alex@ezfol.io",
+            subject: "New User",
+            html: `<div>
+                     <h2>New user</h2>
+                     <p>${usr.id}</p>
+                     <p>${usr.email}</p>
+                     <p>${usr.created}</p>
+                  </div>`,
+          };
+
+          transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+              console.log(error);
+              return next();
+            } else {
+              res.send({});
+            }
+          });
+
           var createParams = {
             TableName: "User",
             Item: {
@@ -900,6 +921,27 @@ const UserService = {
           });
         } else {
           // There is no conflict.
+
+          var mailOptions = {
+            from: "ezfolio.contact@gmail.com",
+            to: "alex@ezfol.io",
+            subject: "New User",
+            html: `<div>
+                     <h2>New user</h2>
+                     <p>${usr.id}</p>
+                     <p>${usr.email}</p>
+                     <p>${usr.created}</p>
+                  </div>`,
+          };
+
+          transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+              console.log(error);
+              return next();
+            } else {
+              res.send({});
+            }
+          });
 
           if (req.body.password) {
             const usr = {

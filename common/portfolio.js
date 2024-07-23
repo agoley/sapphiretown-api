@@ -599,6 +599,7 @@ class Portfolio {
 
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
 
+
     let holdings = uniqueAssets
       .map((ua) => {
         return {

@@ -1775,6 +1775,7 @@ const PortfolioService = {
             portfolios[0].transactions,
             portfolios[0].portfolio_name
           );
+
           portfolio.summary.then((summary) => {
             res.send(summary);
             return next();
