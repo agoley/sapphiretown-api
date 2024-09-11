@@ -49,9 +49,12 @@ function IndexController(server, isEnterprise) {
   if (!isEnterprise) UserController.pushSubscription(server);
   if (!isEnterprise) UserController.paymentMethods(server);
   if (!isEnterprise) UserController.charges(server);
-  if (!isEnterprise) UserController.updatePaymentMethod(server); 
+  if (!isEnterprise) UserController.updatePaymentMethod(server);
   if (!isEnterprise) UserController.getUpcomingInvoice(server);
-  
+  if (!isEnterprise) UserController.inviteClients(server);
+  if (!isEnterprise) UserController.getClients(server);
+  if (!isEnterprise) UserController.removeClient(server);
+
   // portfolio endpoints
   PortfolioController.get(server);
   PortfolioController.getById(server);

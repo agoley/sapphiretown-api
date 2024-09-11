@@ -113,8 +113,8 @@ var transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   auth: {
-    user: "help@ezfol.io",
-    pass: process.env.MAIL_PASS,
+    user: "alex@ezfol.io",
+    pass: process.env.MAIL_APP_PASS,
   },
 });
 
@@ -151,8 +151,8 @@ wss.on("connection", async (ws, req) => {
         reducer.handle(data, ws);
 
         var mailOptions = {
-          from: "hello@ezfol.io",
-          to: "hello@ezfol.io",
+          from: "alex@ezfol.io",
+          to: "alex@ezfol.io",
           subject: `${data.user.username} (${data.user.email}) spotted 👀`,
           html: `${data.user.username} (${data.user.email}) just visited`,
         };

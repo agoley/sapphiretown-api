@@ -246,6 +246,34 @@ const UserController = {
       }
     });
   },
+
+  inviteClients: (server) => {
+    server.post("/api/v4/:id/clients", ...middleware, (req, res, next) => {
+      try {
+        _user.inviteClients(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/:id/clients error: " + err);
+      }
+    });
+  },
+  getClients: (server) => {
+    server.get("/api/v4/:id/clients", ...middleware, (req, res, next) => {
+      try {
+        _user.getClients(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/:id/clients error: " + err);
+      }
+    });
+  },
+  removeClient: (server) => {
+    server.del("/api/v4/:id/clients/:client_id", ...middleware, (req, res, next) => {
+      try {
+        _user.removeClient(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/:id/clients/:id error: " + err);
+      }
+    });
+  },
 };
 
 module.exports = UserController;

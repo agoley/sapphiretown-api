@@ -4,16 +4,16 @@ var transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   auth: {
-    user: "help@ezfol.io",
-    pass: process.env.MAIL_PASS,
+    user: "alex@ezfol.io",
+    pass: process.env.MAIL_APP_PASS,
   },
 });
 
 const MailService = {
   mail: (req, res, next, count) => {
     var mailOptions = {
-      from: "hello@ezfol.io",
-      to: process.env.MAIL_TO,
+      from: "alex@ezfol.io",
+      to: process.env.MAIL_APP_TO,
       subject: req.body.subject,
       text: req.body.text,
     };

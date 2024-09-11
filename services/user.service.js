@@ -12,8 +12,8 @@ var transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   auth: {
-    user: "help@ezfol.io",
-    pass: process.env.MAIL_PASS,
+    user: "alex@ezfol.io",
+    pass: process.env.MAIL_APP_PASS,
   },
 });
 
@@ -411,7 +411,7 @@ const UserService = {
               res.send({});
             } else {
               var mailOptions = {
-                from: "ezfolio.contact@gmail.com",
+                from: "alex@ezfol.io",
                 to: user.email,
                 subject: "Reset your password",
                 html:
@@ -694,9 +694,131 @@ const UserService = {
               user.password,
               (err, doesMatch) => {
                 if (doesMatch) {
-                  //log him in
-                  delete user.password;
-                  res.json(user);
+                  if (req.body.invitation) {
+                    // Create the client account and log in
+
+                    // Lookup the invitation
+
+                    var params = {
+                      TableName: "Invitation",
+                      FilterExpression: "(id = :id)",
+                      ExpressionAttributeValues: {
+                        ":id": req.body.invitation,
+                      },
+                    };
+
+                    const onInvitationScan = (err, data) => {
+                      if (err) {
+                        console.error(
+                          "Unable to scan the table. Error JSON:",
+                          JSON.stringify(err, null, 2)
+                        );
+                      } else {
+                        if (data["Items"].length > 0) {
+                          const invitation = data["Items"][0];
+
+                          // This user was invited, set their plan to Pro
+
+                          var params = {
+                            TableName: "User",
+                            Key: {
+                              id: user.id,
+                            },
+                            UpdateExpression: "set plan_name=:plan_name",
+                            ExpressionAttributeValues: {
+                              ":plan_name": "PRO",
+                            },
+                            ReturnValues: "ALL_NEW",
+                          };
+
+                          docClient.update(params, (err, data) => {
+                            if (err) {
+                              console.error(
+                                "Unable to update item. Error JSON:",
+                                JSON.stringify(err, null, 2)
+                              );
+                              reject({ error: err });
+                            } else {
+                              // User was updated, now create the client account
+
+                              var params = {
+                                TableName: "User",
+                                FilterExpression: "(id = :id)",
+                                ExpressionAttributeValues: {
+                                  ":id": invitation.advisor_id,
+                                },
+                              };
+
+                              const onUserScan = (err, data) => {
+                                if (err) {
+                                  console.error(
+                                    "Unable to scan the table. Error JSON:",
+                                    JSON.stringify(err, null, 2)
+                                  );
+                                } else {
+                                  if (data["Items"].length > 0) {
+                                    var advisor = data["Items"][0];
+
+                                    var createParams = {
+                                      TableName: "Client",
+                                      Item: {
+                                        id: { S: uuidv1() },
+                                        user_id: { S: advisor.id },
+                                        client_id: { S: user.id },
+                                      },
+                                    };
+
+                                    // Add the client record
+                                    ddb.putItem(createParams, (err, data) => {
+                                      if (err) {
+                                        console.log(
+                                          "putItem failed:",
+                                          JSON.stringify(err, null, 2)
+                                        );
+                                      } else {
+                                        // Delete the invitation so it can't be used again
+
+                                        var params = {
+                                          Key: {
+                                            id: {
+                                              S: invitation.id,
+                                            },
+                                          },
+                                          TableName: "Invitation",
+                                        };
+
+                                        ddb.deleteItem(params, (err, data) => {
+                                          if (err) {
+                                            console.log("Error", err);
+                                          } else {
+                                            // log them in
+                                            delete user.password;
+                                            res.json(user);
+                                          }
+                                        });
+                                      }
+                                    });
+                                  }
+                                }
+                              };
+
+                              docClient.scan(params, onUserScan);
+                            }
+                          });
+                        } else {
+                          // log them in
+                          delete user.password;
+                          res.json(user);
+                        }
+                      }
+                    };
+
+                    docClient.scan(params, onInvitationScan);
+                  } else {
+                    // log them in
+                    delete user.password;
+                    res.json(user);
+                  }
                 } else {
                   //go away
                   res.send({
@@ -848,6 +970,78 @@ const UserService = {
             password: bcrypt.hashSync(req.body.password, 10),
             created: new Date().toString(),
           };
+
+          if (req.body.invitation) {
+            // Lookup the invitation
+
+            var params = {
+              TableName: "Invitation",
+              FilterExpression: "(id = :id)",
+              ExpressionAttributeValues: {
+                ":id": req.body.invitation,
+              },
+            };
+
+            const onInvitationScan = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+              } else {
+                if (data["Items"].length > 0) {
+                  const invitation = data["Items"][0];
+
+                  // This user was invited, set their plan to Pro
+                  usr.plan_name = "PRO";
+
+                  // First lookup the advisor
+
+                  var params = {
+                    TableName: "User",
+                    FilterExpression: "(id = :id)",
+                    ExpressionAttributeValues: {
+                      ":id": invitation.advisor_id,
+                    },
+                  };
+
+                  const onUserScan = (err, data) => {
+                    if (err) {
+                      console.error(
+                        "Unable to scan the table. Error JSON:",
+                        JSON.stringify(err, null, 2)
+                      );
+                    } else {
+                      if (data["Items"].length > 0) {
+                        var advisor = data["Items"][0];
+
+                        var createParams = {
+                          TableName: "Client",
+                          Item: {
+                            id: { S: uuidv1() },
+                            user_id: { S: advisor.id },
+                            client_id: { S: usr.id },
+                          },
+                        };
+
+                        // Add the client record
+                        ddb.putItem(createParams, (err, data) => {
+                          console.log(
+                            "putItem succeeded:",
+                            JSON.stringify(data, null, 2)
+                          );
+                        });
+                      }
+                    }
+                  };
+
+                  docClient.scan(params, onUserScan);
+                }
+              }
+            };
+
+            docClient.scan(params, onInvitationScan);
+          }
 
           var mailOptions = {
             from: "ezfolio.contact@gmail.com",
@@ -1357,7 +1551,7 @@ const UserService = {
                 user.stripe_subscription_id
               );
               console.log(`deleted subscription for user: ${user.id}`);
-              // 7. update the user with stripe customer id, and pro subsription.
+              // 7. update the user with stripe customer id, and pro subscription.
               var setStripeCustomerIdParams = {
                 TableName: "User",
                 Key: {
@@ -1779,7 +1973,6 @@ const UserService = {
       });
   },
   getUpcomingInvoice: async (req, res, next) => {
-    console.log(req.params);
     try {
       let invoice = await stripe.subscriptions.retrieve(
         "sub_1MowQVLkdIwHu7ixeRlqHVzs"
@@ -1861,6 +2054,329 @@ const UserService = {
           err?.raw?.message || "There was an error changing payment method.",
       });
       return;
+    }
+  },
+  inviteClients: (req, res, next) => {
+    if (!req.params.id || !req.body.emails) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      // 1. Get the User
+      var getUserByIdParams = {
+        TableName: "User",
+        FilterExpression: "(id = :id)",
+        ExpressionAttributeValues: {
+          ":id": req.params.id,
+        },
+      };
+      const onAddClientsScan = async (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send({
+            color: "red",
+            message: "There was an error getting user by ID.",
+          });
+        } else {
+          if (data["Items"].length > 0) {
+            var user = data["Items"][0];
+
+            const clientCount = user.clients
+              ? req.body.emails.length + JSON.parse(user.clients).length
+              : req.body.emails.length;
+
+            if (user.clients) {
+              if (clientCount > 100) {
+                res.send({
+                  error: {
+                    message: "Too many clients, max allowed is 100",
+                  },
+                });
+                return next();
+              } else {
+                // Create invitation and send email
+
+                req.body.emails.forEach((email) => {
+                  const invitation = {
+                    id: uuidv1(),
+                    invitee_email: email,
+                    advisor_id: user.id,
+                    expdate:
+                      Math.floor(new Date().getTime()) +
+                      7 * 24 * 60 * 60 * 1000, // Expire in one week
+                  };
+
+                  var createParams = {
+                    TableName: "Invitation",
+                    Item: {
+                      id: { S: invitation.id },
+                      invitee_email: { S: invitation.invitee_email },
+                      advisor_id: { S: invitation.advisor_id },
+                      expdate: { N: invitation.expdate.toString() },
+                    },
+                  };
+
+                  // Call DynamoDB to add the item to the table
+                  ddb.putItem(createParams, (err, data) => {
+                    if (err) {
+                      console.log("Error", err);
+                      res.send({
+                        error: {
+                          message:
+                            "Failed to create invitation, please try again later. Contact us if error continues.",
+                        },
+                      });
+                      return next();
+                    } else {
+                      var mailOptions = {
+                        from: "alex@ezfol.io",
+                        to: email,
+                        subject: "You're invited to EZFol.io",
+                        html: `<div>
+                           <h2>You've been invited to EZFolio by ${
+                             user.username || user.email
+                           }</h2>
+                           <p>EZFol.io is an investment benchmarking tool that allows you to know in real time how your money is working for you.</p>
+                           ${
+                             req.body.message
+                               ? `<p>"${req.body.message}" -  ${
+                                   user.username || user.email
+                                 }</p>`
+                               : ""
+                           }
+                           <p>To accept your free Pro account follow the link below. This invitation expires in 7 days.</p>
+                           <a href="https://www.ezfol.io/welcome?invitation=${
+                             invitation.id
+                           }">www.ezfol.io/welcome?invitation=${
+                          invitation.id
+                        }</a>
+                        </div>`,
+                      };
+
+                      transporter.sendMail(mailOptions, (error, info) => {});
+                    }
+                  });
+                });
+
+                res.send();
+                return next();
+              }
+            }
+          }
+        }
+      };
+      docClient.scan(getUserByIdParams, onAddClientsScan);
+    }
+  },
+  getClients: (req, res, next) => {
+    if (!req.params.id) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      // Get all clients for this user
+      const params = {
+        TableName: "Client",
+        FilterExpression: "(user_id = :user_id)",
+        ExpressionAttributeValues: {
+          ":user_id": req.params.id,
+        },
+      };
+
+      const onScan = async (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send({
+            color: "red",
+            message: "There was an error getting clients.",
+          });
+        } else {
+          if (data["Items"].length > 0) {
+            var clients = data["Items"];
+
+            // Get all user accounts for all clients
+
+            // Build the filter expression
+            let filterExpression = "(";
+
+            // Build the expression attributes
+            let attributeValues = {};
+
+            clients.forEach((client, index) => {
+              filterExpression += `id = :user${index}`;
+
+              if (index < clients.length - 1) {
+                filterExpression += " OR ";
+              } else {
+                filterExpression += ")";
+              }
+
+              attributeValues[`:user${index}`] = client.client_id;
+            });
+
+            const params1 = {
+              TableName: "User",
+              FilterExpression: filterExpression,
+              ExpressionAttributeValues: attributeValues,
+            };
+
+            const onScan1 = (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to scan the table. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+                res.send({
+                  color: "red",
+                  message: "There was an error getting clients.",
+                });
+              } else {
+                if (data["Items"].length > 0) {
+                  const clients = data["Items"];
+                  res.send(clients);
+                  return next();
+                } else {
+                  res.send({
+                    color: "red",
+                    message: "There was an error getting clients.",
+                  });
+                  return next();
+                }
+              }
+            };
+
+            docClient.scan(params1, onScan1);
+          } else {
+            res.send({
+              color: "red",
+              message: "There was an error getting clients.",
+            });
+            return next();
+          }
+        }
+      };
+      docClient.scan(params, onScan);
+    }
+  },
+  removeClient: (req, res, next) => {
+    if (!req.params.id || !req.params.client_id) {
+      res.send({
+        error: {
+          message: "Invalid params",
+        },
+      });
+      return next();
+    } else {
+      // Get client to delete
+      const params = {
+        TableName: "Client",
+        FilterExpression: "(user_id = :user_id and client_id = :client_id) ",
+        ExpressionAttributeValues: {
+          ":user_id": req.params.id,
+          ":client_id": req.params.client_id,
+        },
+      };
+
+      const onScan = async (err, data) => {
+        if (err) {
+          console.error(
+            "Unable to scan the table. Error JSON:",
+            JSON.stringify(err, null, 2)
+          );
+          res.send({
+            color: "red",
+            message: "There was an error getting clients.",
+          });
+        } else {
+          if (data["Items"].length > 0) {
+            var client = data["Items"][0];
+
+            // Remove the users PRO account status
+            var params = {
+              TableName: "User",
+              Key: {
+                id: req.params.client_id,
+              },
+              UpdateExpression: "set plan_name = :plan_name",
+              ExpressionAttributeValues: {
+                ":plan_name": "FREE",
+              },
+              ReturnValues: "ALL_NEW",
+            };
+
+            docClient.update(params, (err, data) => {
+              if (err) {
+                console.error(
+                  "Unable to update item. Error JSON:",
+                  JSON.stringify(err, null, 2)
+                );
+                res.send(err);
+              } else {
+                console.log(
+                  "UpdateItem succeeded:",
+                  JSON.stringify(data, null, 2)
+                );
+
+                const notifyEmail = data["Attributes"].email;
+
+                // Delete the client record
+                var params = {
+                  Key: {
+                    id: {
+                      S: client.id,
+                    },
+                  },
+                  TableName: "Client",
+                };
+
+                 
+                ddb.deleteItem(params, (err, data) => {
+                  if (err) {
+                    console.log("Error", err);
+                  } else {
+                    var mailOptions = {
+                      from: "ezfolio.contact@gmail.com",
+                      to: notifyEmail,
+                      subject: "Client update",
+                      html: `<div>
+                           <p>This message is to inform you that your account is no longer linked as a client. Your advisor has removed you as a client. If you think this is a mistake contact them.</p>
+                          
+                           <p>Don't worry we still got you :) Your account has been subscribed to our free tier.</p>
+                           <a href="https://www.ezfol.io">https://www.ezfol.io</a>
+                        </div>`,
+                    };
+
+                    transporter.sendMail(mailOptions, (error, info) => {});
+
+                    res.send({
+                      message: "Client removed",
+                    });
+                    return next();
+                  }
+                });
+              }
+            });
+          } else {
+            res.send({
+              color: "red",
+              message: "There was an error getting clients.",
+            });
+          }
+        }
+      };
+      docClient.scan(params, onScan);
     }
   },
   getUserById: getUserById,
