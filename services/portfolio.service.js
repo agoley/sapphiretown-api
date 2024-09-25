@@ -1190,7 +1190,7 @@ const getComparison = (id, comparisons, range, interval, benchmark) => {
         );
 
         portfolio
-          .calcComparisonParallel(comparisons, range, interval, benchmark)
+          .calcComparisonParallelV2(comparisons, range, interval, benchmark)
           .then((comparison) => {
             resolve(comparison);
           })

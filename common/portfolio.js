@@ -53,6 +53,31 @@ const getPortfolioById = (id) => {
   });
 };
 
+const getPortfolioByUserId = (id) => {
+  return new Promise((resolve, reject) => {
+    var params = {
+      TableName: "Portfolio",
+      FilterExpression: "(user_id = :id)",
+      ExpressionAttributeValues: {
+        ":id": id,
+      },
+    };
+
+    const onScan = (err, data) => {
+      if (err) {
+        console.error(
+          "Unable to scan the table. Error JSON:",
+          JSON.stringify(err, null, 2)
+        );
+        resolve([]);
+      } else {
+        resolve(data);
+      }
+    };
+    docClient.scan(params, onScan);
+  });
+};
+
 /**
  * Gets the value of the holding at a point in time
  * @param {*} timestamp
@@ -121,7 +146,7 @@ const getValueAtTime = (
 };
 
 class Portfolio {
-  constructor(id, transactions, portfolio_name) {
+  constructor(id, transactions, portfolio_name, user) {
     this.id = id;
     this.transactions = transactions;
     this.updates = new Subject();
@@ -135,6 +160,7 @@ class Portfolio {
       PORTFOLIOS: "PORTFOLIOS",
     };
     this.portfolio_name = portfolio_name;
+    this.user = user;
     this.availableRanges = this.getAvailableRanges();
     this._holdings = this.calcHoldings();
   }
@@ -598,7 +624,6 @@ class Portfolio {
     }
 
     const uniqueAssets = [...new Set(this.transactions.map((t) => t.symbol))];
-
 
     let holdings = uniqueAssets
       .map((ua) => {
@@ -1508,31 +1533,111 @@ class Portfolio {
   //   return Promise.resolve(response);
   // }
 
-  async buildCompChart(comparisonChartArr, quotes, comp, charts, range) {
-    let market = charts.find((res) => res.chart.result[0].meta.symbol === comp);
+  async buildCompChart(
+    comparisonChartArr,
+    quotes,
+    comp,
+    charts,
+    range,
+    index,
+    portfolios,
+    interval,
+    benchmark
+  ) {
+    if (comp.comparisonType === "stock") {
+      let market = charts.find(
+        (res) => res.chart.result[0].meta.symbol === comp.symbol
+      );
 
-    // Get the previous close to use as the original number for percentage calculations.
-    let original = market.chart.result[0].meta.chartPreviousClose;
+      // Get the previous close to use as the original number for percentage calculations.
+      let original = market.chart.result[0].meta.chartPreviousClose;
 
-    let percentageTimeline =
-      market.chart.result[0].indicators.quote[0].close.map((p, index) => {
-        let curr = ((p - original) / p) * 100;
+      let percentageTimeline =
+        market.chart.result[0].indicators.quote[0].close.map((p, index) => {
+          let curr = ((p - original) / p) * 100;
 
-        if (curr === Infinity || curr === -Infinity) {
-          const last =
-            market.chart.result[0].indicators.quote[0].close[index - 1];
-          curr = ((last - original) / last) * 100;
-        }
-        return curr;
+          if (curr === Infinity || curr === -Infinity) {
+            const last =
+              market.chart.result[0].indicators.quote[0].close[index - 1];
+            curr = ((last - original) / last) * 100;
+          }
+          return curr;
+        });
+
+      comparisonChartArr.push({
+        name: comp.symbol,
+        chart: {
+          y: percentageTimeline,
+          x: market.chart.result[0].timestamp.map((index) => index * 1000),
+        },
       });
+    } else {
+      // chart for this comparison
+      let portfolio = portfolios.find(
+        (p) => p && p.portfolio_name === comp.symbol
+      );
 
-    comparisonChartArr.push({
-      name: comp,
-      chart: {
-        y: percentageTimeline,
-        x: market.chart.result[0].timestamp.map((index) => index * 1000),
-      },
-    });
+      const firstMarketChart = charts[0];
+      let market;
+
+      if (portfolio.transactions && portfolio.transactions.length) {
+        market = await portfolio.calcPriceActionParallel(
+          range,
+          interval,
+          false,
+          benchmark
+        );
+
+        let original = market[0].open;
+
+        let portfolioPercentageTimeline = market.map((p, index) => {
+          // Remove cash from the g/l
+          let relevantTransactions = portfolio.transactions.filter(
+            (t) => t.date <= p.date && t.date >= market[0].date
+          );
+
+          let cashAdjustment =
+            relevantTransactions
+              .map((t) =>
+                t.type !== "PURCHASE"
+                  ? -1 * +t.price * t.quantity
+                  : +t.price * t.quantity
+              )
+              .reduce((prev, curr) => prev + curr, 0) || 0;
+
+          let curr = ((p.close - cashAdjustment - original) / p.close) * 100;
+
+          if (curr === Infinity || curr === -Infinity) {
+            const last = market[index - 1];
+            curr = ((last.close - original) / last.close) * 100;
+          }
+          return curr;
+        });
+
+        let portfolioComparisonTimeline = {
+          name: comp.symbol,
+          chart: {
+            x: firstMarketChart.chart.result[0].timestamp.map(
+              (index) => index * 1000
+            ),
+            y: portfolioPercentageTimeline,
+          },
+        };
+
+        comparisonChartArr.push(portfolioComparisonTimeline);
+      } else {
+        let portfolioComparisonTimeline = {
+          name: comp.symbol,
+          chart: {
+            x: firstMarketChart.chart.result[0].timestamp.map(
+              (index) => index * 1000
+            ),
+            y: firstMarketChart.chart.result[0].timestamp.map((index) => 0),
+          },
+        };
+        comparisonChartArr.push(portfolioComparisonTimeline);
+      }
+    }
   }
 
   async calcComparisonParallel(comparisons, range, interval, benchmark) {
@@ -1596,24 +1701,21 @@ class Portfolio {
       let original = portfolioChart[0].close;
 
       let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
-
         // Remove cash from the g/l
         let relevantTransactions = this.transactions.filter(
           (t) => t.date <= p.date && t.date >= portfolioChart[0].date
         );
 
-        let cashAdjustment = relevantTransactions
-          .map((t) =>
-            t.type !== "PURCHASE"
-              ? -1 * +t.price * t.quantity
-              : +t.price * t.quantity
-          )
-          .reduce((prev, curr) => 
-            prev + curr
-          , 0) || 0;
+        let cashAdjustment =
+          relevantTransactions
+            .map((t) =>
+              t.type !== "PURCHASE"
+                ? -1 * +t.price * t.quantity
+                : +t.price * t.quantity
+            )
+            .reduce((prev, curr) => prev + curr, 0) || 0;
 
-
-        let curr = ((p.close - cashAdjustment - original) / p.close ) * 100;
+        let curr = ((p.close - cashAdjustment - original) / p.close) * 100;
 
         if (curr === Infinity || curr === -Infinity) {
           const last = portfolioChart[index - 1];
@@ -1646,6 +1748,182 @@ class Portfolio {
       let response = { [portfolioComparisonTimeline.name]: [] };
       comparisons.forEach((comp) => {
         response[comp] = [];
+      });
+
+      portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
+        comparisonChartArr.forEach((comparison) => {
+          const closestMatchingIndex = comparison.chart.x.findIndex(
+            (t) => t >= timestamp
+          );
+          response[comparison.name].push({
+            value: comparison.chart.y[closestMatchingIndex],
+            date: timestamp,
+          });
+        });
+        response[portfolioComparisonTimeline.name].push({
+          value: portfolioComparisonTimeline.chart.y[index],
+          date: timestamp,
+        });
+      });
+
+      comparisonCache.save(
+        `${this.id}-${JSON.stringify(comparisons)}-${range}-${interval}`,
+        response
+      );
+      return Promise.resolve(response);
+    } catch (err) {
+      return Promise.resolve({
+        message:
+          "something went wrong calculating the comparison, try again later. If errors persist, contact us.",
+      });
+    }
+  }
+
+  async calcComparisonParallelV2(comparisons, range, interval, benchmark) {
+    if (
+      comparisonCache.get(
+        `${this.id}-${JSON.stringify(
+          comparisons.map((c) => c.symbol)
+        )}-${range}-${interval}-${benchmark}`
+      )
+    ) {
+      return Promise.resolve(
+        comparisonCache.get(
+          `${this.id}-${JSON.stringify(
+            comparisons.map((c) => c.symbol)
+          )}-${range}-${interval}-${benchmark}`
+        )
+      );
+    }
+
+    try {
+      // Other portfolios
+      const portfolios = [];
+
+      // Gather the chart queries for comparisons to batch the requests.
+      const queries = [];
+
+      comparisons.forEach(async (comp, index) => {
+        if (comp.comparisonType === "stock") {
+          queries.push(ChartService.getChartLL(comp.symbol, interval, range));
+        } else {
+          // Get price action for user
+
+          // get portfolio for user
+          let pRes = await getPortfolioByUserId(comp.id);
+
+          if (pRes && pRes.Items && pRes.Items.length) {
+            const pData = pRes.Items[0];
+            const portfolio = new Portfolio(
+              pData.id,
+              JSON.parse(pData.transactions),
+              comp.symbol,
+              comp
+            );
+
+            portfolios.push(portfolio);
+          }
+        }
+      });
+
+      // Get charts for each comp.
+      let charts = await Promise.allSettled(queries);
+
+      charts = charts
+        .filter((res) => {
+          if (res.status) {
+            return res.status === "fulfilled";
+          } else {
+            return true;
+          }
+        })
+        .map((res) => {
+          if (res.value) {
+            return res.value;
+          } else {
+            return res;
+          }
+        });
+
+      let comparisonChartArr = [];
+
+      let compChartCalls = comparisons.map((comp, index) =>
+        this.buildCompChart(
+          comparisonChartArr,
+          null,
+          comp,
+          charts,
+          range,
+          index,
+          portfolios,
+          interval,
+          benchmark
+        )
+      );
+
+      await Promise.all(compChartCalls);
+
+      const portfolioChart = await this.calcPriceActionParallel(
+        range,
+        interval,
+        false,
+        benchmark
+      );
+
+      if (!portfolioChart || !portfolioChart.length) {
+        return Promise.resolve([]);
+      }
+
+      let original = portfolioChart[0].open;
+
+      let portfolioPercentageTimeline = portfolioChart.map((p, index) => {
+        // Remove cash from the g/l
+        let relevantTransactions = this.transactions.filter(
+          (t) => t.date <= p.date && t.date >= portfolioChart[0].date
+        );
+
+        let cashAdjustment =
+          relevantTransactions
+            .map((t) =>
+              t.type !== "PURCHASE"
+                ? -1 * +t.price * t.quantity
+                : +t.price * t.quantity
+            )
+            .reduce((prev, curr) => prev + curr, 0) || 0;
+
+        let curr = ((p.close - cashAdjustment - original) / p.close) * 100;
+
+        if (curr === Infinity || curr === -Infinity) {
+          const last = portfolioChart[index - 1];
+          curr = ((last.close - original) / last.close) * 100;
+        }
+        return curr;
+      });
+
+      let portfolioComparisonTimeline = {
+        name: this.portfolio_name || "portfolio",
+        chart: {
+          x: portfolioChart
+            .filter(
+              (index) =>
+                index.date <= comparisonChartArr[0].chart.x.slice(-1)[0]
+            )
+            .map((index) => index.date),
+          y: portfolioPercentageTimeline,
+        },
+      };
+
+      if (!portfolioComparisonTimeline.chart.x.length) {
+        return Promise.resolve({
+          Error: {
+            message: `Comparison Unavailable: This may be due to markets being closed, or unavailable charts for one or more holdings.`,
+          },
+        });
+      }
+
+      let response = { [portfolioComparisonTimeline.name]: [] };
+      comparisons.forEach((comp) => {
+        response[comp.symbol] = [];
       });
 
       portfolioComparisonTimeline.chart.x.forEach((timestamp, index) => {
