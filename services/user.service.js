@@ -502,7 +502,7 @@ const UserService = {
                   html:
                     "<p>We received a request for a magic link. Use the link below to reset your password." +
                     " This link will expire in 24 hours. Make sure to open it in the same browser you're logged in with.</p>" +
-                    "<a href='https://ezfol.io/profile/security?magicLink=" +
+                    "<a href='https://www.ezfol.io/profile/security?magicLink=" +
                     magicLink.token +
                     "'>Magic Link for " +
                     user.email +
@@ -519,7 +519,7 @@ const UserService = {
                   html:
                     "<p>We received a request for a magic link. Use the link below to skip the login." +
                     " This link will expire in 24 hours.</p>" +
-                    "<a href='https://ezfol.io/?magicLink=" +
+                    "<a href='https://www.ezfol.io/?magicLink=" +
                     magicLink.token +
                     "'>Magic Link for " +
                     user.email +
@@ -2091,54 +2091,52 @@ const UserService = {
               ? req.body.emails.length + JSON.parse(user.clients).length
               : req.body.emails.length;
 
-            if (user.clients) {
-              if (clientCount > 100) {
-                res.send({
-                  error: {
-                    message: "Too many clients, max allowed is 100",
+            if (clientCount > 100) {
+              res.send({
+                error: {
+                  message: "Too many clients, max allowed is 100",
+                },
+              });
+              return next();
+            } else {
+              // Create invitation and send email
+
+              req.body.emails.forEach((email) => {
+                const invitation = {
+                  id: uuidv1(),
+                  invitee_email: email,
+                  advisor_id: user.id,
+                  expdate:
+                    Math.floor(new Date().getTime()) + 7 * 24 * 60 * 60 * 1000, // Expire in one week
+                };
+
+                var createParams = {
+                  TableName: "Invitation",
+                  Item: {
+                    id: { S: invitation.id },
+                    invitee_email: { S: invitation.invitee_email },
+                    advisor_id: { S: invitation.advisor_id },
+                    expdate: { N: invitation.expdate.toString() },
                   },
-                });
-                return next();
-              } else {
-                // Create invitation and send email
+                };
 
-                req.body.emails.forEach((email) => {
-                  const invitation = {
-                    id: uuidv1(),
-                    invitee_email: email,
-                    advisor_id: user.id,
-                    expdate:
-                      Math.floor(new Date().getTime()) +
-                      7 * 24 * 60 * 60 * 1000, // Expire in one week
-                  };
-
-                  var createParams = {
-                    TableName: "Invitation",
-                    Item: {
-                      id: { S: invitation.id },
-                      invitee_email: { S: invitation.invitee_email },
-                      advisor_id: { S: invitation.advisor_id },
-                      expdate: { N: invitation.expdate.toString() },
-                    },
-                  };
-
-                  // Call DynamoDB to add the item to the table
-                  ddb.putItem(createParams, (err, data) => {
-                    if (err) {
-                      console.log("Error", err);
-                      res.send({
-                        error: {
-                          message:
-                            "Failed to create invitation, please try again later. Contact us if error continues.",
-                        },
-                      });
-                      return next();
-                    } else {
-                      var mailOptions = {
-                        from: "alex@ezfol.io",
-                        to: email,
-                        subject: "You're invited to EZFol.io",
-                        html: `<div>
+                // Call DynamoDB to add the item to the table
+                ddb.putItem(createParams, (err, data) => {
+                  if (err) {
+                    console.log("Error", err);
+                    res.send({
+                      error: {
+                        message:
+                          "Failed to create invitation, please try again later. Contact us if error continues.",
+                      },
+                    });
+                    return next();
+                  } else {
+                    var mailOptions = {
+                      from: "alex@ezfol.io",
+                      to: email,
+                      subject: "You're invited to EZFol.io",
+                      html: `<div>
                            <h2>You've been invited to EZFolio by ${
                              user.username || user.email
                            }</h2>
@@ -2154,19 +2152,18 @@ const UserService = {
                            <a href="https://www.ezfol.io/welcome?invitation=${
                              invitation.id
                            }">www.ezfol.io/welcome?invitation=${
-                          invitation.id
-                        }</a>
+                        invitation.id
+                      }</a>
                         </div>`,
-                      };
+                    };
 
-                      transporter.sendMail(mailOptions, (error, info) => {});
-                    }
-                  });
+                    transporter.sendMail(mailOptions, (error, info) => {});
+                  }
                 });
+              });
 
-                res.send();
-                return next();
-              }
+              res.send();
+              return next();
             }
           }
         }
@@ -2341,7 +2338,6 @@ const UserService = {
                   TableName: "Client",
                 };
 
-                 
                 ddb.deleteItem(params, (err, data) => {
                   if (err) {
                     console.log("Error", err);
