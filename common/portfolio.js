@@ -392,20 +392,28 @@ class Portfolio {
         if (symbols.length) {
           StockService.getQuote(symbols)
             .then(async (data) => {
-              data.quoteResponse.result.forEach(async (quote) => {
-                const holding = this.holdings.find(
-                  (h) =>
-                    h.symbol === quote.symbol || h.symbol === quote.fromCurrency
-                );
+              if (
+                data &&
+                data.quoteResponse &&
+                data.quoteResponse.result &&
+                data.quoteResponse.result.length
+              ) {
+                data.quoteResponse.result.forEach(async (quote) => {
+                  const holding = this.holdings.find(
+                    (h) =>
+                      h.symbol === quote.symbol ||
+                      h.symbol === quote.fromCurrency
+                  );
 
-                if (quote.regularMarketPrice) {
-                  startingPriceOnDay +=
-                    holding.shares * quote.regularMarketPreviousClose;
+                  if (quote.regularMarketPrice) {
+                    startingPriceOnDay +=
+                      holding.shares * quote.regularMarketPreviousClose;
 
-                  currentPriceOnDay +=
-                    holding.shares * quote.regularMarketPrice;
-                }
-              });
+                    currentPriceOnDay +=
+                      holding.shares * quote.regularMarketPrice;
+                  }
+                });
+              }
 
               const diff = currentPriceOnDay - startingPriceOnDay;
               const percent = (diff / startingPriceOnDay) * 100;
