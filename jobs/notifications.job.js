@@ -90,37 +90,39 @@ const notifications = async () => {
           let quotes = await StockService.getQuote(symbols);
 
           try {
-            quotes.quoteResponse.result.forEach((q) => {
-              const userAlreadyNotifiedOfChange =
-                user.preferences.largeChangeLastUpdateTimes &&
-                user.preferences.largeChangeLastUpdateTimes[q.symbol] &&
-                new Date(
-                  user.preferences.largeChangeLastUpdateTimes[q.symbol]
-                ).setHours(0, 0, 0, 0) === new Date().setHours(0, 0, 0, 0);
+            if (quotes.quoteResponse && quotes.quoteResponse.length) {
+              quotes.quoteResponse.result.forEach((q) => {
+                const userAlreadyNotifiedOfChange =
+                  user.preferences.largeChangeLastUpdateTimes &&
+                  user.preferences.largeChangeLastUpdateTimes[q.symbol] &&
+                  new Date(
+                    user.preferences.largeChangeLastUpdateTimes[q.symbol]
+                  ).setHours(0, 0, 0, 0) === new Date().setHours(0, 0, 0, 0);
 
-              if (
-                !userAlreadyNotifiedOfChange &&
-                Math.abs(q.regularMarketChangePercent) >= 5
-              ) {
-                sendNotification(
-                  JSON.parse(subscription.push_subscription),
-                  `${q.symbol} | ${q.regularMarketChangePercent.toFixed(
-                    2
-                  )}% today`,
-                  q.regularMarketChangePercent > 0
-                    ? "notification-icon-up.png"
-                    : "notification-icon-down.png"
-                );
-                const largeChangeLastUpdateTimes = user.preferences
-                  .largeChangeLastUpdateTimes
-                  ? user.preferences.largeChangeLastUpdateTimes
-                  : {};
-                largeChangeLastUpdateTimes[q.symbol] = new Date().getTime();
-                user.preferences.largeChangeLastUpdateTimes =
-                  largeChangeLastUpdateTimes;
-                UserService.updateUser(user);
-              }
-            });
+                if (
+                  !userAlreadyNotifiedOfChange &&
+                  Math.abs(q.regularMarketChangePercent) >= 5
+                ) {
+                  sendNotification(
+                    JSON.parse(subscription.push_subscription),
+                    `${q.symbol} | ${q.regularMarketChangePercent.toFixed(
+                      2
+                    )}% today`,
+                    q.regularMarketChangePercent > 0
+                      ? "notification-icon-up.png"
+                      : "notification-icon-down.png"
+                  );
+                  const largeChangeLastUpdateTimes = user.preferences
+                    .largeChangeLastUpdateTimes
+                    ? user.preferences.largeChangeLastUpdateTimes
+                    : {};
+                  largeChangeLastUpdateTimes[q.symbol] = new Date().getTime();
+                  user.preferences.largeChangeLastUpdateTimes =
+                    largeChangeLastUpdateTimes;
+                  UserService.updateUser(user);
+                }
+              });
+            }
           } catch (err) {
             console.log(err);
           }
