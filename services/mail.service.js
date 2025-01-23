@@ -13,7 +13,7 @@ const MailService = {
   mail: (req, res, next, count) => {
     var mailOptions = {
       from: "alex@ezfol.io",
-      to: process.env.MAIL_APP_TO,
+      to: process.env.MAIL_APP_TO || "alex@ezfol.io",
       subject: req.body.subject,
       text: req.body.text,
     };
