@@ -2,7 +2,7 @@ let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
 const bcrypt = require("bcrypt");
 
-// TODO abastract mailer/transporter
+// TODO abstract mailer/transporter
 var nodemailer = require("nodemailer");
 
 // Stripe client
@@ -1270,7 +1270,7 @@ const UserService = {
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
               ":active_portfolio":
-                req.body.active_portfolio || user?.active_portfolio || "",
+                req.body.active_portfolio || user.active_portfolio || "",
               ":preferences": JSON.stringify(req.body.preferences),
             },
             ReturnValues: "ALL_NEW",
@@ -1663,7 +1663,7 @@ const UserService = {
               res.send({
                 color: "red",
                 message:
-                  err?.raw?.message ||
+                  (err && err.raw && err.raw.message) ? err.raw.message : 
                   "There was an error creating payment method.",
               });
             }
@@ -2011,7 +2011,7 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          err?.raw?.message || "There was an error creating payment method.",
+          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error creating payment method.",
       });
       return;
     }
@@ -2024,7 +2024,7 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          err?.raw?.message || "There was an error attaching payment method.",
+          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error attaching payment method.",
       });
       return;
     }
@@ -2051,7 +2051,7 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          err?.raw?.message || "There was an error changing payment method.",
+          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error changing payment method.",
       });
       return;
     }

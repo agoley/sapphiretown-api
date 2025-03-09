@@ -4,6 +4,7 @@ const Portfolio = require("../common/portfolio");
 var fs = require("fs");
 var formidable = require("formidable");
 const csv = require("fast-csv");
+const Cache = require("../common/cache");
 
 AWS.config.update({
   region: "us-east-1",
@@ -70,6 +71,9 @@ let isNumeric = (str) => {
     !isNaN(parseFloat(str))
   ); // ...and ensure strings of whitespace fail
 };
+
+const actionCache = new Cache(20000);
+const summaryCache = new Cache(20000);
 
 /**
  * @swagger
@@ -1101,6 +1105,7 @@ const getPriceAction = (id, range, interval, benchmarkFlag) => {
     if (!id || !range || !interval) {
       reject("Invalid params");
     }
+
     getPortfolioById(id)
       .then((data) => {
         if (data.err) {
@@ -1750,6 +1755,13 @@ const PortfolioService = {
       });
       return next();
     } else {
+      if (summaryCache.get(req.params.id)) {
+        // Return the cached result
+
+        res.send(summaryCache.get(req.params.id));
+        return next();
+      }
+      
       var params = {
         TableName: "Portfolio",
         FilterExpression: "(id = :id)",
@@ -1777,6 +1789,9 @@ const PortfolioService = {
           );
 
           portfolio.summary.then((summary) => {
+            // Cache the result for subsequent calls
+            summaryCache.save(req.params.id, summary);
+
             res.send(summary);
             return next();
           });
@@ -1907,21 +1922,34 @@ const PortfolioService = {
       });
       return next();
     } else {
-      getPriceAction(
-        req.params.id,
-        req.body.range,
-        req.body.interval,
-        req.body.benchmark
-      )
-        .then((pa) => {
-          res.send(pa);
-          return next();
-        })
-        .catch((error) => {
-          console.log(error);
-          res.send(error);
-          return next();
-        });
+      // ID for cached result
+      const cacheId = `${req.params.id}-${req.body.range}-${req.body.interval}-${req.body.benchmark}`;
+
+      if (actionCache.get(cacheId)) {
+        // Result is in the cache, return it
+
+        res.send(actionCache.get(cacheId));
+        return next();
+      } else {
+        getPriceAction(
+          req.params.id,
+          req.body.range,
+          req.body.interval,
+          req.body.benchmark
+        )
+          .then((pa) => {
+            // Save the result in the action cache
+            actionCache.save(cacheId, pa);
+
+            res.send(pa);
+            return next();
+          })
+          .catch((error) => {
+            console.log(error);
+            res.send(error);
+            return next();
+          });
+      }
     }
   },
   comparison: (req, res, next) => {
