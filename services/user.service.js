@@ -2178,7 +2178,7 @@ const UserService = {
                            <h2>You've been invited to EZFolio by ${
                              user.username || user.email
                            }</h2>
-                           <p>EZFol.io is an investment benchmarking tool that allows you to know in real time how your money is working for you.</p>
+                           <p>EZFol.io is an investment tracking and benchmarking tool that allows you to know in real time how your money is working for you.</p>
                            ${
                              req.body.message
                                ? `<p>"${req.body.message}" -  ${
@@ -2186,12 +2186,12 @@ const UserService = {
                                  }</p>`
                                : ""
                            }
-                           <p>To accept your free Pro account follow the link below. This invitation expires in 7 days.</p>
+                           <p>To accept your free account follow the link below. This invitation expires in 7 days.</p>
                            <a href="https://www.ezfol.io/welcome?invitation=${
                              invitation.id
                            }">www.ezfol.io/welcome?invitation=${
                         invitation.id
-                      }</a>
+                      }&email={email}</a>
                         </div>`,
                     };
 
