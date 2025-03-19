@@ -35,15 +35,16 @@ function IndexController(server, isEnterprise) {
   UserController.createV3(server);
   UserController.auth(server);
   UserController.authenticate(server);
-  if (!isEnterprise) UserController.forgot(server);
-  if (!isEnterprise) UserController.magicLink(server);
-  if (!isEnterprise) UserController.reset(server);
   UserController.update(server);
   UserController.update_watchlist(server);
   UserController.update_password(server);
+  UserController.find(server);
+
+  // Protected Routes
+  if (!isEnterprise) UserController.forgot(server);
+  if (!isEnterprise) UserController.magicLink(server);
   if (!isEnterprise) UserController.subscribe(server);
   if (!isEnterprise) UserController.unsubscribe(server);
-  UserController.find(server);
   if (!isEnterprise) UserController.notificationsSubscribe(server);
   if (!isEnterprise) UserController.notificationsUnsubscribe(server);
   if (!isEnterprise) UserController.pushSubscription(server);
@@ -54,6 +55,8 @@ function IndexController(server, isEnterprise) {
   if (!isEnterprise) UserController.inviteClients(server);
   if (!isEnterprise) UserController.getClients(server);
   if (!isEnterprise) UserController.removeClient(server);
+  if (!isEnterprise) UserController.reset(server);
+  if (!isEnterprise) UserController.getCoupon(server);
 
   // portfolio endpoints
   PortfolioController.get(server);

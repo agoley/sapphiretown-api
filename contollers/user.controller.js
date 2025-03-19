@@ -129,6 +129,19 @@ const UserController = {
       }
     );
   },
+  getCoupon: (server) => {
+    server.post(
+      "/api/v2/users/coupons",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.getCoupon(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/users/coupons error: " + err);
+        }
+      }
+    );
+  },
   subscribe: (server) => {
     server.post(
       "/api/v2/users/:id/subscribe",

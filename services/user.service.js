@@ -1270,7 +1270,9 @@ const UserService = {
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
               ":active_portfolio":
-                req.body.active_portfolio || user.active_portfolio || "",
+                req.body.active_portfolio || user
+                  ? user.active_portfolio
+                  : false || "",
               ":preferences": JSON.stringify(req.body.preferences),
             },
             ReturnValues: "ALL_NEW",
@@ -1596,6 +1598,7 @@ const UserService = {
    * @param {*} user - { id }
    * @param {*} payment - { number, exp_month, exp_year, cvc }
    * @param {*} personal - { name, city, country, line1, line2, postal_code, state }
+   * @param {*} coupons - *[]
    */
   subscribe: (req, res, next) => {
     // 1. Get the User
@@ -1663,8 +1666,9 @@ const UserService = {
               res.send({
                 color: "red",
                 message:
-                  (err && err.raw && err.raw.message) ? err.raw.message : 
-                  "There was an error creating payment method.",
+                  err && err.raw && err.raw.message
+                    ? err.raw.message
+                    : "There was an error creating payment method.",
               });
             }
           } else {
@@ -1742,30 +1746,46 @@ const UserService = {
 
           let subscription;
 
-          if (req.body.payment.plan_name === "ENTERPRISE") {
-            let trialEndDate = new Date();
-            if (trialEndDate.getMonth() == 11) {
-              trialEndDate = new Date(trialEndDate.getFullYear() + 1, 0, 1);
-            } else {
-              trialEndDate = new Date(
-                trialEndDate.getFullYear(),
-                trialEndDate.getMonth() + 1,
-                1
-              );
-            }
-
-            // 6. Create the subscription.
-            subscription = await stripe.subscriptions.create({
-              customer: customer.id,
-              items: [{ price: process.env.STRIPE_ENTERPRISE_PRICE_ID }],
-              trial_end: trialEndDate.getTime() / 1000, // Calc 1mo
-            });
+          let trialEndDate = new Date();
+          if (trialEndDate.getMonth() == 11) {
+            trialEndDate = new Date(trialEndDate.getFullYear() + 1, 0, 1);
           } else {
-            subscription = await stripe.subscriptions.create({
-              customer: customer.id,
-              items: [{ price: process.env.STRIPE_PRO_PRICE_ID }],
-            });
+            trialEndDate = new Date(
+              trialEndDate.getFullYear(),
+              trialEndDate.getMonth() + 1,
+              1
+            );
           }
+
+          const subscriptionData = {
+            customer: customer.id,
+          };
+
+          if (req.body.coupons && req.body.coupons.length) {
+            subscriptionData.discounts = req.body.coupons.map((c) => ({
+              coupon: c.id,
+            }));
+
+            if (!req.body.coupons.find((c) => c.name === "3 Months Free")) {
+              subscriptionData.trial_end = trialEndDate.getTime() / 1000; // Calc 1mo
+            }
+          }
+
+          if (req.body.payment.plan_name === "ENTERPRISE") {
+            subscriptionData.items = [
+              { price: process.env.STRIPE_ENTERPRISE_PRICE_ID },
+            ];
+          } else if (req.body.payment.plan_name === "PLANNER") {
+            subscriptionData.items = [
+              { price: process.env.STRIPE_PLANNER_PRICE_ID },
+            ];
+          } else {
+            subscriptionData.items = [
+              { price: process.env.STRIPE_PRO_PRICE_ID },
+            ];
+          }
+          // 6. Create the subscription.
+          subscription = await stripe.subscriptions.create(subscriptionData);
 
           console.log("created new subscription");
 
@@ -1779,23 +1799,9 @@ const UserService = {
           // 7. update the user with stripe customer id, and subscription.
           var setStripeCustomerIdParams;
 
-          if (req.body.payment.plan_name === "PRO") {
-            setStripeCustomerIdParams = {
-              TableName: "User",
-              Key: {
-                id: user.id,
-              },
-              UpdateExpression:
-                "set stripe_customer_id=:stripe_customer_id, plan_name=:plan_name, stripe_payment_method_id=:stripe_payment_method_id, stripe_subscription_id=:stripe_subscription_id",
-              ExpressionAttributeValues: {
-                ":stripe_customer_id": customer.id,
-                ":plan_name": req.body.payment.plan_name,
-                ":stripe_payment_method_id": paymentMethod.id,
-                ":stripe_subscription_id": subscription.id,
-              },
-              ReturnValues: "ALL_NEW",
-            };
-          } else if (req.body.payment.plan_name === "ENTERPRISE") {
+          console.log(req.body.payment);
+
+          if (req.body.payment.plan_name === "ENTERPRISE") {
             const key = genAPIKey();
             setStripeCustomerIdParams = {
               TableName: "User",
@@ -1840,6 +1846,22 @@ const UserService = {
                 console.log("customer key sent.");
               }
             });
+          } else {
+            setStripeCustomerIdParams = {
+              TableName: "User",
+              Key: {
+                id: user.id,
+              },
+              UpdateExpression:
+                "set stripe_customer_id=:stripe_customer_id, plan_name=:plan_name, stripe_payment_method_id=:stripe_payment_method_id, stripe_subscription_id=:stripe_subscription_id",
+              ExpressionAttributeValues: {
+                ":stripe_customer_id": customer.id,
+                ":plan_name": req.body.payment.plan_name,
+                ":stripe_payment_method_id": paymentMethod.id,
+                ":stripe_subscription_id": subscription.id,
+              },
+              ReturnValues: "ALL_NEW",
+            };
           }
 
           docClient.update(setStripeCustomerIdParams, function (err, data) {
@@ -1982,6 +2004,16 @@ const UserService = {
       res.send(err);
     }
   },
+  getCoupon: async (req, res, next) => {
+    try {
+      const promotionCodes = await stripe.promotionCodes.list({
+        code: req.body.code,
+      });
+      res.send(promotionCodes);
+    } catch (err) {
+      res.send(err);
+    }
+  },
   updatePaymentMethod: async (req, res, next) => {
     let paymentMethod;
 
@@ -2011,7 +2043,9 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error creating payment method.",
+          err && err.raw && err.raw.message
+            ? err.raw.message
+            : "There was an error creating payment method.",
       });
       return;
     }
@@ -2024,7 +2058,9 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error attaching payment method.",
+          err && err.raw && err.raw.message
+            ? err.raw.message
+            : "There was an error attaching payment method.",
       });
       return;
     }
@@ -2051,7 +2087,9 @@ const UserService = {
       res.send({
         color: "red",
         message:
-          (err && err.raw && err.raw.message) ? err.raw.message :  "There was an error changing payment method.",
+          err && err.raw && err.raw.message
+            ? err.raw.message
+            : "There was an error changing payment method.",
       });
       return;
     }
