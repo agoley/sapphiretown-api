@@ -2191,7 +2191,7 @@ const UserService = {
                              invitation.id
                            }">www.ezfol.io/welcome?invitation=${
                         invitation.id
-                      }&email={email}</a>
+                      }&email=${email}</a>
                         </div>`,
                     };
 
