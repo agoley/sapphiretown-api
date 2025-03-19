@@ -2189,7 +2189,7 @@ const UserService = {
                            <p>To accept your free account follow the link below. This invitation expires in 7 days.</p>
                            <a href="https://www.ezfol.io/welcome?invitation=${
                              invitation.id
-                           }">www.ezfol.io/welcome?invitation=${
+                           }&email=${email}">www.ezfol.io/welcome?invitation=${
                         invitation.id
                       }&email=${email}</a>
                         </div>`,
