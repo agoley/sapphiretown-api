@@ -930,6 +930,8 @@ const UserService = {
    *               type: string
    *             password:
    *               type: string
+   *             invitation:
+   *               type: string
    *     responses:
    *       '200':
    *         description: The newly created user.
@@ -1265,7 +1267,7 @@ const UserService = {
               id: req.body.id,
             },
             UpdateExpression:
-              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences",
+              "set email=:email, theme=:theme, active_portfolio=:active_portfolio, preferences=:preferences, plan_name=:plan_name",
             ExpressionAttributeValues: {
               ":email": req.body.email,
               ":theme": req.body.theme || "light-theme",
@@ -1274,6 +1276,7 @@ const UserService = {
                   ? user.active_portfolio
                   : false || "",
               ":preferences": JSON.stringify(req.body.preferences),
+              ":plan_name": req.body.plan_name
             },
             ReturnValues: "ALL_NEW",
           };
