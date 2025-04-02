@@ -55,7 +55,7 @@ function scrapeNews(symbol, exchange) {
 
           result.push({
             articleURL: $(links[0]).attr("href"),
-            imgURL: imgs[0].attribs.src,
+            imgURL: imgs[0]?.attribs?.src,
             articleSource: publisher,
             articlePublishedStr: publishedTimeStr,
             title: title
