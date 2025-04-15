@@ -9,6 +9,7 @@ const _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY =
 
 const quoteCache = new Cache(5000);
 const summaryCache = new Cache(5000);
+const recommendationCache = new Cache(5000);
 const indicatorCache = new Cache(null, true);
 
 const messengers = require("../common/messenger");
@@ -58,7 +59,7 @@ function scrapeNews(symbol, exchange) {
             imgURL: imgs[0]?.attribs?.src,
             articleSource: publisher,
             articlePublishedStr: publishedTimeStr,
-            title: title
+            title: title,
           });
         });
 
@@ -220,6 +221,40 @@ const getIndicators = (symbol, specification) => {
               },
             });
           }
+        }
+      },
+    });
+  });
+};
+
+const getRecommendations = (symbol) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v11/finance/quoteSummary/" +
+      symbol
+  );
+
+  let params = {
+    lang: "en",
+    region: "US",
+    modules: "recommendationTrend",
+  };
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v);
         }
       },
     });
@@ -425,6 +460,36 @@ const StockService = {
           setTimeout(() => {
             StockService.summary(req, res, next, count);
           }, 1000);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  recommendations: (req, res, next, count) => {
+    if (recommendationCache.get(JSON.stringify(req.params.symbol))) {
+      res.send(recommendationCache.get(JSON.stringify(req.params.symbol)));
+      return next();
+    }
+
+    getRecommendations(req.params.symbol)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        recommendationCache.save(JSON.stringify(req.params.symbol), data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 500ms and retry.
+          setTimeout(() => {
+            StockService.recommendations(req, res, next, count);
+          }, 500);
         } else {
           res.send(data);
           return next();

@@ -66,6 +66,15 @@ const StockController = {
       }
     });
   },
+  recommendations: (server) => {
+    server.get("/api/v5/stock/recommendations/:symbol", ...middleware, (req, res, next) => {
+      try {
+        _stock.recommendations(req, res, next);
+      } catch (err) {
+        console.error("/api/v2/stock/recommendations/:symbol error: " + err);
+      }
+    });
+  },
 };
 
 module.exports = StockController;

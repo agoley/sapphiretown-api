@@ -87,6 +87,7 @@ function IndexController(server, isEnterprise) {
   StockController.news(server);
   StockController.symbol(server);
   StockController.summary(server);
+  StockController.recommendations(server);
 
   // integrations endpoints
   IntegrationsController.etradeRequestToken(server);
