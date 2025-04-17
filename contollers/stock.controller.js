@@ -75,6 +75,15 @@ const StockController = {
       }
     });
   },
+  grading: (server) => {
+    server.get("/api/v5/stock/grading/:symbol", ...middleware, (req, res, next) => {
+      try {
+        _stock.grading(req, res, next);
+      } catch (err) {
+        console.error("/api/v2/stock/grading/:symbol error: " + err);
+      }
+    });
+  },
 };
 
 module.exports = StockController;
