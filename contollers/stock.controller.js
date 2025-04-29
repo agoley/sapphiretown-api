@@ -67,22 +67,43 @@ const StockController = {
     });
   },
   recommendations: (server) => {
-    server.get("/api/v5/stock/recommendations/:symbol", ...middleware, (req, res, next) => {
-      try {
-        _stock.recommendations(req, res, next);
-      } catch (err) {
-        console.error("/api/v2/stock/recommendations/:symbol error: " + err);
+    server.get(
+      "/api/v5/stock/recommendations/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.recommendations(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/recommendations/:symbol error: " + err);
+        }
       }
-    });
+    );
   },
   grading: (server) => {
-    server.get("/api/v5/stock/grading/:symbol", ...middleware, (req, res, next) => {
-      try {
-        _stock.grading(req, res, next);
-      } catch (err) {
-        console.error("/api/v2/stock/grading/:symbol error: " + err);
+    server.get(
+      "/api/v5/stock/grading/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.grading(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/grading/:symbol error: " + err);
+        }
       }
-    });
+    );
+  },
+  earningsTrend: (server) => {
+    server.get(
+      "/api/v5/stock/earningsTrend/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.earningsTrend(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/earningsTrend/:symbol error: " + err);
+        }
+      }
+    );
   },
 };
 
