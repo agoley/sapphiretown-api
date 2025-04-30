@@ -12,6 +12,8 @@ const summaryCache = new Cache(5000);
 const recommendationCache = new Cache(5000);
 const gradingCache = new Cache(5000);
 const earningsTrendCache = new Cache(5000);
+const quoteModuleCache = new Cache(5000);
+
 const indicatorCache = new Cache(null, true);
 
 const messengers = require("../common/messenger");
@@ -331,6 +333,40 @@ const getEarningsTrend = (symbol) => {
   });
 };
 
+const getQuoteModule = (symbol, module) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v11/finance/quoteSummary/" +
+      symbol
+  );
+
+  let params = {
+    lang: "en",
+    region: "US",
+    modules: module,
+  };
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v);
+        }
+      },
+    });
+  });
+};
+
 const StockService = {
   /**
    * @swagger
@@ -625,7 +661,41 @@ const StockService = {
           return next();
         }
       });
-      
+  },
+  quoteModule: (req, res, next, count) => {
+    if (quoteModuleCache.get(`${req.params.symbol}-${req.params.module}`)) {
+      res.send(
+        quoteModuleCache.get(`${req.params.symbol}-${req.params.module}`)
+      );
+      return next();
+    }
+
+    getQuoteModule(req.params.symbol, req.params.module)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        quoteModuleCache.save(
+          `${req.params.symbol}-${req.params.module}`,
+          data
+        );
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 500ms and retry.
+          setTimeout(() => {
+            StockService.quoteModule(req, res, next, count);
+          }, 500);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
   },
   getQuoteSummary: getQuoteSummary,
   getQuote: getQuote,

@@ -105,6 +105,19 @@ const StockController = {
       }
     );
   },
+  quoteModule: (server) => {
+    server.get(
+      "/api/v5/stock/quoteModule/:module/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.quoteModule(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/quoteModule/:symbol error: " + err);
+        }
+      }
+    );
+  },
 };
 
 module.exports = StockController;
