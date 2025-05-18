@@ -113,7 +113,20 @@ const StockController = {
         try {
           _stock.quoteModule(req, res, next);
         } catch (err) {
-          console.error("/api/v2/stock/quoteModule/:symbol error: " + err);
+          console.error("/api/v5/stock/quoteModule/:symbol error: " + err);
+        }
+      }
+    );
+  },
+  similar: (server) => {
+    server.get(
+      "/api/v5/stock/similar/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.similar(req, res, next);
+        } catch (err) {
+          console.error("/api/v5/stock/similar/:symbol error: " + err);
         }
       }
     );

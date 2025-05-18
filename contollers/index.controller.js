@@ -91,6 +91,7 @@ function IndexController(server, isEnterprise) {
   StockController.grading(server);
   StockController.earningsTrend(server);
   StockController.quoteModule(server);
+  StockController.similar(server);
 
   // integrations endpoints
   IntegrationsController.etradeRequestToken(server);
