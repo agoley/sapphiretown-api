@@ -15,59 +15,184 @@ const gradingCache = new Cache(5000);
 const earningsTrendCache = new Cache(5000);
 const quoteModuleCache = new Cache(5000);
 
-const indicatorCache = new Cache(null, true);
-
 const messengers = require("../common/messenger");
 
 /**
  * @swagger
+ * /api/v5/stock/recommendations/:symbol:
+ *   get:
+ *     summary: Get quote summary with recommendation trends
+ *     description: Retrieves stock recommendation trends over different time periods.
+ *     operationId: getQuoteSummary
+ *     parameters:
+ *       - name: symbol
+ *         in: query
+ *         description: Stock symbol to get quote summary for
+ *         required: true
+ *         type: string
+ *         x-example: AAPL
+ *       - name: modules
+ *         in: query
+ *         description: Comma-separated list of modules to include
+ *         required: false
+ *         type: string
+ *         x-example: recommendationTrend
+ *     responses:
+ *       200:
+ *         description: Successful response with quote summary data
+ *         schema:
+ *           $ref: '#/definitions/QuoteSummaryResponse'
+ *         examples:
+ *           application/json:
+ *             quoteSummary:
+ *               result:
+ *                 - recommendationTrend:
+ *                     trend:
+ *                       - period: "0m"
+ *                         strongBuy: 7
+ *                         buy: 20
+ *                         hold: 16
+ *                         sell: 2
+ *                         strongSell: 1
+ *                       - period: "-1m"
+ *                         strongBuy: 7
+ *                         buy: 23
+ *                         hold: 16
+ *                         sell: 1
+ *                         strongSell: 1
+ *                       - period: "-2m"
+ *                         strongBuy: 7
+ *                         buy: 21
+ *                         hold: 14
+ *                         sell: 2
+ *                         strongSell: 1
+ *                       - period: "-3m"
+ *                         strongBuy: 7
+ *                         buy: 21
+ *                         hold: 13
+ *                         sell: 2
+ *                         strongSell: 2
+ *                     maxAge: 86400
+ *               error: null
+ *       400:
+ *         description: Bad request - invalid parameters
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *       404:
+ *         description: Stock symbol not found
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *
  * definitions:
- *   AnalystRecommendations:
+ *   QuoteSummaryResponse:
  *     type: object
+ *     required:
+ *       - quoteSummary
  *     properties:
  *       quoteSummary:
- *         type: object
- *         properties:
- *           result:
- *             type: array
- *             items:
- *               $ref: '#/definitions/RecommendationTrend'
- *           error:
- *             type: object
+ *         $ref: '#/definitions/QuoteSummary'
+ *
+ *   QuoteSummary:
+ *     type: object
+ *     required:
+ *       - result
+ *       - error
+ *     properties:
+ *       result:
+ *         type: array
+ *         description: Array of quote summary results
+ *         items:
+ *           $ref: '#/definitions/QuoteSummaryResult'
+ *       error:
+ *         type: string
+ *         x-nullable: true
+ *         description: Error message if request failed, null if successful
+ *
+ *   QuoteSummaryResult:
+ *     type: object
+ *     properties:
+ *       recommendationTrend:
+ *         $ref: '#/definitions/RecommendationTrend'
+ *
  *   RecommendationTrend:
  *     type: object
+ *     required:
+ *       - trend
+ *       - maxAge
  *     properties:
  *       trend:
  *         type: array
+ *         description: Array of recommendation trends for different time periods
  *         items:
- *           $ref: '#/definitions/Trend'
- *   Trend:
+ *           $ref: '#/definitions/TrendPeriod'
+ *       maxAge:
+ *         type: integer
+ *         description: Maximum age of the data in seconds
+ *         example: 86400
+ *
+ *   TrendPeriod:
  *     type: object
+ *     required:
+ *       - period
+ *       - strongBuy
+ *       - buy
+ *       - hold
+ *       - sell
+ *       - strongSell
  *     properties:
  *       period:
  *         type: string
- *         description: Represents the number of months since the recommendations were published
+ *         description: Time period relative to current date
+ *         enum: ["0m", "-1m", "-2m", "-3m"]
  *         example: "0m"
  *       strongBuy:
- *         type: number
- *         description: Number of analysts recommending strong buy
- *         example: "7"
+ *         type: integer
+ *         minimum: 0
+ *         description: Number of strong buy recommendations
+ *         example: 7
  *       buy:
- *         type: number
- *         description: Number of analysts recommending buy
- *         example: "7"
+ *         type: integer
+ *         minimum: 0
+ *         description: Number of buy recommendations
+ *         example: 20
  *       hold:
- *         type: number
- *         description: Number of analysts recommending hold
- *         example: "7"
+ *         type: integer
+ *         minimum: 0
+ *         description: Number of hold recommendations
+ *         example: 16
  *       sell:
- *         type: number
- *         description: Number of analysts recommending sell
- *         example: "7"
+ *         type: integer
+ *         minimum: 0
+ *         description: Number of sell recommendations
+ *         example: 2
  *       strongSell:
- *         type: number
- *         description: Number of analysts recommending strong sell
- *         example: "7"
+ *         type: integer
+ *         minimum: 0
+ *         description: Number of strong sell recommendations
+ *         example: 1
+ *
+ *   ErrorResponse:
+ *     type: object
+ *     required:
+ *       - error
+ *       - message
+ *     properties:
+ *       error:
+ *         type: string
+ *         description: Error type
+ *         example: "BAD_REQUEST"
+ *       message:
+ *         type: string
+ *         description: Human-readable error message
+ *         example: "Invalid stock symbol provided"
+ *       code:
+ *         type: integer
+ *         description: HTTP status code
+ *         example: 400
  */
 
 
@@ -658,32 +783,6 @@ const StockService = {
         }
       });
   },
-  /**
-   * @swagger
-   * /api/v5/stock/recommendations/:symbol:
-   *  get:
-   *    summary: Gets analyst recommendations for a symbol.
-   *    consumes:
-   *      - application/json
-   *    parameters:
-   *     - in: path
-   *       name: symbol
-   *       description: Symbol of the desired symbol to get analyst recommendations.
-   *       required: true
-   *       schema:
-   *         type: string
-   *         example: "AAPL"
-   *    responses:
-   *      '200':
-   *        description: A response containing the analyst recommendations for the symbol or an error
-   *        content:
-   *          application/json:
-   *            schema:
-   *              name: AnalystRecommendations
-   *              type: object
-   *              $ref: '#/definitions/AnalystRecommendations'
-   *            example:
-   */
   recommendations: (req, res, next, count) => {
     if (recommendationCache.get(JSON.stringify(req.params.symbol))) {
       res.send(recommendationCache.get(JSON.stringify(req.params.symbol)));
