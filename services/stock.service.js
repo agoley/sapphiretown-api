@@ -195,6 +195,176 @@ const messengers = require("../common/messenger");
  *         example: 400
  */
 
+/**
+ * @swagger
+ * /api/v5/stock/grading/:symbol:
+ *   get:
+ *     summary: Get stock upgrade/downgrade history
+ *     description: Retrieves analyst upgrade/downgrade history including grades, and firms.
+ *     parameters:
+ *       - name: symbol
+ *         in: query
+ *         description: Stock symbol to get upgrade/downgrade history for
+ *         required: true
+ *         type: string
+ *         x-example: AAPL
+ *     responses:
+ *       200:
+ *         description: Successful response with upgrade/downgrade history data
+ *         schema:
+ *           $ref: '#/definitions/QuoteSummaryResponse'
+ *         examples:
+ *           application/json:
+ *             quoteSummary:
+ *               result:
+ *                 - upgradeDowngradeHistory:
+ *                     history:
+ *                       - epochGradeDate: 1747405777
+ *                         firm: "Wedbush"
+ *                         toGrade: "Outperform"
+ *                         fromGrade: "Outperform"
+ *                         action: "reit"
+ *                         priceTargetAction: "Maintains"
+ *                         currentPriceTarget: 270
+ *                       - epochGradeDate: 1746200616
+ *                         firm: "Wedbush"
+ *                         toGrade: "Outperform"
+ *                         fromGrade: "Outperform"
+ *                         action: "main"
+ *                         priceTargetAction: "Raises"
+ *                         currentPriceTarget: 270
+ *                       - epochGradeDate: 1746186867
+ *                         firm: "Rosenblatt"
+ *                         toGrade: "Neutral"
+ *                         fromGrade: "Buy"
+ *                         action: "down"
+ *                         priceTargetAction: "Lowers"
+ *                         currentPriceTarget: 217
+ *                     maxAge: 86400
+ *               error: null
+ *       400:
+ *         description: Bad request - invalid parameters
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *       404:
+ *         description: Stock symbol not found
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         schema:
+ *           $ref: '#/definitions/ErrorResponse'
+ *
+ * definitions:
+ *   QuoteSummaryResponse:
+ *     type: object
+ *     required:
+ *       - quoteSummary
+ *     properties:
+ *       quoteSummary:
+ *         $ref: '#/definitions/QuoteSummary'
+ *
+ *   QuoteSummary:
+ *     type: object
+ *     required:
+ *       - result
+ *       - error
+ *     properties:
+ *       result:
+ *         type: array
+ *         description: Array of quote summary results
+ *         items:
+ *           $ref: '#/definitions/QuoteSummaryResult'
+ *       error:
+ *         type: string
+ *         x-nullable: true
+ *         description: Error message if request failed, null if successful
+ *
+ *   QuoteSummaryResult:
+ *     type: object
+ *     properties:
+ *       upgradeDowngradeHistory:
+ *         $ref: '#/definitions/UpgradeDowngradeHistory'
+ *
+ *   UpgradeDowngradeHistory:
+ *     type: object
+ *     required:
+ *       - history
+ *       - maxAge
+ *     properties:
+ *       history:
+ *         type: array
+ *         description: Array of analyst upgrade/downgrade events
+ *         items:
+ *           $ref: '#/definitions/UpgradeDowngradeRecord'
+ *       maxAge:
+ *         type: integer
+ *         description: Maximum age of the data in seconds
+ *         example: 86400
+ *
+ *   UpgradeDowngradeRecord:
+ *     type: object
+ *     required:
+ *       - epochGradeDate
+ *       - firm
+ *       - toGrade
+ *       - fromGrade
+ *       - action
+ *       - priceTargetAction
+ *       - currentPriceTarget
+ *     properties:
+ *       epochGradeDate:
+ *         type: integer
+ *         description: Unix timestamp of the grade event
+ *         example: 1747405777
+ *       firm:
+ *         type: string
+ *         description: Analyst firm issuing the rating
+ *         example: "Wedbush"
+ *       toGrade:
+ *         type: string
+ *         description: Grade assigned in this update
+ *         example: "Outperform"
+ *       fromGrade:
+ *         type: string
+ *         description: Previous grade before this update
+ *         example: "Neutral"
+ *       action:
+ *         type: string
+ *         description: Type of rating action (e.g., up, down, main, reit)
+ *         enum: ["up", "down", "main", "reit"]
+ *         example: "reit"
+ *       priceTargetAction:
+ *         type: string
+ *         description: Description of price target adjustment
+ *         example: "Maintains"
+ *       currentPriceTarget:
+ *         type: number
+ *         format: float
+ *         description: Analyst's current price target
+ *         example: 270
+ *
+ *   ErrorResponse:
+ *     type: object
+ *     required:
+ *       - error
+ *       - message
+ *     properties:
+ *       error:
+ *         type: string
+ *         description: Error type
+ *         example: "BAD_REQUEST"
+ *       message:
+ *         type: string
+ *         description: Human-readable error message
+ *         example: "Invalid stock symbol provided"
+ *       code:
+ *         type: integer
+ *         description: HTTP status code
+ *         example: 400
+ */
+
+
 
 function scrapeNews(symbol, exchange) {
   let url = "https://www.google.com/finance/quote/" + symbol;
