@@ -19,6 +19,58 @@ const indicatorCache = new Cache(null, true);
 
 const messengers = require("../common/messenger");
 
+/**
+ * @swagger
+ * definitions:
+ *   AnalystRecommendations:
+ *     type: object
+ *     properties:
+ *       quoteSummary:
+ *         type: object
+ *         properties:
+ *           result:
+ *             type: array
+ *             items:
+ *               $ref: '#/definitions/RecommendationTrend'
+ *           error:
+ *             type: object
+ *   RecommendationTrend:
+ *     type: object
+ *     properties:
+ *       trend:
+ *         type: array
+ *         items:
+ *           $ref: '#/definitions/Trend'
+ *   Trend:
+ *     type: object
+ *     properties:
+ *       period:
+ *         type: string
+ *         description: Represents the number of months since the recommendations were published
+ *         example: "0m"
+ *       strongBuy:
+ *         type: number
+ *         description: Number of analysts recommending strong buy
+ *         example: "7"
+ *       buy:
+ *         type: number
+ *         description: Number of analysts recommending buy
+ *         example: "7"
+ *       hold:
+ *         type: number
+ *         description: Number of analysts recommending hold
+ *         example: "7"
+ *       sell:
+ *         type: number
+ *         description: Number of analysts recommending sell
+ *         example: "7"
+ *       strongSell:
+ *         type: number
+ *         description: Number of analysts recommending strong sell
+ *         example: "7"
+ */
+
+
 function scrapeNews(symbol, exchange) {
   let url = "https://www.google.com/finance/quote/" + symbol;
   if (exchange) {
@@ -606,6 +658,29 @@ const StockService = {
         }
       });
   },
+    /**
+   * @swagger
+   * /api/v5/stock/recommendations/:symbol:
+   *  get:
+   *    summary: Gets analyst recommendations for a symbol.
+   *    consumes:
+   *      - application/json
+   *    parameters:
+   *     - in: path
+   *       name: symbol
+   *       description: Symbol of the desired symbol to get analyst recommendations.
+   *       required: true
+   *       schema:
+   *         type: string
+   *         example: "AAPL"
+   *    responses:
+   *      '200':
+ *        description: A response containing the analyst recommendations for the symbol or an error
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/definitions/AnalystRecommendations'
+   */
   recommendations: (req, res, next, count) => {
     if (recommendationCache.get(JSON.stringify(req.params.symbol))) {
       res.send(recommendationCache.get(JSON.stringify(req.params.symbol)));
