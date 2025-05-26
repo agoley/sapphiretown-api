@@ -658,7 +658,7 @@ const StockService = {
         }
       });
   },
-    /**
+  /**
    * @swagger
    * /api/v5/stock/recommendations/:symbol:
    *  get:
@@ -675,11 +675,14 @@ const StockService = {
    *         example: "AAPL"
    *    responses:
    *      '200':
- *        description: A response containing the analyst recommendations for the symbol or an error
- *        content:
- *          application/json:
- *            schema:
- *              $ref: '#/definitions/AnalystRecommendations'
+   *        description: A response containing the analyst recommendations for the symbol or an error
+   *        content:
+   *          application/json:
+   *            schema:
+   *              name: AnalystRecommendations
+   *              type: object
+   *              $ref: '#/definitions/AnalystRecommendations'
+   *            example:
    */
   recommendations: (req, res, next, count) => {
     if (recommendationCache.get(JSON.stringify(req.params.symbol))) {
