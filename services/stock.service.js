@@ -24,6 +24,8 @@ const messengers = require("../common/messenger");
  * /api/v5/stock/recommendations/{symbol}:
  *   get:
  *     summary: Get quote summary with recommendation trends
+ *     tags:
+ *       - Analysis
  *     description: Retrieves stock recommendation trends over different time periods.
  *     operationId: getQuoteSummary
  *     parameters:
@@ -202,6 +204,8 @@ const messengers = require("../common/messenger");
  * /api/v5/stock/grading/{symbol}:
  *   get:
  *     summary: Get stock upgrade/downgrade history
+ *     tags:
+ *       - Analysis
  *     description: Retrieves analyst upgrade/downgrade history including grades, and firms.
  *     parameters:
  *       - name: symbol
@@ -371,6 +375,8 @@ const messengers = require("../common/messenger");
  * /api/v5/stock/earningsTrend/{symbol}:
  *   get:
  *     summary: Get earnings trend
+ *     tags:
+ *       - Analysis
  *     description: Returns quarterly and yearly earnings trend data.
  *     responses:
  *       200:
@@ -535,6 +541,8 @@ const messengers = require("../common/messenger");
  * /api/v5/stock/similar/{symbol}:
  *   get:
  *     summary: Get recommended symbols for a given symbol
+ *     tags:
+ *       - Analysis
  *     description: Returns a list of recommended financial symbols based on a specified symbol.
  *     responses:
  *       200:
@@ -585,6 +593,8 @@ const messengers = require("../common/messenger");
  * /api/v5/stock/calendarEvents/{symbol}:
  *   get:
  *     summary: Get calendar events for a given financial symbol
+ *     tags:
+ *       - Analysis
  *     description: Returns earnings and dividend dates for a specified symbol.
  *     responses:
  *       200:
@@ -687,7 +697,7 @@ const messengers = require("../common/messenger");
  *   get:
  *     summary: Get SEC filings for a specific company
  *     tags:
- *       - Quote
+ *       - Analysis
  *     responses:
  *       200:
  *         description: A list of recent SEC filings
