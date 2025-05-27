@@ -681,6 +681,81 @@ const messengers = require("../common/messenger");
  *             type: string
  */
 
+/**
+ * @swagger
+ * /api/v5/stock/secFilings/{symbol}:
+ *   get:
+ *     summary: Get SEC filings for a specific company
+ *     tags:
+ *       - Quote
+ *     responses:
+ *       200:
+ *         description: A list of recent SEC filings
+ *         schema:
+ *           type: object
+ *           properties:
+ *             quoteSummary:
+ *               type: object
+ *               properties:
+ *                 result:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       secFilings:
+ *                         type: object
+ *                         properties:
+ *                           filings:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 date:
+ *                                   type: string
+ *                                   format: date
+ *                                   example: "2025-05-02"
+ *                                 epochDate:
+ *                                   type: integer
+ *                                   example: 1746144000
+ *                                 type:
+ *                                   type: string
+ *                                   example: "10-Q"
+ *                                 title:
+ *                                   type: string
+ *                                   example: "Periodic Financial Reports"
+ *                                 edgarUrl:
+ *                                   type: string
+ *                                   format: uri
+ *                                   example: "https://finance.yahoo.com/sec-filing/AAPL/0000320193-25-000057_320193"
+ *                                 exhibits:
+ *                                   type: array
+ *                                   items:
+ *                                     type: object
+ *                                     properties:
+ *                                       type:
+ *                                         type: string
+ *                                         example: "EX-31.1"
+ *                                       url:
+ *                                         type: string
+ *                                         format: uri
+ *                                         example: "https://cdn.yahoofinance.com/prod/sec-filings/0000320193/000032019325000057/a10-qexhibit31103292025.htm"
+ *                                       downloadUrl:
+ *                                         type: string
+ *                                         format: uri
+ *                                         example: "https://finance.yahoo.com/_getSECFilingReportUrl?reportUrl=/sec-filings/0000320193/000032019325000057/Financial_Report.xlsx"
+ *                                 maxAge:
+ *                                   type: integer
+ *                                   example: 1
+ *                           maxAge:
+ *                             type: integer
+ *                             example: 86400
+ *                 error:
+ *                   type: object
+ *                   nullable: true
+ *                   example: null
+ */
+
+
 
 function scrapeNews(symbol, exchange) {
   let url = "https://www.google.com/finance/quote/" + symbol;
