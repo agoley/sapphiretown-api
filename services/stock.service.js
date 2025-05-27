@@ -14,12 +14,14 @@ const similarCache = new Cache(5000);
 const gradingCache = new Cache(5000);
 const earningsTrendCache = new Cache(5000);
 const quoteModuleCache = new Cache(5000);
+const secFilingsCache = new Cache(5000);
+const calendarEventsCache = new Cache(5000);
 
 const messengers = require("../common/messenger");
 
 /**
  * @swagger
- * /api/v5/stock/recommendations/:symbol:
+ * /api/v5/stock/recommendations/{symbol}:
  *   get:
  *     summary: Get quote summary with recommendation trends
  *     description: Retrieves stock recommendation trends over different time periods.
@@ -197,7 +199,7 @@ const messengers = require("../common/messenger");
 
 /**
  * @swagger
- * /api/v5/stock/grading/:symbol:
+ * /api/v5/stock/grading/{symbol}:
  *   get:
  *     summary: Get stock upgrade/downgrade history
  *     description: Retrieves analyst upgrade/downgrade history including grades, and firms.
@@ -364,6 +366,320 @@ const messengers = require("../common/messenger");
  *         example: 400
  */
 
+/**
+ * @swagger
+ * /api/v5/stock/earningsTrend/{symbol}:
+ *   get:
+ *     summary: Get earnings trend
+ *     description: Returns quarterly and yearly earnings trend data.
+ *     responses:
+ *       200:
+ *         description: Earnings trend retrieved successfully
+ *         schema:
+ *           $ref: '#/definitions/EarningsTrendResponse'
+ */
+
+/**
+ * @swagger
+ * definitions:
+ *   EarningsTrendResponse:
+ *     type: object
+ *     properties:
+ *       quoteSummary:
+ *         type: object
+ *         properties:
+ *           result:
+ *             type: array
+ *             items:
+ *               $ref: '#/definitions/EarningsTrendResult'
+ *           error:
+ *             type: object
+ *             nullable: true
+ *
+ *   EarningsTrendResult:
+ *     type: object
+ *     properties:
+ *       earningsTrend:
+ *         type: object
+ *         properties:
+ *           trend:
+ *             type: array
+ *             items:
+ *               $ref: '#/definitions/TrendItem'
+ *           maxAge:
+ *             type: integer
+ *
+ *   TrendItem:
+ *     type: object
+ *     properties:
+ *       maxAge:
+ *         type: integer
+ *       period:
+ *         type: string
+ *       endDate:
+ *         type: string
+ *         format: date
+ *       growth:
+ *         $ref: '#/definitions/Growth'
+ *       earningsEstimate:
+ *         $ref: '#/definitions/EarningsEstimate'
+ *       revenueEstimate:
+ *         $ref: '#/definitions/RevenueEstimate'
+ *       epsTrend:
+ *         $ref: '#/definitions/EPSTrend'
+ *       epsRevisions:
+ *         $ref: '#/definitions/EPSRevisions'
+ *
+ *   Growth:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: number
+ *         format: float
+ *       fmt:
+ *         type: string
+ *
+ *   EarningsEstimate:
+ *     type: object
+ *     properties:
+ *       avg:
+ *         $ref: '#/definitions/Value'
+ *       low:
+ *         $ref: '#/definitions/Value'
+ *       high:
+ *         $ref: '#/definitions/Value'
+ *       yearAgoEps:
+ *         $ref: '#/definitions/Value'
+ *       numberOfAnalysts:
+ *         $ref: '#/definitions/AnalystCount'
+ *       growth:
+ *         $ref: '#/definitions/Growth'
+ *       earningsCurrency:
+ *         type: string
+ *
+ *   RevenueEstimate:
+ *     type: object
+ *     properties:
+ *       avg:
+ *         $ref: '#/definitions/ValueLong'
+ *       low:
+ *         $ref: '#/definitions/ValueLong'
+ *       high:
+ *         $ref: '#/definitions/ValueLong'
+ *       numberOfAnalysts:
+ *         $ref: '#/definitions/AnalystCount'
+ *       yearAgoRevenue:
+ *         $ref: '#/definitions/ValueLong'
+ *       growth:
+ *         $ref: '#/definitions/Growth'
+ *       revenueCurrency:
+ *         type: string
+ *
+ *   EPSTrend:
+ *     type: object
+ *     properties:
+ *       current:
+ *         $ref: '#/definitions/Value'
+ *       7daysAgo:
+ *         $ref: '#/definitions/Value'
+ *       30daysAgo:
+ *         $ref: '#/definitions/Value'
+ *       60daysAgo:
+ *         $ref: '#/definitions/Value'
+ *       90daysAgo:
+ *         $ref: '#/definitions/Value'
+ *       epsTrendCurrency:
+ *         type: string
+ *
+ *   EPSRevisions:
+ *     type: object
+ *     properties:
+ *       upLast7days:
+ *         $ref: '#/definitions/AnalystCount'
+ *       upLast30days:
+ *         $ref: '#/definitions/AnalystCount'
+ *       downLast7Days:
+ *         $ref: '#/definitions/AnalystCount'
+ *       downLast30days:
+ *         $ref: '#/definitions/AnalystCount'
+ *
+ *   Value:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: number
+ *       fmt:
+ *         type: string
+ *
+ *   ValueLong:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: integer
+ *       fmt:
+ *         type: string
+ *       longFmt:
+ *         type: string
+ *
+ *   AnalystCount:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: integer
+ *       fmt:
+ *         type: string
+ */
+
+/**
+ * @swagger
+ * /api/v5/stock/similar/{symbol}:
+ *   get:
+ *     summary: Get recommended symbols for a given symbol
+ *     description: Returns a list of recommended financial symbols based on a specified symbol.
+ *     responses:
+ *       200:
+ *         description: Recommended symbols retrieved successfully
+ *         schema:
+ *           $ref: '#/definitions/RecommendationsResponse'
+ */
+
+/**
+ * @swagger
+ * definitions:
+ *   RecommendationsResponse:
+ *     type: object
+ *     properties:
+ *       finance:
+ *         type: object
+ *         properties:
+ *           error:
+ *             type: object
+ *             nullable: true
+ *           result:
+ *             type: array
+ *             items:
+ *               $ref: '#/definitions/RecommendationResult'
+
+ *   RecommendationResult:
+ *     type: object
+ *     properties:
+ *       symbol:
+ *         type: string
+ *       recommendedSymbols:
+ *         type: array
+ *         items:
+ *           $ref: '#/definitions/RecommendedSymbol'
+
+ *   RecommendedSymbol:
+ *     type: object
+ *     properties:
+ *       score:
+ *         type: number
+ *         format: float
+ *       symbol:
+ *         type: string
+ */
+
+/**
+ * @swagger
+ * /api/v5/stock/calendarEvents/{symbol}:
+ *   get:
+ *     summary: Get calendar events for a given financial symbol
+ *     description: Returns earnings and dividend dates for a specified symbol.
+ *     responses:
+ *       200:
+ *         description: Calendar events retrieved successfully
+ *         schema:
+ *           $ref: '#/definitions/QuoteSummaryResponse'
+ */
+
+/**
+ * @swagger
+ * definitions:
+ *   QuoteSummaryResponse:
+ *     type: object
+ *     properties:
+ *       quoteSummary:
+ *         type: object
+ *         properties:
+ *           result:
+ *             type: array
+ *             items:
+ *               $ref: '#/definitions/QuoteSummaryResult'
+ *           error:
+ *             type: object
+ *             nullable: true
+
+ *   QuoteSummaryResult:
+ *     type: object
+ *     properties:
+ *       calendarEvents:
+ *         $ref: '#/definitions/CalendarEvents'
+
+ *   CalendarEvents:
+ *     type: object
+ *     properties:
+ *       maxAge:
+ *         type: integer
+ *       earnings:
+ *         $ref: '#/definitions/Earnings'
+ *       exDividendDate:
+ *         $ref: '#/definitions/DateFormatted'
+ *       dividendDate:
+ *         $ref: '#/definitions/DateFormatted'
+
+ *   Earnings:
+ *     type: object
+ *     properties:
+ *       earningsDate:
+ *         type: array
+ *         items:
+ *           $ref: '#/definitions/DateFormatted'
+ *       earningsCallDate:
+ *         type: array
+ *         items:
+ *           $ref: '#/definitions/DateFormatted'
+ *       isEarningsDateEstimate:
+ *         type: boolean
+ *       earningsAverage:
+ *         $ref: '#/definitions/ValueFormatted'
+ *       earningsLow:
+ *         $ref: '#/definitions/ValueFormatted'
+ *       earningsHigh:
+ *         $ref: '#/definitions/ValueFormatted'
+ *       revenueAverage:
+ *         $ref: '#/definitions/ValueFormattedLong'
+ *       revenueLow:
+ *         $ref: '#/definitions/ValueFormattedLong'
+ *       revenueHigh:
+ *         $ref: '#/definitions/ValueFormattedLong'
+
+ *   DateFormatted:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: integer
+ *         format: int64
+ *       fmt:
+ *         type: string
+
+ *   ValueFormatted:
+ *     type: object
+ *     properties:
+ *       raw:
+ *         type: number
+ *         format: float
+ *       fmt:
+ *         type: string
+
+ *   ValueFormattedLong:
+ *     allOf:
+ *       - $ref: '#/definitions/ValueFormatted'
+ *       - type: object
+ *         properties:
+ *           longFmt:
+ *             type: string
+ */
 
 
 function scrapeNews(symbol, exchange) {
@@ -592,6 +908,74 @@ const getRecommendations = (symbol) => {
     lang: "en",
     region: "US",
     modules: "recommendationTrend",
+  };
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v);
+        }
+      },
+    });
+  });
+};
+
+const getSecFilings = (symbol) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v11/finance/quoteSummary/" +
+      symbol
+  );
+
+  let params = {
+    lang: "en",
+    region: "US",
+    modules: "secFilings",
+  };
+
+  uni.query(params);
+
+  uni.headers({
+    "x-api-key": _RAPID_API_KEY_YAHOO_FINANCE_LOW_LATENCY,
+    useQueryString: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    let tag = messengers.yahooLowLatency.load(uni.send());
+    messengers.yahooLowLatency.responses.subscribe({
+      next: (v) => {
+        if (v.id === tag) {
+          resolve(v);
+        }
+      },
+    });
+  });
+};
+
+const getCalendarEvents = (symbol) => {
+  var uni = unirest(
+    "GET",
+    "https://" +
+      _RAPID_API_HOST_YAHOO_FINANCE_LOW_LATENCY +
+      "/v11/finance/quoteSummary/" +
+      symbol
+  );
+
+  let params = {
+    lang: "en",
+    region: "US",
+    modules: "calendarEvents",
   };
 
   uni.query(params);
@@ -1036,6 +1420,66 @@ const StockService = {
           // Wait 500ms and retry.
           setTimeout(() => {
             StockService.earningsTrend(req, res, next, count);
+          }, 500);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  secFilings: (req, res, next, count) => {
+    if (secFilingsCache.get(JSON.stringify(req.params.symbol))) {
+      res.send(secFilingsCache.get(JSON.stringify(req.params.symbol)));
+      return next();
+    }
+
+    getSecFilings(req.params.symbol)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        secFilingsCache.save(JSON.stringify(req.params.symbol), data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 500ms and retry.
+          setTimeout(() => {
+            StockService.secFilings(req, res, next, count);
+          }, 500);
+        } else {
+          res.send(data);
+          return next();
+        }
+      });
+  },
+  calendarEvents: (req, res, next, count) => {
+    if (calendarEventsCache.get(JSON.stringify(req.params.symbol))) {
+      res.send(calendarEventsCache.get(JSON.stringify(req.params.symbol)));
+      return next();
+    }
+
+    getCalendarEvents(req.params.symbol)
+      .then((data) => {
+        if (data.err) {
+          console.error(data.err);
+          res.send(data);
+          return next();
+        }
+        calendarEventsCache.save(JSON.stringify(req.params.symbol), data);
+        res.send(data);
+        return next();
+      })
+      .catch((err) => {
+        count = count ? count + 1 : 1;
+        if (count < 5) {
+          // Wait 500ms and retry.
+          setTimeout(() => {
+            StockService.calendarEvents(req, res, next, count);
           }, 500);
         } else {
           res.send(data);

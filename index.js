@@ -180,7 +180,6 @@ controllers(server, false);
 controllers(enterpriseServer, true);
 
 var restifySwaggerJsdoc = require("restify-swagger-jsdoc");
-const PortfolioService = require("./services/portfolio.service");
 const Portfolio = require("./common/portfolio");
 const notifications = require("./jobs/notifications.job");
 
@@ -188,6 +187,7 @@ restifySwaggerJsdoc.createSwaggerPage({
   title: "EZFol.io API documentation", // Page title
   version: "2.0.13", // Server version
   server: enterpriseServer, // Restify server instance created with restify.createServer()
+  host: "https://ezfolio-enterprise-server.herokuapp.com",
   path: "/docs/swagger", // Public url where the swagger page will be available
   apis: ["./index.js", "./services/*.service.js"],
   host: process.env.SWAGGER_HOST || "ezfolio-enterprise-server.herokuapp.com/",

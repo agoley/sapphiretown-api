@@ -105,6 +105,32 @@ const StockController = {
       }
     );
   },
+  secFilings: (server) => {
+    server.get(
+      "/api/v5/stock/secFilings/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.secFilings(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/secFilings/:symbol error: " + err);
+        }
+      }
+    );
+  },
+  calendarEvents: (server) => {
+    server.get(
+      "/api/v5/stock/calendarEvents/:symbol",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _stock.calendarEvents(req, res, next);
+        } catch (err) {
+          console.error("/api/v2/stock/calendarEvents/:symbol error: " + err);
+        }
+      }
+    );
+  },
   quoteModule: (server) => {
     server.get(
       "/api/v5/stock/quoteModule/:module/:symbol",

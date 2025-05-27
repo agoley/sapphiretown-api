@@ -90,6 +90,8 @@ function IndexController(server, isEnterprise) {
   StockController.recommendations(server);
   StockController.grading(server);
   StockController.earningsTrend(server);
+  StockController.secFilings(server);
+  StockController.calendarEvents(server);
   StockController.quoteModule(server);
   StockController.similar(server);
 
