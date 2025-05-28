@@ -187,7 +187,7 @@ const previewTransactionsFromCSV = (req, form) => {
           .on("data", async (data) => {
             let transaction = {};
             if (!headerRow) {
-              // A transaction needs at least 5 entries Date, Type, Symbol, Quantity, Price
+              // A transaction needs at least 4 entries Date, Symbol, Quantity, Price
               let isDateMatch,
                 isTypeMatch,
                 isSymbolMatch,
@@ -224,7 +224,6 @@ const previewTransactionsFromCSV = (req, form) => {
                   isDateMatch &&
                   isPriceMatch &&
                   isQuantityMatch &&
-                  isTypeMatch &&
                   isSymbolMatch
                 ) {
                   headerRow = data;
@@ -349,6 +348,13 @@ const previewTransactionsFromCSV = (req, form) => {
                   });
                 } else {
                   transaction.quantity = data[amountColIndex];
+                }
+              }
+
+              if (!transaction.type) {
+                if (transaction.quantity) {
+                  transaction.type =
+                    transaction.quantity > 0 ? "PURCHASE" : "SALE";
                 }
               }
 
@@ -1761,7 +1767,7 @@ const PortfolioService = {
         res.send(summaryCache.get(req.params.id));
         return next();
       }
-      
+
       var params = {
         TableName: "Portfolio",
         FilterExpression: "(id = :id)",
