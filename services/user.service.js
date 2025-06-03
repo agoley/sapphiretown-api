@@ -1276,7 +1276,7 @@ const UserService = {
                   ? user.active_portfolio
                   : false || "",
               ":preferences": JSON.stringify(req.body.preferences),
-              ":plan_name": req.body.plan_name
+              ":plan_name": req.body.plan_name || "FREE"
             },
             ReturnValues: "ALL_NEW",
           };
