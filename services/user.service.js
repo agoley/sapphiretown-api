@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 
 // TODO abstract mailer/transporter
 var nodemailer = require("nodemailer");
+const { addAdvisorOnlyClient } = require("../contollers/user.controller");
 
 // Stripe client
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
@@ -26,11 +27,71 @@ AWS.config.update({
 var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
 var docClient = new AWS.DynamoDB.DocumentClient();
 
+export const PLAN_NAMES = Object.freeze({
+  FREE: "FREE",
+  PRO: "PRO",
+  PLANNER: "PLANNER",
+  ENTERPRISE: "ENTERPRISE",
+});
+
+export const DEFAULT_USER_PREFERENCES = {
+  username: "",
+  defaults: {
+    timerange: "1d",
+    layout: "table",
+  },
+  dashboard: {
+    overview: true,
+    holdings: true,
+    market: true,
+    watchlist: true,
+    distribution: true,
+    trending: true,
+  },
+  notifications: {
+    dividends: true,
+    earnings: true,
+    largeChange: true,
+  },
+};
+
 const genAPIKey = () => {
   //create a base-36 string that contains 30 chars in a-z,0-9
   return [...Array(30)]
     .map((e) => ((Math.random() * 36) | 0).toString(36))
     .join("");
+};
+
+const getUserByEmail = async (email) => {
+  const params = {
+    TableName: "User",
+    Key: {
+      email: email,
+    },
+  };
+
+  try {
+    const result = await docClient.get(params).promise();
+
+    if (result.Item) {
+      return {
+        success: true,
+        user: result.Item,
+      };
+    } else {
+      return {
+        success: false,
+        message: "User not found",
+      };
+    }
+  } catch (error) {
+    console.error("Error getting user:", error);
+    return {
+      success: false,
+      message: "Error retrieving user",
+      error: error.message,
+    };
+  }
 };
 
 const getUserById = (id) => {
@@ -1276,7 +1337,7 @@ const UserService = {
                   ? user.active_portfolio
                   : false || "",
               ":preferences": JSON.stringify(req.body.preferences),
-              ":plan_name": req.body.plan_name || "FREE"
+              ":plan_name": req.body.plan_name || "FREE",
             },
             ReturnValues: "ALL_NEW",
           };
@@ -2282,7 +2343,15 @@ const UserService = {
                 });
               } else {
                 if (data["Items"].length > 0) {
-                  const clients = data["Items"];
+                  let clients = JSON.parse(JSON.stringify(data["Items"]));
+                  clients = clients.map((c) => {
+                    delete c.password;
+                    delete c.stripe_customer_id;
+                    delete c.stripe_payment_method_id;
+                    delete c.stripe_subscription_id;
+
+                    return c;
+                  });
                   res.send(clients);
                   return next();
                 } else {
@@ -2414,6 +2483,117 @@ const UserService = {
         }
       };
       docClient.scan(params, onScan);
+    }
+  },
+  addAdvisorOnlyClient: async (req, res, next) => {
+    const requestingUserId = req.params.id;
+    const { email } = req.body;
+
+    // Validate input
+    if (!email) {
+      res.send(400, {
+        success: false,
+        message: "Email is required",
+      });
+      return next();
+    }
+
+    if (!requestingUserId) {
+      res.send(400, {
+        success: false,
+        message: "User ID is required in URL params",
+      });
+      return next();
+    }
+
+    try {
+      // Step 1: Check if user with email already exists (using scan since email is not primary key)
+      const existingUserParams = {
+        TableName: "User",
+        FilterExpression: "email = :email",
+        ExpressionAttributeValues: {
+          ":email": email,
+        },
+      };
+
+      const existingUser = await docClient.scan(existingUserParams).promise();
+
+      if (existingUser.Items && existingUser.Items.length > 0) {
+        res.send(409, {
+          success: false,
+          message: "User with this email already exists",
+        });
+        return next();
+      }
+
+      // Step 2: Create new user with the email
+      const newUserId = uuidv1(); // Generate unique ID for new user
+      const newUserParams = {
+        TableName: "User",
+        Item: {
+          id: newUserId, // Partition key
+          email: email,
+          created: new Date().toString(),
+          watchlist: [].toString(),
+          preferences: JSON.stringify(DEFAULT_USER_PREFERENCES),
+        },
+      };
+
+      await docClient.put(newUserParams).promise();
+
+      // Step 3: Create Client record
+      const clientId = uuidv1(); // Generate unique ID for client record
+      const clientParams = {
+        TableName: "Client",
+        Item: {
+          id: clientId, // Partition key
+          user_id: requestingUserId, // The requesting user's ID
+          client_id: newUserId, // The newly created user's ID
+        },
+      };
+
+      await docClient.put(clientParams).promise();
+
+      // Step 4: Create Portfolio record for the new user
+      const portfolioId = uuidv1(); // Using v1 to match your example
+      const portfolioParams = {
+        TableName: "Portfolio",
+        Item: {
+          id: portfolioId,
+          user_id: newUserId, // The newly created user's ID
+          transactions: "[]", // Empty transactions array as string, or set default value
+          createTime: new Date().getTime(),
+        },
+      };
+
+      await docClient.put(portfolioParams).promise();
+
+      // Success response
+      res.send(201, {
+        success: true,
+        message: "Client created successfully",
+        data: {
+          newUser: {
+            id: newUserId,
+            email: email,
+          },
+          clientRecord: {
+            id: clientId,
+            user_id: requestingUserId,
+            client_id: newUserId,
+          },
+        },
+      });
+
+      return next();
+    } catch (error) {
+      console.error("Error creating client:", error);
+      res.send(500, {
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
+      return next(error);
     }
   },
   getUserById: getUserById,

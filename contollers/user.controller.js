@@ -287,6 +287,15 @@ const UserController = {
       }
     });
   },
+   addAdvisorOnlyClient: (server) => {
+    server.post("/api/v4/:id/advisor-only-client", ...middleware, (req, res, next) => {
+      try {
+        _user.addAdvisorOnlyClient(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/:id/advisor-only-client error: " + err);
+      }
+    });
+  },
 };
 
 module.exports = UserController;

@@ -55,6 +55,7 @@ function IndexController(server, isEnterprise) {
   if (!isEnterprise) UserController.inviteClients(server);
   if (!isEnterprise) UserController.getClients(server);
   if (!isEnterprise) UserController.removeClient(server);
+    if (!isEnterprise) UserController.addAdvisorOnlyClient(server);
   if (!isEnterprise) UserController.reset(server);
   if (!isEnterprise) UserController.getCoupon(server);
 
