@@ -130,17 +130,13 @@ const UserController = {
     );
   },
   getCoupon: (server) => {
-    server.post(
-      "/api/v2/users/coupons",
-      ...middleware,
-      (req, res, next) => {
-        try {
-          _user.getCoupon(req, res, next);
-        } catch (err) {
-          console.error("/api/v2/users/coupons error: " + err);
-        }
+    server.post("/api/v2/users/coupons", ...middleware, (req, res, next) => {
+      try {
+        _user.getCoupon(req, res, next);
+      } catch (err) {
+        console.error("/api/v2/users/coupons error: " + err);
       }
-    );
+    });
   },
   subscribe: (server) => {
     server.post(
@@ -279,22 +275,43 @@ const UserController = {
     });
   },
   removeClient: (server) => {
-    server.del("/api/v4/:id/clients/:client_id", ...middleware, (req, res, next) => {
-      try {
-        _user.removeClient(req, res, next);
-      } catch (err) {
-        console.error("/api/v4/:id/clients/:id error: " + err);
+    server.del(
+      "/api/v4/:id/clients/:client_id",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.removeClient(req, res, next);
+        } catch (err) {
+          console.error("/api/v4/:id/clients/:id error: " + err);
+        }
       }
-    });
+    );
   },
-   addAdvisorOnlyClient: (server) => {
-    server.post("/api/v4/:id/advisor-only-client", ...middleware, (req, res, next) => {
-      try {
-        _user.addAdvisorOnlyClient(req, res, next);
-      } catch (err) {
-        console.error("/api/v4/:id/advisor-only-client error: " + err);
+  addAdvisorOnlyClient: (server) => {
+    server.post(
+      "/api/v4/:id/advisor-only-client",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.addAdvisorOnlyClient(req, res, next);
+        } catch (err) {
+          console.error("/api/v4/:id/advisor-only-client error: " + err);
+        }
       }
-    });
+    );
+  },
+  inviteAdvisorOnlyClient: (server) => {
+    server.post(
+      "/api/v4/:id/advisor-only-client/invite",
+      ...middleware,
+      (req, res, next) => {
+        try {
+          _user.inviteAdvisorOnlyClient(req, res, next);
+        } catch (err) {
+          console.error("/api/v4/:id/advisor-only-client/invite error: " + err);
+        }
+      }
+    );
   },
 };
 

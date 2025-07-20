@@ -4,7 +4,6 @@ const bcrypt = require("bcrypt");
 
 // TODO abstract mailer/transporter
 var nodemailer = require("nodemailer");
-const { addAdvisorOnlyClient } = require("../contollers/user.controller");
 
 // Stripe client
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
@@ -62,36 +61,14 @@ const genAPIKey = () => {
     .join("");
 };
 
-const getUserByEmail = async (email) => {
-  const params = {
-    TableName: "User",
-    Key: {
-      email: email,
-    },
-  };
-
-  try {
-    const result = await docClient.get(params).promise();
-
-    if (result.Item) {
-      return {
-        success: true,
-        user: result.Item,
-      };
-    } else {
-      return {
-        success: false,
-        message: "User not found",
-      };
-    }
-  } catch (error) {
-    console.error("Error getting user:", error);
-    return {
-      success: false,
-      message: "Error retrieving user",
-      error: error.message,
-    };
+const generateRandomPassword = (length = 12) => {
+  const charset =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
   }
+  return password;
 };
 
 const getUserById = (id) => {
@@ -2485,6 +2462,145 @@ const UserService = {
       docClient.scan(params, onScan);
     }
   },
+  inviteAdvisorOnlyClient: async (req, res, next) => {
+    try {
+      const { email, invitee } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          error: "Email is required",
+        });
+      }
+
+      if (!invitee) {
+        return res.status(400).json({
+          error: "Invitee email is required",
+        });
+      }
+
+      // Step 1: Scan for user by email
+      const scanParams = {
+        TableName: "User",
+        FilterExpression: "email = :email",
+        ExpressionAttributeValues: {
+          ":email": email,
+        },
+      };
+
+      const scanResult = await docClient.scan(scanParams).promise();
+
+      if (scanResult.Items.length === 0) {
+        return res.status(404).json({
+          error: "User not found",
+        });
+      }
+
+      if (scanResult.Items.length > 1) {
+        console.warn(`Multiple users found with email: ${email}`);
+      }
+
+      const user = scanResult.Items[0];
+      const tempPassword = generateRandomPassword();
+
+      // Step 2: Update user with new temporary password
+      const updateParams = {
+        TableName: "User",
+        Key: {
+          id: user.id,
+        },
+        UpdateExpression:
+          "SET password=:password, is_advisor_only=:is_advisor_only",
+        ExpressionAttributeValues: {
+          ":password": bcrypt.hashSync(tempPassword, 10),
+          ":is_advisor_only": false,
+        },
+        ReturnValues: "ALL_NEW",
+      };
+
+      const updateResult = await docClient.update(updateParams).promise();
+
+      // Step 3: Send welcome email with temporary password
+      const mailOptions = {
+        from: "alex@ezfol.io",
+        to: email,
+        subject: "Welcome! Your EZFol.io Account Has Been Set Up",
+        html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(108, 167, 104, 0.1);">
+          <!-- Header -->
+          <div style="background: #f0f8f0; padding: 30px 40px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="https://email-campaign-server-9a1eb5eb4201.herokuapp.com/logo.png" alt="EZfolio Logo" style="max-width: 200px; height: auto; margin-bottom: 20px; filter: brightness(0) invert(1);" />
+          </div>
+          
+          <!-- Content -->
+          <div style="padding: 40px;">
+            <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">You have been invited to join EZfolio by <strong style="color: #6ca768;">${invitee}</strong>!</p>
+            <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 25px 0;">Your account has been successfully set up. Below are your login credentials to get started:</p>
+            
+            <!-- Credentials Box -->
+            <div style="background: linear-gradient(135deg, rgba(108, 167, 104, 0.05) 0%, rgba(108, 167, 104, 0.1) 100%); border: 2px solid #6ca768; padding: 25px; border-radius: 8px; margin: 25px 0;">
+              <div style="margin-bottom: 15px;">
+                <p style="margin: 0; color: #333333; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</p>
+                <p style="margin: 5px 0 0 0; color: #6ca768; font-size: 16px; font-weight: 500;">${email}</p>
+              </div>
+              <div>
+                <p style="margin: 0; color: #333333; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password</p>
+                <p style="margin: 5px 0 0 0; color: #ffffff; background-color: #6ca768; padding: 8px 12px; border-radius: 4px; display: inline-block; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; letter-spacing: 1px;">${tempPassword}</p>
+              </div>
+            </div>
+            
+            <!-- Important Notice -->
+            <div style="background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 15px 20px; margin: 25px 0; border-radius: 0 4px 4px 0;">
+              <p style="margin: 0; color: #856404; font-size: 15px; font-weight: 500;">
+                <span style="font-weight: 600;">⚠️ Important:</span> Please log in and change your password immediately for security reasons.
+              </p>
+            </div>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://www.ezfol.io/login?email=${email}" style="background: linear-gradient(135deg, #6ca768 0%, #5a9156 100%); color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-size: 16px; font-weight: 500; display: inline-block; box-shadow: 0 3px 12px rgba(108, 167, 104, 0.3); transition: all 0.3s ease;">Login to Your Account</a>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f8f9fa; padding: 25px 40px; border-radius: 0 0 8px 8px; border-top: 1px solid rgba(108, 167, 104, 0.1);">
+            <p style="font-size: 13px; color: #6c757d; margin: 0; text-align: center; line-height: 1.5;">
+              If this doesn't seem right, please <a href="https://www.ezfol.io/contact-us" style="color: #6ca768; text-decoration: none; font-weight: 500;">contact our support team</a> immediately.<br>
+              <span style="color: #6ca768; font-weight: 500;">This email was sent from a secure, monitored system.</span>
+            </p>
+          </div>
+        </div>
+      `,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      // Step 4: Return success response (don't include password in response)
+      res.send(200, {
+        success: true,
+        message: "User invitation sent successfully. Welcome email delivered.",
+        user: {
+          id: updateResult.Attributes.id,
+          email: updateResult.Attributes.email,
+          invitedBy: invitee,
+        },
+      });
+    } catch (error) {
+      console.error("Error in invite-user endpoint:", error);
+
+      if (error.code === "ResourceNotFoundException") {
+        res.send(500, {
+          error: "Database table not found",
+        });
+        return next();
+      }
+
+      res.send(500, {
+        error: "Internal server error occurred while sending invitation",
+      });
+    }
+
+    return next();
+  },
   addAdvisorOnlyClient: async (req, res, next) => {
     const requestingUserId = req.params.id;
     const { email } = req.body;
@@ -2536,6 +2652,8 @@ const UserService = {
           created: new Date().toString(),
           watchlist: [].toString(),
           preferences: JSON.stringify(DEFAULT_USER_PREFERENCES),
+          plan_name: PLAN_NAMES.PRO,
+          is_advisor_only: true,
         },
       };
 
