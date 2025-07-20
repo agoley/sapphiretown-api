@@ -2527,7 +2527,7 @@ const UserService = {
         html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(108, 167, 104, 0.1);">
           <!-- Header -->
-          <div style="background: #f0f8f0; padding: 30px 40px; text-align: center; border-radius: 8px 8px 0 0;">
+          <div style="background: linear-gradient(135deg, #6ca768 0%, #5a9156 100%); padding: 30px 40px; text-align: center; border-radius: 8px 8px 0 0;">
             <img src="https://email-campaign-server-9a1eb5eb4201.herokuapp.com/logo.png" alt="EZfolio Logo" style="max-width: 200px; height: auto; margin-bottom: 20px; filter: brightness(0) invert(1);" />
           </div>
           
