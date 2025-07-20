@@ -2528,12 +2528,12 @@ const UserService = {
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(108, 167, 104, 0.1);">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #6ca768 0%, #5a9156 100%); padding: 30px 40px; text-align: center; border-radius: 8px 8px 0 0;">
-            <img src="https://email-campaign-server-9a1eb5eb4201.herokuapp.com/logo.png" alt="EZfolio Logo" style="max-width: 200px; height: auto; margin-bottom: 20px; filter: brightness(0) invert(1);" />
+            <img src="https://email-campaign-server-9a1eb5eb4201.herokuapp.com/logo.png" alt="EZfolio Logo" style="max-width: 200px; height: auto; filter: brightness(0) invert(1);" />
           </div>
           
           <!-- Content -->
           <div style="padding: 40px;">
-            <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">You have been invited to join EZfolio by <strong style="color: #6ca768;">${invitee}</strong>!</p>
+            <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">You have been invited to join EZFol.io by <strong style="color: #6ca768;">${invitee}</strong>!</p>
             <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 25px 0;">Your account has been successfully set up. Below are your login credentials to get started:</p>
             
             <!-- Credentials Box -->
