@@ -313,6 +313,15 @@ const UserController = {
       }
     );
   },
+  createReport: (server) => {
+    server.post("/api/v4/:id/createReport", ...middleware, (req, res, next) => {
+      try {
+        _user.createReport(req, res, next);
+      } catch (err) {
+        console.error("/api/v4/:id/createReport error: " + err);
+      }
+    });
+  },
 };
 
 module.exports = UserController;

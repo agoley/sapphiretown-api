@@ -1,6 +1,7 @@
 let AWS = require("aws-sdk");
 const { v1: uuidv1 } = require("uuid");
 const bcrypt = require("bcrypt");
+const puppeteer = require("puppeteer");
 
 // TODO abstract mailer/transporter
 var nodemailer = require("nodemailer");
@@ -23,8 +24,15 @@ AWS.config.update({
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
-var ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
-var docClient = new AWS.DynamoDB.DocumentClient();
+// Configure AWS Objects
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || "us-east-1",
+});
+
+const ddb = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
+const docClient = new AWS.DynamoDB.DocumentClient();
 
 export const PLAN_NAMES = Object.freeze({
   FREE: "FREE",
@@ -2596,6 +2604,437 @@ const UserService = {
 
       res.send(500, {
         error: "Internal server error occurred while sending invitation",
+      });
+    }
+
+    return next();
+  },
+  createReport: async (req, res, next) => {
+    let browser = null;
+
+    try {
+      // Extract user ID from URL params
+      const userId = req.params.id;
+
+      if (!userId) {
+        return res.send(400, {
+          error: "User ID is required in URL parameters",
+        });
+      }
+
+      // Look up user in DynamoDB
+      const getUserParams = {
+        TableName: "User",
+        Key: {
+          id: userId,
+        },
+      };
+
+      let userData;
+      try {
+        const userResult = await docClient.get(getUserParams).promise();
+        userData = userResult.Item;
+      } catch (dbError) {
+        console.error("Error fetching user from database:", dbError);
+        return res.send(500, {
+          error: "Failed to verify user authorization",
+          message: dbError.message,
+        });
+      }
+
+      // Check if user exists
+      if (!userData) {
+        return res.send(404, {
+          error: "User not found",
+        });
+      }
+
+      // Check if user has required plan
+      const allowedPlans = ["PLANNER", "ENTERPRISE"];
+      if (!userData.plan_name || !allowedPlans.includes(userData.plan_name)) {
+        return res.send(403, {
+          error:
+            "Unauthorized: This action requires a PLANNER or ENTERPRISE plan",
+          currentPlan: userData.plan_name || "No plan",
+        });
+      }
+
+      const {
+        htmlContent,
+        portfolio_id,
+        bucketName = "ezfolio-user-reports",
+        fileName = "ezfolio-report.pdf",
+        pdfOptions = {},
+        d3Version = "v5",
+        waitTime = 2000,
+        skipD3Wait = false,
+      } = req.body;
+
+      // Validate required fields
+      if (!htmlContent) {
+        return res.send(400, {
+          error: "htmlContent is required in request body",
+        });
+      }
+
+      if (!portfolio_id) {
+        return res.send(400, {
+          error: "portfolio_id is required in request body",
+        });
+      }
+
+      if (!bucketName) {
+        return res.send(400, {
+          error: "bucketName is required in request body",
+        });
+      }
+
+      // Generate filename if not provided
+      const pdfFileName =
+        fileName === "ezfolio-report.pdf"
+          ? `ezfolio-report-${portfolio_id.slice(-4)}-${new Date()
+              .toISOString()
+              .replace(/[:.]/g, "-")
+              .replace(/T/, "_")
+              .slice(0, 19)}.pdf`
+          : fileName;
+
+      // Launch Puppeteer browser
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
+          "--single-process",
+          "--disable-gpu",
+          "--no-sandbox",
+          "--disable-font-subpixel-positioning",
+          "--font-render-hinting=none",
+        ],
+      });
+
+      const page = await browser.newPage();
+
+      // Create a complete HTML document with D3 support
+      const fullHtml = `
+      <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://d3js.org/d3.${d3Version}.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://ezfolio-user-reports.s3.us-east-1.amazonaws.com/index.css" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap");
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProRoman.otf") format("opentype");
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProOblique.otf") format("opentype");
+      font-style: italic;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProHeavy.otf") format("opentype");
+      font-weight: bold;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProHeavyOblique.otf") format("opentype");
+      font-weight: bold;
+      font-style: italic;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProLightOblique.otf") format("opentype");
+      font-weight: 300;
+      font-style: italic;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProLight.otf") format("opentype");
+      font-weight: 300;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProMedium.otf") format("opentype");
+      font-weight: 600;
+      }
+      @font-face {
+      font-family: "Avenir Pro";
+      src: url("https://www.ezfol.io/assets/fonts/AvenirPro/AvenirLTProMediumOblique.otf") format("opentype");
+      font-weight: 600;
+      font-style: italic;
+      }
+      body {
+      margin: 0.25in;
+      }
+      @page {
+      size: letter; /* or A4 */
+      @bottom-right {
+      content: counter(page);
+      }
+      }
+      /* Control page breaks */
+      .page-break {
+      page-break-before: always;
+      }
+      .no-break {
+      page-break-inside: avoid;
+      }
+      /* Keep headings with following content */
+      h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid;
+      page-break-inside: avoid;
+      }
+      /* Avoid orphans and widows */
+      p {
+      orphans: 3;
+      widows: 3;
+      }
+      img {
+      max-width: 100%;
+      height: auto;
+      page-break-inside: avoid;
+      }
+      /* Show URLs after links */
+      a[href]:after {
+      content: " (" attr(href) ")";
+      font-size: 10pt;
+      color: #666;
+      }
+      /* Remove default margins */
+      * {
+      box-sizing: border-box;
+      }
+      body * {
+      font-family: "Avenir Pro", sans-serif;
+      }
+      .y .domain {
+      display: none;
+      }
+      .x .domain {
+      display: none;
+      }
+      .font-mono,
+      code,
+      text {
+      font-family: "Source Code Pro", "Courier New", monospace !important;
+      }
+    </style>
+  </head>
+  <body>
+    ${htmlContent}
+    <script>
+      // Signal when D3 rendering is complete
+      window.d3RenderComplete = false;
+      
+      // Wait for D3 charts to render
+      function waitForD3Rendering() {
+        return new Promise((resolve) => {
+          // Wait for DOM to be ready
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", checkRendering);
+          } else {
+            checkRendering();
+          }
+      
+          function checkRendering() {
+            // Give D3 time to execute and render
+            setTimeout(() => {
+              // Check if there are any ongoing D3 transitions
+              const hasActiveTransitions = d3
+                .selectAll("*")
+                .nodes()
+                .some((node) => d3.select(node).transition && d3.select(node).transition()._groups);
+      
+              if (!hasActiveTransitions) {
+                window.d3RenderComplete = true;
+                resolve();
+              } else {
+                // Wait a bit more and check again
+                setTimeout(checkRendering, 500);
+              }
+            }, 1000); // Initial wait for D3 to start rendering
+          }
+        });
+      }
+      
+      // Start the rendering check
+      waitForD3Rendering();
+    </script>
+  </body>
+</html>
+      `;
+
+      await page.goto("data:text/html," + encodeURIComponent(fullHtml));
+
+      // Wait for fonts to load
+      await page.evaluateOnNewDocument(() => {
+        document.fonts.ready.then(() => {
+          console.log("Fonts loaded");
+        });
+      });
+
+      await page.waitForFunction(() => document.fonts.status === "loaded");
+
+      if (!skipD3Wait) {
+        // Wait for D3 charts to complete rendering (with fallback)
+        try {
+          await page.waitForFunction(() => window.d3RenderComplete === true, {
+            timeout: 10000,
+          });
+        } catch (timeoutError) {
+          console.log(
+            "D3 render detection timed out, proceeding with PDF generation"
+          );
+        }
+      }
+
+      // Additional wait to ensure rendering is complete
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+
+      // Default PDF options optimized for D3/SVG content
+      const defaultPdfOptions = {
+        format: "A4",
+        printBackground: true,
+        preferCSSPageSize: false,
+        displayHeaderFooter: false,
+        margin: {
+          top: "20px",
+          right: "20px",
+          bottom: "20px",
+          left: "20px",
+        },
+      };
+
+      const finalPdfOptions = { ...defaultPdfOptions, ...pdfOptions };
+      const pdfBuffer = await page.pdf(finalPdfOptions);
+
+      // Upload to S3
+      const uploadParams = {
+        Bucket: bucketName,
+        Key: pdfFileName,
+        Body: pdfBuffer,
+        ContentType: "application/pdf",
+        ServerSideEncryption: "AES256",
+      };
+
+      const uploadResult = await s3.upload(uploadParams).promise();
+
+      // Close browser
+      await browser.close();
+      browser = null;
+
+      // Update user record with portfolio_reports info
+      const reportInfo = {
+        name: pdfFileName,
+        url: uploadResult.Location,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updateUserParams = {
+        TableName: "User",
+        Key: {
+          id: userId,
+        },
+        UpdateExpression: "SET portfolio_reports.#portfolioId = :reportInfo",
+        ExpressionAttributeNames: {
+          "#portfolioId": portfolio_id,
+        },
+        ExpressionAttributeValues: {
+          ":reportInfo": reportInfo,
+        },
+      };
+
+      try {
+        await docClient.update(updateUserParams).promise();
+      } catch (updateError) {
+        console.error("Error updating user portfolio_reports:", updateError);
+
+        // If the error is because portfolio_reports doesn't exist, initialize it first
+        if (
+          updateError.code === "ValidationException" &&
+          updateError.message.includes(
+            "document path provided in the update expression is invalid"
+          )
+        ) {
+          try {
+            const initParams = {
+              TableName: "User",
+              Key: {
+                id: userId,
+              },
+              UpdateExpression: "SET portfolio_reports = :emptyMap",
+              ExpressionAttributeValues: {
+                ":emptyMap": {},
+              },
+            };
+
+            await docClient.update(initParams).promise();
+
+            // Now try the original update again
+            await docClient.update(updateUserParams).promise();
+          } catch (retryError) {
+            console.error(
+              "Error on retry updating user portfolio_reports:",
+              retryError
+            );
+            // Note: We don't return an error here since the PDF was successfully created
+          }
+        }
+        // Note: We don't return an error here since the PDF was successfully created
+        // This is just a logging operation that shouldn't fail the entire request
+      }
+
+      // Return success response
+      res.send(200, {
+        success: true,
+        message: "PDF generated and uploaded successfully",
+        s3Location: uploadResult.Location,
+        bucket: bucketName,
+        key: pdfFileName,
+        size: pdfBuffer.length,
+        portfolio_id: portfolio_id,
+        authorizedUser: {
+          id: userId,
+          plan: userData.plan_name,
+        },
+      });
+    } catch (error) {
+      console.error("Error converting DOM to PDF:", error);
+
+      // Cleanup browser if still open
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error("Error closing browser:", closeError);
+        }
+      }
+
+      // Handle specific error types
+      if (error.code === "NoSuchBucket") {
+        return res.send(400, {
+          error: `S3 bucket '${req.body.bucketName}' does not exist`,
+        });
+      }
+
+      if (error.code === "AccessDenied") {
+        return res.send(403, {
+          error:
+            "Access denied to S3 bucket. Check your AWS credentials and permissions.",
+        });
+      }
+
+      res.send(500, {
+        error: "Internal server error",
+        message: error.message,
       });
     }
 
